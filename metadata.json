@@ -1,0 +1,5 @@
+{
+  "name": "ATS Resume Builder",
+  "description": "An AI-powered resume builder that optimizes your CV for Applicant Tracking Systems (ATS) based on specific job descriptions.",
+  "requestFramePermissions": []
+}
