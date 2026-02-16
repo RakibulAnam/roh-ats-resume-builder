@@ -182,6 +182,123 @@ export class WordResumeExporter implements IResumeExporter {
       }
     }
 
+    // Certifications
+    if (data.certifications && data.certifications.length > 0) {
+      sections.push(this.createHeading('Certifications'));
+      for (const cert of data.certifications) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: cert.name, bold: true, size: 22 }),
+              new TextRun({ text: `\t${cert.date}`, bold: true }),
+            ],
+            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+            spacing: { before: 60 }
+          })
+        );
+        sections.push(new Paragraph({ children: [new TextRun({ text: cert.issuer, italics: true })] }));
+      }
+    }
+
+    // Projects (Existing Logic? No, projects were missing in original file snippet provided in ViewFile step?
+    // Wait, I see "Experience", "Education", "Skills". I DON'T SEE "Projects" in the previous ViewFile output!
+    // I missed Projects in the original file view? 
+    // Let me check lines 120-155 (Experience), 158-183 (Education), 186 (Skills).
+    // Projects seem missing in the current exporter!! 
+    // I MUST ADD PROJECTS TOO.
+
+    // Extracurriculars
+    if (data.extracurriculars && data.extracurriculars.length > 0) {
+      sections.push(this.createHeading('Extracurricular Activities'));
+      for (const extra of data.extracurriculars) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: extra.title, bold: true, size: 22 }),
+              new TextRun({ text: `\t${extra.startDate} – ${extra.endDate}`, bold: true }),
+            ],
+            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+            spacing: { before: 120 }
+          })
+        );
+        sections.push(new Paragraph({ children: [new TextRun({ text: extra.organization, italics: true })] }));
+
+        if (extra.refinedBullets && extra.refinedBullets.length > 0) {
+          extra.refinedBullets.forEach(bullet => sections.push(this.createBullet(bullet)));
+        } else {
+          sections.push(this.createBullet(extra.description));
+        }
+      }
+    }
+
+    // Projects
+    if (data.projects && data.projects.length > 0) {
+      sections.push(this.createHeading('Projects'));
+      for (const proj of data.projects) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: proj.name, bold: true, size: 22 }),
+              new TextRun({ text: proj.technologies ? ` | ${proj.technologies}` : '', italics: true }),
+            ],
+            spacing: { before: 120 }
+          })
+        );
+        if (proj.link) {
+          sections.push(new Paragraph({ children: [new TextRun({ text: proj.link, color: '0563C1', underline: {} })] })); // Simple text link
+        }
+        if (proj.refinedBullets && proj.refinedBullets.length > 0) {
+          proj.refinedBullets.forEach(b => sections.push(this.createBullet(b)));
+        } else {
+          sections.push(this.createBullet(proj.rawDescription));
+        }
+      }
+    }
+
+    // Awards
+    if (data.awards && data.awards.length > 0) {
+      sections.push(this.createHeading('Awards & Honors'));
+      for (const award of data.awards) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: award.title, bold: true }),
+              new TextRun({ text: `\t${award.date}` }),
+            ],
+            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+            spacing: { before: 60 }
+          })
+        );
+        sections.push(new Paragraph({ text: `${award.issuer}${award.description ? ` - ${award.description}` : ''}` }));
+      }
+    }
+
+    // Publications
+    if (data.publications && data.publications.length > 0) {
+      sections.push(this.createHeading('Publications'));
+      for (const pub of data.publications) {
+        sections.push(
+          new Paragraph({
+            text: `${pub.title}, ${pub.publisher}, ${pub.date}${pub.link ? ` [${pub.link}]` : ''}`,
+            spacing: { before: 60 }
+          })
+        );
+      }
+    }
+
+    // Affiliations
+    if (data.affiliations && data.affiliations.length > 0) {
+      sections.push(this.createHeading('Affiliations'));
+      for (const aff of data.affiliations) {
+        sections.push(
+          new Paragraph({
+            text: `${aff.role}, ${aff.organization} (${aff.startDate} – ${aff.endDate})`,
+            spacing: { before: 60 }
+          })
+        );
+      }
+    }
+
     // Skills
     if (data.skills.length > 0) {
       sections.push(this.createHeading('Skills'));
@@ -202,7 +319,7 @@ export class WordResumeExporter implements IResumeExporter {
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 200, after: 100 },
       border: {
-        bottom: { color: '999999', space: 1, value: BorderStyle.SINGLE, size: 6 },
+        bottom: { color: '999999', space: 1, style: BorderStyle.SINGLE, size: 6 },
       },
     });
   }

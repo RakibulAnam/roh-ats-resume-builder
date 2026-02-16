@@ -42,8 +42,52 @@ export interface TargetJob {
 export interface Project {
   id: string;
   name: string;
-  description: string;
+  rawDescription: string;
+  refinedBullets: string[];
   technologies: string;
+  link?: string;
+}
+
+
+export interface Extracurricular {
+  id: string;
+  title: string;
+  organization: string;
+  startDate: string;
+  endDate: string;
+  description: string; // raw description
+  refinedBullets: string[]; // AI refined
+}
+
+export interface Award {
+  id: string;
+  title: string;
+  issuer: string;
+  date: string;
+  description: string;
+}
+
+export interface Certification {
+  id: string;
+  name: string;
+  issuer: string;
+  date: string;
+  link?: string;
+}
+
+export interface Affiliation {
+  id: string;
+  organization: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface Publication {
+  id: string;
+  title: string;
+  publisher?: string;
+  date: string;
   link?: string;
 }
 
@@ -56,14 +100,31 @@ export interface ResumeData {
   projects: Project[]; // Added Projects
   education: Education[];
   skills: string[]; // User input -> AI Refined
+
+  // New Sections
+  extracurriculars?: Extracurricular[];
+  awards?: Award[];
+  certifications?: Certification[];
+  affiliations?: Affiliation[];
+  publications?: Publication[];
+
   coverLetter?: string; // AI Generated cover letter
   customSections?: { title: string; items: string[] }[];
+  visibleSections?: string[]; // User selected sections
 }
 
 export interface OptimizedResumeData {
   summary: string;
   skills: string[];
   experience: {
+    id: string;
+    refinedBullets: string[];
+  }[];
+  projects?: {
+    id: string;
+    refinedBullets: string[];
+  }[];
+  extracurriculars?: {
     id: string;
     refinedBullets: string[];
   }[];

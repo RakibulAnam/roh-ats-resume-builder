@@ -1,32 +1,30 @@
-// Infrastructure - Dependency Injection Container
-
 import { GeminiResumeOptimizer } from '../ai/GeminiResumeOptimizer';
-import { GeminiCoverLetterGenerator } from '../ai/GeminiCoverLetterGenerator';
 import { WordResumeExporter } from '../export/WordResumeExporter';
+import { GeminiCoverLetterGenerator } from '../ai/GeminiCoverLetterGenerator';
 import { ResumeService } from '../../application/services/ResumeService';
+import { SupabaseResumeRepository } from '../repositories/SupabaseResumeRepository';
+import { SupabaseProfileRepository } from '../repositories/SupabaseProfileRepository';
+import { SupabaseApplicationRepository } from '../repositories/SupabaseApplicationRepository';
+const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
 
-// Get API key from environment
-// Vite exposes env variables prefixed with VITE_ via import.meta.env
-const getApiKey = (): string => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
-  
-  if (!apiKey) {
-    console.warn(
-      'Gemini API key not found. Please set VITE_GEMINI_API_KEY in your .env file. ' +
-      'See .env.example for reference.'
-    );
-  }
-  
-  return apiKey;
+if (!apiKey || apiKey === 'your_api_key_here') {
+  console.error('API Key is missing or invalid. Please check .env file.');
+}
+
+const resumeOptimizer = new GeminiResumeOptimizer(apiKey);
+const resumeExporter = new WordResumeExporter();
+const coverLetterGenerator = new GeminiCoverLetterGenerator(apiKey);
+const resumeRepository = new SupabaseResumeRepository();
+
+// Supabase Repositories
+export const profileRepository = new SupabaseProfileRepository();
+export const applicationRepository = new SupabaseApplicationRepository();
+
+export const createResumeService = () => {
+  return new ResumeService(
+    resumeOptimizer,
+    resumeExporter,
+    coverLetterGenerator,
+    resumeRepository
+  );
 };
-
-// Initialize dependencies
-export const createResumeService = (): ResumeService => {
-  const apiKey = getApiKey();
-  const resumeOptimizer = new GeminiResumeOptimizer(apiKey);
-  const coverLetterGenerator = new GeminiCoverLetterGenerator(apiKey);
-  const resumeExporter = new WordResumeExporter();
-  
-  return new ResumeService(resumeOptimizer, resumeExporter, coverLetterGenerator);
-};
-

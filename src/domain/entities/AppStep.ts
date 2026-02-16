@@ -9,6 +9,12 @@ export enum AppStep {
   PROJECTS = 5,
   EDUCATION = 6,
   SKILLS = 7,
-  PREVIEW = 8,
+  EXTRACURRICULARS = 8,
+  AWARDS = 9,
+  CERTIFICATIONS = 10,
+  AFFILIATIONS = 11,
+  PUBLICATIONS = 12,
+  SECTIONS = 13, // Choose which sections to include
+  PREVIEW = 14,
 }
 
