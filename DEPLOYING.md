@@ -1,4 +1,75 @@
-# Deploying to Vercel
+# Deploying ATS Resume Builder to Vercel
+
+This guide provides step-by-step instructions to deploy the **Roh ATS Resume Builder** to production using [Vercel](https://vercel.com).
+
+## Prerequisites
+- **Vercel Account**: [Sign up here](https://vercel.com/signup).
+- **Supabase Account**: [Sign up here](https://supabase.com).
+- **Google AI Studio (Gemini API)**: [Get API Key](https://aistudio.google.com/app/apikey).
+- **GitHub Repository**: Your code should be pushed to a GitHub repository.
+
+---
+
+## Step 1: Set up Supabase (Backend)
+The application requires a PostgreSQL database and Authentication provided by Supabase.
+
+1.  **Create a Project**:
+    - Go to [Supabase Dashboard](https://supabase.com/dashboard) and create a new project.
+    - Note down your **Project URL** and **Anon Key** (API Key).
+
+2.  **Authentication**:
+    - Go to **Authentication** > **Providers**.
+    - Ensure **Email/Password** is enabled.
+
+3.  **Database Setup**:
+    - Go to the **SQL Editor** in your Supabase Dashboard.
+    - Open the file `supabase/schema.sql` from this repository.
+    - Copy the entire content of `schema.sql` and paste it into the Supabase SQL Editor.
+    - Click **Run** to create all necessary tables and security policies (RLS).
+
+---
+
+## Step 2: Deploy to Vercel (Frontend)
+
+1.  **Import Project**:
+    - Go to your [Vercel Dashboard](https://vercel.com/dashboard).
+    - Click **"Add New..."** > **"Project"**.
+    - Select your GitHub repository (`roh-ats-resume-builder`).
+
+2.  **Configure Build Settings**:
+    - **Framework Preset**: Vite (Vercel should detect this automatically).
+    - **Root Directory**: `./` (default).
+    - **Build Command**: `vite build` (default).
+    - **Output Directory**: `dist` (default).
+
+3.  **Environment Variables**:
+    - Expand the **"Environment Variables"** section.
+    - Add the following variables (copy values from your `.env` or Supabase/Google dashboards):
+
+    | Name | Value Source | Description |
+    |------|--------------|-------------|
+    | `VITE_SUPABASE_URL` | Supabase Dashboard | Project URL (under Project Settings > API) |
+    | `VITE_SUPABASE_ANON_KEY` | Supabase Dashboard | Project API Anon Key (under Project Settings > API) |
+    | `VITE_GEMINI_API_KEY` | Google AI Studio | Your Gemini API Key Used for AI optimization |
+
+4.  **Deploy**:
+    - Click **"Deploy"**.
+    - Wait for the build to complete.
+    - Vercel will provide a live URL (e.g., `https://your-project.vercel.app`).
+
+---
+
+## Step 3: Verify Deployment
+1.  Open your deployed URL.
+2.  **Sign Up**: Create a new account.
+3.  **Check Database**: Verify in Supabase Table Editor that a new user profile was created in the `profiles` table.
+4.  **Test AI**: Try creating a resume and optimizing it to ensure the Gemini API key is working.
+
+## Troubleshooting
+
+- **"Invalid Date" on Dashboard**: This usually happens if the backend date is not format-agnostic. We fixed this by using ISO strings, but if it persists, check your browser locale.
+- **AI Not Responding**: Check if `VITE_GEMINI_API_KEY` is correctly set in Vercel Environment Variables.
+- **Database Errors**: Ensure you ran the full `schema.sql` script. If RLS policies are missing, you might verify but not see or save data.
 
 This guide explains how to host your **Roh ATS Resume Builder** on [Vercel](https://vercel.com).
 
