@@ -9,6 +9,7 @@ export interface IProfileRepository {
 
     getProfile(userId: string): Promise<PersonalInfo | null>;
     saveProfile(userId: string, data: PersonalInfo): Promise<void>;
+    deleteProfile(userId: string): Promise<void>;
 
     getExperiences(userId: string): Promise<WorkExperience[]>;
     saveExperience(userId: string, experience: WorkExperience): Promise<void>;

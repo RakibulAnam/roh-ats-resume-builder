@@ -15,6 +15,7 @@ import {
   Publication
 } from '../../domain/entities/Resume';
 import { Plus, Trash2, Briefcase, GraduationCap, FolderGit2, Calendar, Award as AwardIcon, BookOpen, Users } from 'lucide-react';
+import { MonthPicker } from './ui/month-picker';
 
 // --- Shared UI ---
 const InputGroup = ({
@@ -32,17 +33,31 @@ const InputGroup = ({
   </div>
 );
 
-const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
+type InputProps = React.ComponentProps<'input'> & {
+  isError?: boolean;
+};
+
+const Input = ({ isError, className, ...props }: InputProps) => (
   <input
     {...props}
-    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all disabled:bg-gray-100 disabled:text-gray-400"
+    className={`w-full rounded-md border px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 transition-all disabled:bg-gray-100 disabled:text-gray-400 ${isError
+      ? 'border-red-500 focus:ring-red-500'
+      : 'border-gray-300 focus:ring-indigo-500 focus:border-transparent'
+      } ${className || ''}`}
   />
 );
 
-const TextArea = (props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
+type TextAreaProps = React.ComponentProps<'textarea'> & {
+  isError?: boolean;
+};
+
+const TextArea = ({ isError, className, ...props }: TextAreaProps) => (
   <textarea
     {...props}
-    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+    className={`w-full rounded-md border px-3 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 transition-all ${isError
+      ? 'border-red-500 focus:ring-red-500'
+      : 'border-gray-300 focus:ring-indigo-500 focus:border-transparent'
+      } ${className || ''}`}
   />
 );
 
@@ -163,6 +178,7 @@ export const PersonalInfoStep: React.FC<{
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <InputGroup label="Full Name">
         <Input
+          isError={!(data.fullName || '').trim()}
           value={data.fullName}
           onChange={e => update({ ...data, fullName: e.target.value })}
           placeholder="John Doe"
@@ -170,6 +186,7 @@ export const PersonalInfoStep: React.FC<{
       </InputGroup>
       <InputGroup label="Email">
         <Input
+          isError={!(data.email || '').trim()}
           type="email"
           value={data.email}
           onChange={e => update({ ...data, email: e.target.value })}
@@ -269,6 +286,7 @@ export const ProjectsStep: React.FC<{
           <div className="grid grid-cols-1 gap-4 mb-4">
             <InputGroup label="Project Name">
               <Input
+                isError={!(project.name || '').trim()}
                 value={project.name}
                 onChange={e => updateProject(project.id, 'name', e.target.value)}
                 placeholder="e.g. E-commerce Platform"
@@ -277,6 +295,7 @@ export const ProjectsStep: React.FC<{
 
             <InputGroup label="Technologies Used (comma separated)">
               <Input
+                isError={!(project.technologies || '').trim()}
                 value={project.technologies}
                 onChange={e => updateProject(project.id, 'technologies', e.target.value)}
                 placeholder="React, Node.js, MongoDB"
@@ -293,6 +312,7 @@ export const ProjectsStep: React.FC<{
 
             <InputGroup label="Description (Brain dump your contribution, AI will refine)">
               <TextArea
+                isError={!(project.rawDescription || '').trim()}
                 rows={3}
                 value={project.rawDescription}
                 onChange={e => updateProject(project.id, 'rawDescription', e.target.value)}
@@ -371,6 +391,7 @@ export const ExperienceStep: React.FC<{
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <InputGroup label="Job Title">
               <Input
+                isError={!(exp.role || '').trim()}
                 value={exp.role}
                 onChange={e => updateExp(exp.id, 'role', e.target.value)}
                 placeholder="Software Engineer"
@@ -378,6 +399,7 @@ export const ExperienceStep: React.FC<{
             </InputGroup>
             <InputGroup label="Company">
               <Input
+                isError={!(exp.company || '').trim()}
                 value={exp.company}
                 onChange={e => updateExp(exp.id, 'company', e.target.value)}
                 placeholder="Acme Corp"
@@ -385,10 +407,10 @@ export const ExperienceStep: React.FC<{
             </InputGroup>
 
             <InputGroup label="Start Date">
-              <Input
-                type="month"
+              <MonthPicker
+                isError={!(exp.startDate || '').trim()}
                 value={exp.startDate}
-                onChange={e => updateExp(exp.id, 'startDate', e.target.value)}
+                onChange={val => updateExp(exp.id, 'startDate', val)}
               />
             </InputGroup>
 
@@ -403,10 +425,10 @@ export const ExperienceStep: React.FC<{
                     Present
                   </div>
                 ) : (
-                  <Input
-                    type="month"
+                  <MonthPicker
+                    isError={!exp.isCurrent && !(exp.endDate || '').trim()}
                     value={exp.endDate}
-                    onChange={e => updateExp(exp.id, 'endDate', e.target.value)}
+                    onChange={val => updateExp(exp.id, 'endDate', val)}
                   />
                 )}
 
@@ -505,6 +527,7 @@ export const EducationStep: React.FC<{
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputGroup label="School / University">
               <Input
+                isError={!(edu.school || '').trim()}
                 value={edu.school}
                 onChange={e => updateEdu(edu.id, 'school', e.target.value)}
                 placeholder="Stanford University"
@@ -512,6 +535,7 @@ export const EducationStep: React.FC<{
             </InputGroup>
             <InputGroup label="Degree">
               <Input
+                isError={!(edu.degree || '').trim()}
                 value={edu.degree}
                 onChange={e => updateEdu(edu.id, 'degree', e.target.value)}
                 placeholder="Bachelor of Science"
@@ -519,6 +543,7 @@ export const EducationStep: React.FC<{
             </InputGroup>
             <InputGroup label="Field of Study">
               <Input
+                isError={!(edu.field || '').trim()}
                 value={edu.field}
                 onChange={e => updateEdu(edu.id, 'field', e.target.value)}
                 placeholder="Computer Science"
@@ -528,6 +553,7 @@ export const EducationStep: React.FC<{
               <InputGroup label="Start Year">
                 <Input
                   value={edu.startDate}
+                  isError={!(edu.startDate || '').trim()}
                   onChange={e => updateEdu(edu.id, 'startDate', e.target.value)}
                   placeholder="2018"
                 />
@@ -535,6 +561,7 @@ export const EducationStep: React.FC<{
               <InputGroup label="End Year">
                 <Input
                   value={edu.endDate}
+                  isError={!(edu.endDate || '').trim()}
                   onChange={e => updateEdu(edu.id, 'endDate', e.target.value)}
                   placeholder="2022"
                 />
@@ -661,16 +688,16 @@ export const ExtracurricularStep: React.FC<{
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputGroup label="Role / Title">
-              <Input value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="President" />
+              <Input isError={!(item.title || '').trim()} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="President" />
             </InputGroup>
             <InputGroup label="Organization">
-              <Input value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="Debate Club" />
+              <Input isError={!(item.organization || '').trim()} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="Debate Club" />
             </InputGroup>
             <InputGroup label="Start Date">
-              <Input type="month" value={item.startDate} onChange={e => updateItem(item.id, 'startDate', e.target.value)} />
+              <MonthPicker isError={!(item.startDate || '').trim()} value={item.startDate} onChange={val => updateItem(item.id, 'startDate', val)} />
             </InputGroup>
             <InputGroup label="End Date">
-              <Input type="month" value={item.endDate} onChange={e => updateItem(item.id, 'endDate', e.target.value)} />
+              <MonthPicker isError={!(item.endDate || '').trim()} value={item.endDate} onChange={val => updateItem(item.id, 'endDate', val)} />
             </InputGroup>
           </div>
           <InputGroup label="Description (Brain dump your contribution, AI will refine)">
@@ -699,9 +726,9 @@ export const AwardsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="Award Title"><Input value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Dean's List" /></InputGroup>
-            <InputGroup label="Issuer"><Input value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="University" /></InputGroup>
-            <InputGroup label="Date"><Input type="month" value={item.date} onChange={e => updateItem(item.id, 'date', e.target.value)} /></InputGroup>
+            <InputGroup label="Award Title"><Input isError={!(item.title || '').trim()} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Dean's List" /></InputGroup>
+            <InputGroup label="Issuer"><Input isError={!(item.issuer || '').trim()} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="University" /></InputGroup>
+            <InputGroup label="Date"><MonthPicker isError={!(item.date || '').trim()} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
           </div>
           <InputGroup label="Description (Optional)" className="mt-4"><TextArea rows={2} value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} /></InputGroup>
         </div>
@@ -725,9 +752,9 @@ export const CertificationsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="Certification Name"><Input value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="AWS Certified Solutions Architect" /></InputGroup>
-            <InputGroup label="Issuer"><Input value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="Amazon Web Services" /></InputGroup>
-            <InputGroup label="Date"><Input type="month" value={item.date} onChange={e => updateItem(item.id, 'date', e.target.value)} /></InputGroup>
+            <InputGroup label="Certification Name"><Input isError={!(item.name || '').trim()} value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="AWS Certified Solutions Architect" /></InputGroup>
+            <InputGroup label="Issuer"><Input isError={!(item.issuer || '').trim()} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="Amazon Web Services" /></InputGroup>
+            <InputGroup label="Date"><MonthPicker isError={!(item.date || '').trim()} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
             <InputGroup label="Link (Optional)"><Input value={item.link || ''} onChange={e => updateItem(item.id, 'link', e.target.value)} placeholder="https://..." /></InputGroup>
           </div>
         </div>
@@ -751,10 +778,10 @@ export const AffiliationsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="Organization"><Input value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="IEEE" /></InputGroup>
-            <InputGroup label="Role"><Input value={item.role} onChange={e => updateItem(item.id, 'role', e.target.value)} placeholder="Member" /></InputGroup>
-            <InputGroup label="Start Date"><Input type="month" value={item.startDate} onChange={e => updateItem(item.id, 'startDate', e.target.value)} /></InputGroup>
-            <InputGroup label="End Date"><Input type="month" value={item.endDate} onChange={e => updateItem(item.id, 'endDate', e.target.value)} /></InputGroup>
+            <InputGroup label="Organization"><Input isError={!(item.organization || '').trim()} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="IEEE" /></InputGroup>
+            <InputGroup label="Role"><Input isError={!(item.role || '').trim()} value={item.role} onChange={e => updateItem(item.id, 'role', e.target.value)} placeholder="Member" /></InputGroup>
+            <InputGroup label="Start Date"><MonthPicker isError={!(item.startDate || '').trim()} value={item.startDate} onChange={val => updateItem(item.id, 'startDate', val)} /></InputGroup>
+            <InputGroup label="End Date"><MonthPicker isError={!(item.endDate || '').trim()} value={item.endDate} onChange={val => updateItem(item.id, 'endDate', val)} /></InputGroup>
           </div>
         </div>
       ))}
@@ -777,9 +804,9 @@ export const PublicationsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputGroup label="Title"><Input value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Research on AI" /></InputGroup>
-            <InputGroup label="Publisher / Conference"><Input value={item.publisher || ''} onChange={e => updateItem(item.id, 'publisher', e.target.value)} placeholder="Journal of Tech" /></InputGroup>
-            <InputGroup label="Date"><Input type="month" value={item.date} onChange={e => updateItem(item.id, 'date', e.target.value)} /></InputGroup>
+            <InputGroup label="Title"><Input isError={!(item.title || '').trim()} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Research on AI" /></InputGroup>
+            <InputGroup label="Publisher / Conference"><Input isError={!(item.publisher || '').trim()} value={item.publisher || ''} onChange={e => updateItem(item.id, 'publisher', e.target.value)} placeholder="Journal of Tech" /></InputGroup>
+            <InputGroup label="Date"><MonthPicker isError={!(item.date || '').trim()} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
             <InputGroup label="Link (Optional)"><Input value={item.link || ''} onChange={e => updateItem(item.id, 'link', e.target.value)} /></InputGroup>
           </div>
         </div>

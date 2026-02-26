@@ -4,6 +4,7 @@ import { profileRepository } from '../../../infrastructure/config/dependencies';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, Save, GraduationCap } from 'lucide-react';
+import { MonthPicker } from '../ui/month-picker';
 
 interface Props {
     educations: Education[];
@@ -96,7 +97,7 @@ export const EducationSection = ({ educations, onRefresh }: Props) => {
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">School</label>
                             <input
                                 required
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.school ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.school || ''}
                                 onChange={e => setFormData({ ...formData, school: e.target.value })}
                                 placeholder="e.g. Stanford University"
@@ -106,7 +107,7 @@ export const EducationSection = ({ educations, onRefresh }: Props) => {
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Degree</label>
                             <input
                                 required
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.degree ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.degree || ''}
                                 onChange={e => setFormData({ ...formData, degree: e.target.value })}
                                 placeholder="e.g. Bachelor of Science"
@@ -116,7 +117,7 @@ export const EducationSection = ({ educations, onRefresh }: Props) => {
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Field of Study</label>
                             <input
                                 required
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.field ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.field || ''}
                                 onChange={e => setFormData({ ...formData, field: e.target.value })}
                                 placeholder="e.g. Computer Science"
@@ -133,23 +134,26 @@ export const EducationSection = ({ educations, onRefresh }: Props) => {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
-                            <input
-                                type="month"
-                                className="w-full p-2 border rounded-lg"
+                            <MonthPicker
+                                isError={!formData.startDate}
                                 value={formData.startDate || ''}
-                                onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                                onChange={val => setFormData({ ...formData, startDate: val })}
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
                             <div className="flex gap-2 items-center">
-                                <input
-                                    type="month"
-                                    className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-400"
-                                    value={formData.endDate || ''}
-                                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-                                    disabled={formData.endDate === 'Present'}
-                                />
+                                {formData.endDate === 'Present' ? (
+                                    <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 font-medium h-10 flex items-center">
+                                        Present
+                                    </div>
+                                ) : (
+                                    <MonthPicker
+                                        isError={formData.endDate !== 'Present' && !formData.endDate}
+                                        value={formData.endDate || ''}
+                                        onChange={val => setFormData({ ...formData, endDate: val })}
+                                    />
+                                )}
                                 <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                                     <input
                                         type="checkbox"

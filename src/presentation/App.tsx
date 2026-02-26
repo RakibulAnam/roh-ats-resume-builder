@@ -377,34 +377,158 @@ const AppContent = () => {
   const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
   const isLastStep = visibleSteps.length > 0 && visibleSteps[visibleSteps.length - 1].id === step;
 
-  const handleNext = () => {
-    // Validate Experience Description
-    if (step === AppStep.EXPERIENCE && resumeData.userType === 'experienced') {
-      const hasEmptyDescription = resumeData.experience.some(exp => !exp.rawDescription?.trim());
-      if (hasEmptyDescription) {
-        toast.error('Please describe your experience for all positions before proceeding.');
-        return;
-      }
-    }
+  const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
+    const showError = (msg: string) => {
+      if (showToast) toast.error(msg);
+    };
 
-    // Validate Projects Description
-    if (step === AppStep.PROJECTS) {
-      const hasEmptyDescription = resumeData.projects.some(p => !p.rawDescription?.trim());
-      if (hasEmptyDescription) {
-        toast.error('Please add a description for all your projects so the AI can optimize them.');
-        return;
-      }
-    }
-
-    // Validate Extracurriculars Description
-    if (step === AppStep.EXTRACURRICULARS) {
-      if (resumeData.extracurriculars) {
-        const hasEmptyDescription = resumeData.extracurriculars.some(e => !e.description?.trim());
-        if (hasEmptyDescription) {
-          toast.error('Please add a description for all extracurricular activities.');
-          return;
+    switch (currentStepId) {
+      case AppStep.PERSONAL_INFO:
+        if (!(resumeData.personalInfo.fullName || '').trim()) {
+          showError('Please enter your full name');
+          return false;
         }
-      }
+        if (!(resumeData.personalInfo.email || '').trim()) {
+          showError('Please enter your email');
+          return false;
+        }
+        return true;
+
+      case AppStep.EXPERIENCE:
+        if (resumeData.userType === 'experienced' && resumeData.experience.length === 0) {
+          showError('Please add at least one work experience');
+          return false;
+        }
+        for (const exp of resumeData.experience) {
+          if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
+            showError('Please fill in company and role for all experiences');
+            return false;
+          }
+          if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
+            showError('Please provide start and end dates for all experiences');
+            return false;
+          }
+          if (!(exp.rawDescription || '').trim()) {
+            showError('Please provide a description for all experiences');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.PROJECTS:
+        if (resumeData.userType === 'student' && resumeData.projects.length === 0) {
+          showError('Please add at least one project');
+          return false;
+        }
+        for (const proj of resumeData.projects) {
+          if (!(proj.name || '').trim()) {
+            showError('Please fill in name for all projects');
+            return false;
+          }
+          if (!(proj.technologies || '').trim()) {
+            showError('Please add at least one technology for all projects');
+            return false;
+          }
+          if (!(proj.rawDescription || '').trim()) {
+            showError('Please provide a description for all projects');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.EDUCATION:
+        for (const edu of resumeData.education) {
+          if (!(edu.school || '').trim() || !(edu.degree || '').trim() || !(edu.field || '').trim()) {
+            showError('Please fill in school, degree, and field for all education entries');
+            return false;
+          }
+          if (!(edu.startDate || '').trim() || (!edu.isCurrent && !(edu.endDate || '').trim())) {
+            showError('Please provide start and end dates for all education entries');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.SKILLS:
+        if (resumeData.skills.length === 0) {
+          showError('Please add at least one skill');
+          return false;
+        }
+        return true;
+
+      case AppStep.EXTRACURRICULARS:
+        for (const item of (resumeData.extracurriculars || [])) {
+          if (!(item.title || '').trim() || !(item.organization || '').trim()) {
+            showError('Please fill in role and organization for all activities');
+            return false;
+          }
+          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+            showError('Please provide start and end dates for all activities');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.AWARDS:
+        for (const item of (resumeData.awards || [])) {
+          if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
+            showError('Please fill in title and issuer for all awards');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all awards');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.CERTIFICATIONS:
+        for (const item of (resumeData.certifications || [])) {
+          if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
+            showError('Please fill in name and issuer for all certifications');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all certifications');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.AFFILIATIONS:
+        for (const item of (resumeData.affiliations || [])) {
+          if (!(item.organization || '').trim() || !(item.role || '').trim()) {
+            showError('Please fill in organization and role for all affiliations');
+            return false;
+          }
+          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+            showError('Please provide start and end dates for all affiliations');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.PUBLICATIONS:
+        for (const item of (resumeData.publications || [])) {
+          if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
+            showError('Please fill in title and publisher for all publications');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all publications');
+            return false;
+          }
+        }
+        return true;
+
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (!validateStep(step, true)) {
+      return;
     }
 
     // Auto-populate visible sections if passing user type for the first time without sections set
@@ -696,8 +820,8 @@ const AppContent = () => {
             ) : isLastStep ? (
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-indigo-800 transition-all disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-95"
+                disabled={isGenerating || !validateStep(step, false)}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-indigo-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50 transform active:scale-95"
               >
                 {isGenerating ? 'Generating...' : 'Generate Resume'}{' '}
                 <Sparkles size={18} />
@@ -705,7 +829,8 @@ const AppContent = () => {
             ) : (
               <button
                 onClick={handleNext}
-                className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95"
+                disabled={!validateStep(step, false)}
+                className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <ChevronRight size={18} />
               </button>

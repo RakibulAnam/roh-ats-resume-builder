@@ -320,3 +320,31 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- RPC to delete a user and all their data
+create or replace function public.delete_user()
+returns void
+language plpgsql
+security definer -- Security definer allows the function to bypass RLS and delete from auth.users
+as $$
+begin
+  -- Delete all associated data first to avoid FK constraints
+  delete from public.experiences where user_id = auth.uid();
+  delete from public.educations where user_id = auth.uid();
+  delete from public.projects where user_id = auth.uid();
+  delete from public.skills where user_id = auth.uid();
+  delete from public.extracurriculars where user_id = auth.uid();
+  delete from public.awards where user_id = auth.uid();
+  delete from public.certifications where user_id = auth.uid();
+  delete from public.affiliations where user_id = auth.uid();
+  delete from public.publications where user_id = auth.uid();
+  delete from public.applications where user_id = auth.uid();
+  delete from public.generated_resumes where user_id = auth.uid();
+  
+  -- Delete the profile
+  delete from public.profiles where id = auth.uid();
+
+  -- Finally, delete the user from auth.users
+  delete from auth.users where id = auth.uid();
+end;
+$$;

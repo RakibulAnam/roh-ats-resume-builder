@@ -4,6 +4,7 @@ import { profileRepository } from '../../../infrastructure/config/dependencies';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, Save, X, Briefcase } from 'lucide-react';
+import { MonthPicker } from '../ui/month-picker';
 
 interface Props {
     experiences: WorkExperience[];
@@ -103,7 +104,7 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Company</label>
                             <input
                                 required
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.company ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.company || ''}
                                 onChange={e => setFormData({ ...formData, company: e.target.value })}
                                 placeholder="Company Name"
@@ -113,7 +114,7 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
                             <input
                                 required
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.role ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.role || ''}
                                 onChange={e => setFormData({ ...formData, role: e.target.value })}
                                 placeholder="Job Title"
@@ -121,23 +122,26 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
-                            <input
-                                type="month"
-                                className="w-full p-2 border rounded-lg"
+                            <MonthPicker
+                                isError={!formData.startDate}
                                 value={formData.startDate || ''}
-                                onChange={e => setFormData({ ...formData, startDate: e.target.value })}
+                                onChange={val => setFormData({ ...formData, startDate: val })}
                             />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
                             <div className="flex gap-2 items-center">
-                                <input
-                                    type="month"
-                                    disabled={formData.isCurrent}
-                                    className="w-full p-2 border rounded-lg disabled:bg-gray-200 disabled:text-gray-400"
-                                    value={formData.endDate || ''}
-                                    onChange={e => setFormData({ ...formData, endDate: e.target.value })}
-                                />
+                                {formData.isCurrent ? (
+                                    <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 font-medium h-10 flex items-center">
+                                        Present
+                                    </div>
+                                ) : (
+                                    <MonthPicker
+                                        isError={!formData.isCurrent && !formData.endDate}
+                                        value={formData.endDate || ''}
+                                        onChange={val => setFormData({ ...formData, endDate: val })}
+                                    />
+                                )}
                                 <label className="flex items-center gap-2 text-sm whitespace-nowrap">
                                     <input
                                         type="checkbox"
@@ -152,7 +156,7 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                     <div className="mb-4">
                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
                         <textarea
-                            className="w-full p-2 border rounded-lg h-32 text-sm"
+                            className={`w-full p-2 border rounded-lg h-32 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                             value={formData.rawDescription || ''}
                             onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
                             placeholder="- Built feature X using React..."

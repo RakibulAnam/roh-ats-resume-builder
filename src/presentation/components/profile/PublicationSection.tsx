@@ -4,6 +4,7 @@ import { profileRepository } from '../../../infrastructure/config/dependencies';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, Save, BookOpen } from 'lucide-react';
+import { MonthPicker } from '../ui/month-picker';
 
 interface Props {
     items: Publication[];
@@ -74,15 +75,15 @@ export const PublicationSection = ({ items, onRefresh }: Props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Machine Learning in Healthcare" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.title ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Machine Learning in Healthcare" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Publisher</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.publisher || ''} onChange={e => setFormData({ ...formData, publisher: e.target.value })} placeholder="e.g. Journal of Medical AI" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.publisher ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.publisher || ''} onChange={e => setFormData({ ...formData, publisher: e.target.value })} placeholder="e.g. Journal of Medical AI" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Date</label>
-                            <input type="month" className="w-full p-2 border rounded-lg" value={formData.date || ''} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                            <MonthPicker isError={!formData.date} value={formData.date || ''} onChange={val => setFormData({ ...formData, date: val })} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Link</label>

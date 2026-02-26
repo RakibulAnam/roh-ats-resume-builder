@@ -7,7 +7,7 @@ import {
     UserType
 } from '../domain/entities/Resume';
 import { toast } from 'sonner';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
 import { ExperienceSection } from './components/profile/ExperienceSection';
 import { ProjectSection } from './components/profile/ProjectSection';
 import { EducationSection } from './components/profile/EducationSection';
@@ -32,10 +32,14 @@ const Tabs = [
 ];
 
 export const ProfileScreen = () => {
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const [activeTab, setActiveTab] = useState('Personal');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Deletion states
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // State for each section
     const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ fullName: '', email: '', phone: '', location: '' });
@@ -110,6 +114,20 @@ export const ProfileScreen = () => {
             toast.error('Failed to save');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!user) return;
+        setDeleting(true);
+        try {
+            await profileRepository.deleteProfile(user.id);
+            toast.success('Account deleted successfully');
+            await signOut(); // This should trigger a redirect or re-render based on AuthContext
+        } catch (error) {
+            console.error('Failed to delete account', error);
+            toast.error('Failed to delete account. Please try again.');
+            setDeleting(false);
         }
     };
 
@@ -204,7 +222,7 @@ export const ProfileScreen = () => {
                         <div className="flex justify-end pt-4">
                             <button
                                 type="submit"
-                                disabled={saving}
+                                disabled={saving || deleting}
                                 className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
@@ -212,6 +230,56 @@ export const ProfileScreen = () => {
                             </button>
                         </div>
                     </form>
+                )}
+
+                {activeTab === 'Personal' && (
+                    <div className="mt-12 pt-8 border-t border-red-100">
+                        <h3 className="text-lg font-semibold text-red-600 mb-2">Danger Zone</h3>
+                        <p className="text-gray-500 mb-4 text-sm">
+                            Once you delete your account, there is no going back. Please be certain.
+                        </p>
+
+                        {!showDeleteConfirm ? (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                type="button"
+                                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors"
+                            >
+                                Delete Account
+                            </button>
+                        ) : (
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="text-red-500 mt-0.5" size={20} />
+                                    <div>
+                                        <h4 className="font-medium text-red-800">Are you absolutely sure?</h4>
+                                        <p className="text-red-600 text-sm mt-1 mb-4">
+                                            This action cannot be undone. This will permanently delete your account, profile data, experiences, projects, and all generated resumes.
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                                disabled={deleting}
+                                                type="button"
+                                                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleDeleteAccount}
+                                                disabled={deleting}
+                                                type="button"
+                                                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {deleting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                                                Yes, delete my account
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {activeTab === 'Experience' && <ExperienceSection experiences={experiences} onRefresh={loadProfileData} />}

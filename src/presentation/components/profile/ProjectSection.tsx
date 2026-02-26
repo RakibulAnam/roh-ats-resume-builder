@@ -71,7 +71,7 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                                 <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Project Name</label>
                                 <input
                                     required
-                                    className="w-full p-2 border rounded-lg"
+                                    className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                     value={formData.name || ''}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     placeholder="e.g. E-commerce Dashboard"
@@ -90,7 +90,7 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Technologies (comma separated)</label>
                             <input
-                                className="w-full p-2 border rounded-lg"
+                                className={`w-full p-2 border rounded-lg ${!formData.technologies ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.technologies || ''}
                                 onChange={e => setFormData({ ...formData, technologies: e.target.value })}
                                 placeholder="e.g. React, Node.js, TypeScript, MongoDB"
@@ -99,7 +99,7 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
                             <textarea
-                                className="w-full p-2 border rounded-lg h-24 text-sm"
+                                className={`w-full p-2 border rounded-lg h-24 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
                                 value={formData.rawDescription || ''}
                                 onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
                                 placeholder="Describe detailed contributions and outcomes..."

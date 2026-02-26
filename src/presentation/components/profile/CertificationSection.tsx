@@ -4,6 +4,7 @@ import { profileRepository } from '../../../infrastructure/config/dependencies';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, Save, Award } from 'lucide-react';
+import { MonthPicker } from '../ui/month-picker';
 
 interface Props {
     items: Certification[];
@@ -74,15 +75,15 @@ export const CertificationSection = ({ items, onRefresh }: Props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Name</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. AWS Certified Solutions Architect" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. AWS Certified Solutions Architect" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Issuer</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.issuer || ''} onChange={e => setFormData({ ...formData, issuer: e.target.value })} placeholder="e.g. Amazon Web Services" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.issuer ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.issuer || ''} onChange={e => setFormData({ ...formData, issuer: e.target.value })} placeholder="e.g. Amazon Web Services" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Issue Date</label>
-                            <input type="month" className="w-full p-2 border rounded-lg" value={formData.date || ''} onChange={e => setFormData({ ...formData, date: e.target.value })} />
+                            <MonthPicker isError={!formData.date} value={formData.date || ''} onChange={val => setFormData({ ...formData, date: val })} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Link (Optional)</label>

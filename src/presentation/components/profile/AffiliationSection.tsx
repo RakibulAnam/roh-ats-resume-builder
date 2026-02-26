@@ -4,6 +4,7 @@ import { profileRepository } from '../../../infrastructure/config/dependencies';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Trash2, Edit2, Save, Users } from 'lucide-react';
+import { MonthPicker } from '../ui/month-picker';
 
 interface Props {
     items: Affiliation[];
@@ -74,19 +75,19 @@ export const AffiliationSection = ({ items, onRefresh }: Props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Organization</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.organization || ''} onChange={e => setFormData({ ...formData, organization: e.target.value })} placeholder="e.g. IEEE" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.organization ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.organization || ''} onChange={e => setFormData({ ...formData, organization: e.target.value })} placeholder="e.g. IEEE" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
-                            <input required className="w-full p-2 border rounded-lg" value={formData.role || ''} onChange={e => setFormData({ ...formData, role: e.target.value })} placeholder="e.g. Student Member" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.role ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.role || ''} onChange={e => setFormData({ ...formData, role: e.target.value })} placeholder="e.g. Student Member" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
-                            <input required type="month" className="w-full p-2 border rounded-lg" value={formData.startDate || ''} onChange={e => setFormData({ ...formData, startDate: e.target.value })} />
+                            <MonthPicker isError={!formData.startDate} value={formData.startDate || ''} onChange={val => setFormData({ ...formData, startDate: val })} />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
-                            <input required type="month" className="w-full p-2 border rounded-lg" value={formData.endDate || ''} onChange={e => setFormData({ ...formData, endDate: e.target.value })} />
+                            <MonthPicker isError={!formData.endDate} value={formData.endDate || ''} onChange={val => setFormData({ ...formData, endDate: val })} />
                         </div>
                     </div>
                     <div className="flex justify-end gap-2">

@@ -33,6 +33,8 @@ The project follows **Clean Architecture** principles, separating concerns into 
     - Generating resumes via AI.
     - Exporting to Word/PDF.
     - Managing generated resumes in Supabase.
+- **Hooks** (`src/application/hooks/`):
+  - `useResumeValidation.ts`: Hook for centralized validation of resume sections and tracking completion points.
 
 ### 3. Infrastructure Layer (`src/infrastructure/`)
 *Implementation of external services and repositories.*
@@ -40,26 +42,31 @@ The project follows **Clean Architecture** principles, separating concerns into 
   - `LocalStorageResumeRepository.ts`: Saves in-progress drafts to browser `localStorage` (`resume_draft`).
   - `SupabaseResumeRepository.ts`: Saves finalized/generated resumes to Supabase (`generated_resumes` table).
   - `SupabaseProfileRepository.ts`: Manages user profiles.
-- **AI** (`src/infrastructure/ai/`): `GeminiResumeOptimizer.ts` implements `IResumeOptimizer`.
+- **AI** (`src/infrastructure/ai/`): 
+  - `GeminiResumeOptimizer.ts` implements `IResumeOptimizer`.
+  - `GeminiResumeExtractor.ts` implements `IResumeExtractor` for parsing uploaded PDFs into structured JSON.
 - **Auth** (`src/infrastructure/auth/`): `AuthContext.tsx` wraps Supabase Auth.
 - **Config** (`src/infrastructure/config/`): `dependencies.ts` for Dependency Injection.
 
 ### 4. Presentation Layer (`src/presentation/`)
 *UI components and views.*
-- **App.tsx**: Main controller. Manages the wizard state (`step`, `resumeData`), user authentication check, and navigation.
+- **App.tsx**: Main controller. Manages the wizard state (`step`, `resumeData`), centralized section validation (`validateStep`), user authentication check, and navigation.
 - **Components** (`src/presentation/components/`):
-  - `FormSteps/`: Individual steps for the resume builder (Experience, Education, etc.).
+  - `FormSteps.tsx`: Contains all standard step variations and dynamically handles `isError` validation highlighting.
+  - `profile/`: Dedicated section components for Profile setup matching the FormSteps.
+  - `profile/ResumeUploadStep.tsx`: Initial drag-and-drop step for PDF-based Resume AI Extraction.
   - `Preview.tsx`: Real-time preview of the resume.
   - `Layout/`: Navbar and shared layout components.
-- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen`.
+- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen`, `ProfileSetupScreen`.
 
 ## Key Data Models (`src/domain/entities/Resume.ts`)
 - **`ResumeData`**: The aggregate root containing:
   - `personalInfo`: Contact details.
   - `targetJob`: The job description the user is applying for (critical for AI optimization).
   - `experience`: Array of work experiences with `rawDescription` (user input) and `refinedBullets` (AI output).
-  - `projects`, `education`, `skills`: Standard resume sections.
+  - `projects`, `education`, `skills`, `extracurriculars`, `awards`, `certifications`, `affiliations`, `publications`: Standard resume sections.
   - `userType`: `'experienced'` vs `'student'` (determines visible sections).
+- **`ExtractedProfileData`**: A subset interface for representing parsed AI extraction data from PDF uploads.
 
 ## Data Flow
 1. **User Input**: User fills out forms in `FormSteps`. Data is stored in `App.tsx` state.

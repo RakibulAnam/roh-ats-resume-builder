@@ -37,7 +37,8 @@ import {
     Award as AwardIcon,
     BookOpen,
     Users,
-    LogOut
+    LogOut,
+    FileText
 } from 'lucide-react';
 import {
     ExtracurricularStep,
@@ -46,12 +47,15 @@ import {
     AffiliationsStep,
     PublicationsStep
 } from './components/FormSteps';
+import { ResumeUploadStep } from './components/profile/ResumeUploadStep';
+import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
 
 interface Props {
     onComplete: () => void;
 }
 
 enum SetupStep {
+    IMPORT_RESUME = -1,
     USER_TYPE = 0,
     PERSONAL_INFO = 1,
     EXPERIENCE_OR_PROJECTS = 2,
@@ -64,6 +68,7 @@ enum SetupStep {
 }
 
 const STEP_LABELS = {
+    [SetupStep.IMPORT_RESUME]: 'Import',
     [SetupStep.USER_TYPE]: 'User Type',
     [SetupStep.PERSONAL_INFO]: 'Personal Info',
     [SetupStep.EXPERIENCE_OR_PROJECTS]: 'Experience/Projects', // Dynamic
@@ -77,7 +82,7 @@ const STEP_LABELS = {
 
 export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
     const { user, signOut } = useAuth();
-    const [currentStep, setCurrentStep] = useState(SetupStep.USER_TYPE);
+    const [currentStep, setCurrentStep] = useState(SetupStep.IMPORT_RESUME);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -135,11 +140,12 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             if (pubs.length > 0) setPublications(pubs);
 
             // Determine appropriate step to restore
-            let nextStep = SetupStep.USER_TYPE;
+            let nextStep = SetupStep.IMPORT_RESUME;
 
             if (uType) {
                 // Determine visible steps logic inline (since state not updated yet)
                 const allSteps = [
+                    SetupStep.IMPORT_RESUME,
                     SetupStep.USER_TYPE,
                     SetupStep.PERSONAL_INFO,
                     SetupStep.EXPERIENCE_OR_PROJECTS,
@@ -199,6 +205,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     const getStepIcon = (step: SetupStep) => {
         switch (step) {
+            case SetupStep.IMPORT_RESUME: return <FileText size={18} />;
             case SetupStep.USER_TYPE: return <User size={18} />;
             case SetupStep.PERSONAL_INFO: return <User size={18} />;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
@@ -212,47 +219,70 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
         }
     };
 
-    const validateCurrentStep = (): boolean => {
+    const validateCurrentStep = (showToast = true): boolean => {
+        const showError = (msg: string) => {
+            if (showToast) toast.error(msg);
+        };
+
         switch (currentStep) {
+            case SetupStep.IMPORT_RESUME:
+                return true;
+
             case SetupStep.USER_TYPE:
                 if (!userType) {
-                    toast.error('Please select your user type');
+                    showError('Please select your user type');
                     return false;
                 }
                 return true;
 
             case SetupStep.PERSONAL_INFO:
-                if (!personalInfo.fullName.trim()) {
-                    toast.error('Please enter your full name');
+                if (!(personalInfo.fullName || '').trim()) {
+                    showError('Please enter your full name');
                     return false;
                 }
-                if (!personalInfo.email.trim()) {
-                    toast.error('Please enter your email');
+                if (!(personalInfo.email || '').trim()) {
+                    showError('Please enter your email');
                     return false;
                 }
                 return true;
 
             case SetupStep.EXPERIENCE_OR_PROJECTS:
                 if (userType === 'experienced' && experiences.length === 0) {
-                    toast.error('Please add at least one work experience');
+                    showError('Please add at least one work experience');
                     return false;
                 }
                 if (userType === 'student' && projects.length === 0) {
-                    toast.error('Please add at least one project');
+                    showError('Please add at least one project');
                     return false;
                 }
-                // Validate experience/project entries have required fields
+
                 if (userType === 'experienced') {
                     for (const exp of experiences) {
-                        if (!exp.company.trim() || !exp.role.trim()) {
-                            toast.error('Please fill in company and role for all experiences');
+                        if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
+                            showError('Please fill in company and role for all experiences');
+                            return false;
+                        }
+                        if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
+                            showError('Please provide start and end dates for all experiences');
+                            return false;
+                        }
+                        if (!(exp.rawDescription || '').trim()) {
+                            showError('Please provide a description for all experiences');
                             return false;
                         }
                     }
                 } else {
                     for (const proj of projects) {
-                        if (!proj.name.trim()) {
-                            toast.error('Please fill in name for all projects');
+                        if (!(proj.name || '').trim()) {
+                            showError('Please fill in name for all projects');
+                            return false;
+                        }
+                        if (!proj.technologies || proj.technologies.length === 0 || !(proj.technologies.join('') || '').trim()) {
+                            showError('Please add at least one technology for all projects');
+                            return false;
+                        }
+                        if (!(proj.rawDescription || '').trim()) {
+                            showError('Please provide a description for all projects');
                             return false;
                         }
                     }
@@ -261,8 +291,73 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
             case SetupStep.SKILLS:
                 if (skills.length === 0) {
-                    toast.error('Please add at least one skill');
+                    showError('Please add at least one skill');
                     return false;
+                }
+                return true;
+
+            case SetupStep.EXTRACURRICULARS:
+                for (const item of extracurriculars) {
+                    if (!(item.title || '').trim() || !(item.organization || '').trim()) {
+                        showError('Please fill in role and organization for all activities');
+                        return false;
+                    }
+                    if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+                        showError('Please provide start and end dates for all activities');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.AWARDS:
+                for (const item of awards) {
+                    if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
+                        showError('Please fill in title and issuer for all awards');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all awards');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.CERTIFICATIONS:
+                for (const item of certifications) {
+                    if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
+                        showError('Please fill in name and issuer for all certifications');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all certifications');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.AFFILIATIONS:
+                for (const item of affiliations) {
+                    if (!(item.organization || '').trim() || !(item.role || '').trim()) {
+                        showError('Please fill in organization and role for all affiliations');
+                        return false;
+                    }
+                    if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+                        showError('Please provide start and end dates for all affiliations');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.PUBLICATIONS:
+                for (const item of publications) {
+                    if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
+                        showError('Please fill in title and publisher for all publications');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all publications');
+                        return false;
+                    }
                 }
                 return true;
 
@@ -329,8 +424,42 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
 
 
+    const handleExtracted = (data: ExtractedProfileData) => {
+        if (data.userType) setUserType(data.userType);
+        if (data.personalInfo) {
+            // Fill in missing properties manually to satisfy TypeScript if data.personalInfo is Partial
+            setPersonalInfo(prev => ({
+                fullName: data.personalInfo?.fullName || prev.fullName,
+                email: data.personalInfo?.email || prev.email,
+                phone: data.personalInfo?.phone || prev.phone,
+                location: data.personalInfo?.location || prev.location,
+                linkedin: data.personalInfo?.linkedin || prev.linkedin,
+                github: data.personalInfo?.github || prev.github,
+                website: data.personalInfo?.website || prev.website,
+            }));
+        }
+        if (data.experience && data.experience.length > 0) setExperiences(data.experience);
+        if (data.projects && data.projects.length > 0) setProjects(data.projects);
+        if (data.skills && data.skills.length > 0) setSkills(data.skills);
+        if (data.extracurriculars && data.extracurriculars.length > 0) setExtracurriculars(data.extracurriculars);
+        if (data.awards && data.awards.length > 0) setAwards(data.awards);
+        if (data.certifications && data.certifications.length > 0) setCertifications(data.certifications);
+        if (data.affiliations && data.affiliations.length > 0) setAffiliations(data.affiliations);
+        if (data.publications && data.publications.length > 0) setPublications(data.publications);
+
+        // Move to the next step
+        setCurrentStep(SetupStep.USER_TYPE);
+    };
+
+    const handleSkipImport = () => {
+        setCurrentStep(SetupStep.USER_TYPE);
+    };
+
     const renderCurrentStep = () => {
         switch (currentStep) {
+            case SetupStep.IMPORT_RESUME:
+                return <ResumeUploadStep onExtracted={handleExtracted} onSkip={handleSkipImport} />;
+
             case SetupStep.USER_TYPE:
                 return <UserTypeStep userType={userType} update={setUserType} />;
 
@@ -368,6 +497,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     const getVisibleSteps = () => {
         const allSteps = [
+            SetupStep.IMPORT_RESUME,
             SetupStep.USER_TYPE,
             SetupStep.PERSONAL_INFO,
             SetupStep.EXPERIENCE_OR_PROJECTS,
@@ -506,41 +636,43 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             </main>
 
             {/* Fixed Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 px-4">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <button
-                        onClick={handleBack}
-                        disabled={currentStepIndex === 0 || saving}
-                        className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <ChevronLeft size={20} />
-                        Back
-                    </button>
+            {currentStep !== SetupStep.IMPORT_RESUME && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 px-4">
+                    <div className="max-w-4xl mx-auto flex justify-between items-center">
+                        <button
+                            onClick={handleBack}
+                            disabled={currentStepIndex === 0 || saving}
+                            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={20} />
+                            Back
+                        </button>
 
-                    <button
-                        onClick={handleNext}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-70 transition-colors shadow-sm"
-                    >
-                        {saving ? (
-                            <>
-                                <Loader2 className="animate-spin" size={18} />
-                                Saving...
-                            </>
-                        ) : currentStepIndex === visibleSteps.length - 1 ? (
-                            <>
-                                Complete Setup
-                                <CheckCircle2 size={18} />
-                            </>
-                        ) : (
-                            <>
-                                Next
-                                <ChevronRight size={18} />
-                            </>
-                        )}
-                    </button>
+                        <button
+                            onClick={handleNext}
+                            disabled={saving || !validateCurrentStep(false)}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:text-gray-100 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={18} />
+                                    Saving...
+                                </>
+                            ) : currentStepIndex === visibleSteps.length - 1 ? (
+                                <>
+                                    Complete Setup
+                                    <CheckCircle2 size={18} />
+                                </>
+                            ) : (
+                                <>
+                                    Next
+                                    <ChevronRight size={18} />
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
