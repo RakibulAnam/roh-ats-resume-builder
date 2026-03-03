@@ -84,13 +84,13 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-charcoal-800 flex items-center gap-2">
                     <Briefcase size={20} /> Work Experience
                 </h3>
                 {!isEditing && (
                     <button
                         onClick={handleAddNew}
-                        className="flex items-center gap-1 text-sm bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-medium transition-colors"
+                        className="flex items-center gap-1 text-sm bg-brand-50 text-brand-600 px-3 py-1.5 rounded-lg hover:bg-brand-100 font-medium transition-colors"
                     >
                         <Plus size={16} /> Add New
                     </button>
@@ -98,30 +98,30 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
             </div>
 
             {isEditing && (
-                <form onSubmit={handleSave} className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-2">
+                <form onSubmit={handleSave} className="bg-charcoal-50 p-4 rounded-xl border border-charcoal-200 animate-in fade-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Company</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Company</label>
                             <input
                                 required
-                                className={`w-full p-2 border rounded-lg ${!formData.company ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                className={`w-full p-2 border rounded-lg ${!formData.company ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.company || ''}
                                 onChange={e => setFormData({ ...formData, company: e.target.value })}
                                 placeholder="Company Name"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Role</label>
                             <input
                                 required
-                                className={`w-full p-2 border rounded-lg ${!formData.role ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                className={`w-full p-2 border rounded-lg ${!formData.role ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.role || ''}
                                 onChange={e => setFormData({ ...formData, role: e.target.value })}
                                 placeholder="Job Title"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Start Date</label>
                             <MonthPicker
                                 isError={!formData.startDate}
                                 value={formData.startDate || ''}
@@ -129,10 +129,10 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">End Date</label>
                             <div className="flex gap-2 items-center">
                                 {formData.isCurrent ? (
-                                    <div className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 font-medium h-10 flex items-center">
+                                    <div className="w-full rounded-md border border-charcoal-200 bg-charcoal-50 px-3 py-2 text-sm text-charcoal-500 font-medium h-10 flex items-center">
                                         Present
                                     </div>
                                 ) : (
@@ -154,9 +154,9 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                         </div>
                     </div>
                     <div className="mb-4">
-                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+                        <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description</label>
                         <textarea
-                            className={`w-full p-2 border rounded-lg h-32 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                            className={`w-full p-2 border rounded-lg h-32 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                             value={formData.rawDescription || ''}
                             onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
                             placeholder="- Built feature X using React..."
@@ -166,14 +166,14 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                         <button
                             type="button"
                             onClick={resetForm}
-                            className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm"
+                            className="px-4 py-2 text-charcoal-600 hover:bg-charcoal-200 rounded-lg text-sm"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
-                            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                            className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"
                         >
                             <Save size={16} /> Save
                         </button>
@@ -183,35 +183,35 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
 
             <div className="space-y-3">
                 {experiences.length === 0 && !isEditing && (
-                    <p className="text-center text-gray-400 py-4 text-sm">No experience added yet.</p>
+                    <p className="text-center text-charcoal-400 py-4 text-sm">No experience added yet.</p>
                 )}
                 {experiences.map(exp => (
-                    <div key={exp.id} className="bg-white border border-gray-100 p-4 rounded-xl hover:shadow-sm transition-shadow group relative">
+                    <div key={exp.id} className="bg-white border border-charcoal-100 p-4 rounded-xl hover:shadow-sm transition-shadow group relative">
                         <div className="flex justify-between items-start">
                             <div>
-                                <h4 className="font-bold text-gray-900">{exp.role}</h4>
-                                <div className="text-indigo-600 font-medium text-sm">{exp.company}</div>
-                                <div className="text-gray-400 text-xs mt-1">
+                                <h4 className="font-bold text-charcoal-900">{exp.role}</h4>
+                                <div className="text-brand-600 font-medium text-sm">{exp.company}</div>
+                                <div className="text-charcoal-400 text-xs mt-1">
                                     {exp.startDate} - {exp.isCurrent ? 'Present' : exp.endDate}
                                 </div>
                             </div>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button
                                     onClick={() => handleEdit(exp)}
-                                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                                    className="p-1.5 text-charcoal-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg"
                                 >
                                     <Edit2 size={16} />
                                 </button>
                                 <button
                                     onClick={() => handleDelete(exp.id)}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                    className="p-1.5 text-charcoal-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
                                 >
                                     <Trash2 size={16} />
                                 </button>
                             </div>
                         </div>
                         {exp.rawDescription && (
-                            <p className="mt-3 text-sm text-gray-600 whitespace-pre-line line-clamp-2">
+                            <p className="mt-3 text-sm text-charcoal-600 whitespace-pre-line line-clamp-2">
                                 {exp.rawDescription}
                             </p>
                         )}

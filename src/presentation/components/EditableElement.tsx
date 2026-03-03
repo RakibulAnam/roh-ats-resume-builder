@@ -56,7 +56,7 @@ export const EditableElement: React.FC<EditableProps> = ({
                     onChange={(e) => setLocalValue(e.target.value)}
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
-                    className={`w-full bg-transparent outline-none border-b border-indigo-300 ${className} resize-none overflow-hidden`}
+                    className={`w-full bg-transparent outline-none border-b border-brand-300 ${className} resize-none overflow-hidden`}
                     style={{ height: 'auto', minHeight: '1.5em' }}
                     onInput={(e) => {
                         const target = e.target as HTMLTextAreaElement;
@@ -73,14 +73,14 @@ export const EditableElement: React.FC<EditableProps> = ({
                 onChange={(e) => setLocalValue(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
-                className={`w-full bg-transparent outline-none border-b border-indigo-300 ${className}`}
+                className={`w-full bg-transparent outline-none border-b border-brand-300 ${className}`}
             />
         );
     }
 
     if (readOnly) {
         return (
-            <Tag className={`${className} ${!value && placeholder ? 'text-gray-400 italic' : ''}`}>
+            <Tag className={`${className} ${!value && placeholder ? 'text-charcoal-400 italic' : ''}`}>
                 {value || placeholder}
             </Tag>
         );
@@ -89,7 +89,7 @@ export const EditableElement: React.FC<EditableProps> = ({
     return (
         <Tag
             onClick={() => setIsEditing(true)}
-            className={`cursor-text hover:bg-gray-50 hover:ring-1 hover:ring-gray-200 rounded px-0.5 -mx-0.5 transition-shadow ${!value && placeholder ? 'text-gray-400 italic' : ''} ${className}`}
+            className={`cursor-text hover:bg-charcoal-50 hover:ring-1 hover:ring-charcoal-200 rounded px-0.5 -mx-0.5 transition-shadow ${!value && placeholder ? 'text-charcoal-400 italic' : ''} ${className}`}
             title="Click to edit"
         >
             {value || placeholder}

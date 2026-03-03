@@ -80,13 +80,13 @@ export const ExtracurricularSection = ({ items, onRefresh }: Props) => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-charcoal-800 flex items-center gap-2">
                     <Users size={20} /> Extracurricular Activities
                 </h3>
                 {!isEditing && (
                     <button
                         onClick={handleAddNew}
-                        className="flex items-center gap-1 text-sm bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-medium transition-colors"
+                        className="flex items-center gap-1 text-sm bg-brand-50 text-brand-600 px-3 py-1.5 rounded-lg hover:bg-brand-100 font-medium transition-colors"
                     >
                         <Plus size={16} /> Add New
                     </button>
@@ -94,51 +94,51 @@ export const ExtracurricularSection = ({ items, onRefresh }: Props) => {
             </div>
 
             {isEditing && (
-                <form onSubmit={handleSave} className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-2">
+                <form onSubmit={handleSave} className="bg-charcoal-50 p-4 rounded-xl border border-charcoal-200 animate-in fade-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Organization</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.organization ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.organization || ''} onChange={e => setFormData({ ...formData, organization: e.target.value })} placeholder="e.g. University Debate Club" />
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Organization</label>
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.organization ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.organization || ''} onChange={e => setFormData({ ...formData, organization: e.target.value })} placeholder="e.g. University Debate Club" />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role/Title</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.title ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`} value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Team Captain" />
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Role/Title</label>
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.title ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Team Captain" />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Start Date</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Start Date</label>
                             <MonthPicker isError={!formData.startDate} value={formData.startDate || ''} onChange={val => setFormData({ ...formData, startDate: val })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">End Date</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">End Date</label>
                             <MonthPicker isError={!formData.endDate} value={formData.endDate || ''} onChange={val => setFormData({ ...formData, endDate: val })} />
                         </div>
                     </div>
                     <div className="mb-4">
-                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+                        <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description</label>
                         <textarea className="w-full p-2 border rounded-lg h-24 text-sm" value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="e.g. Organized regional tournaments and mentored junior members." />
                     </div>
                     <div className="flex justify-end gap-2">
-                        <button type="button" onClick={resetForm} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm">Cancel</button>
-                        <button type="submit" disabled={saving} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"><Save size={16} /> Save</button>
+                        <button type="button" onClick={resetForm} className="px-4 py-2 text-charcoal-600 hover:bg-charcoal-200 rounded-lg text-sm">Cancel</button>
+                        <button type="submit" disabled={saving} className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"><Save size={16} /> Save</button>
                     </div>
                 </form>
             )}
 
             <div className="space-y-3">
-                {items.length === 0 && !isEditing && <p className="text-center text-gray-400 py-4 text-sm">No extracurriculars added yet.</p>}
+                {items.length === 0 && !isEditing && <p className="text-center text-charcoal-400 py-4 text-sm">No extracurriculars added yet.</p>}
                 {items.map(item => (
-                    <div key={item.id} className="bg-white border border-gray-100 p-4 rounded-xl hover:shadow-sm transition-shadow group relative">
+                    <div key={item.id} className="bg-white border border-charcoal-100 p-4 rounded-xl hover:shadow-sm transition-shadow group relative">
                         <div className="flex justify-between items-start">
                             <div>
-                                <h4 className="font-bold text-gray-900">{item.title}</h4>
-                                <div className="text-indigo-600 font-medium text-sm">{item.organization}</div>
+                                <h4 className="font-bold text-charcoal-900">{item.title}</h4>
+                                <div className="text-brand-600 font-medium text-sm">{item.organization}</div>
                             </div>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => handleEdit(item)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
+                                <button onClick={() => handleEdit(item)} className="p-1.5 text-charcoal-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg"><Edit2 size={16} /></button>
+                                <button onClick={() => handleDelete(item.id)} className="p-1.5 text-charcoal-400 hover:text-red-600 hover:bg-red-50 rounded-lg"><Trash2 size={16} /></button>
                             </div>
                         </div>
-                        {item.description && <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{item.description}</p>}
+                        {item.description && <p className="mt-2 text-sm text-charcoal-600 whitespace-pre-line">{item.description}</p>}
                     </div>
                 ))}
             </div>

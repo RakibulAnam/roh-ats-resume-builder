@@ -41,7 +41,7 @@ The project follows **Clean Architecture** principles, separating concerns into 
 - **Repositories** (`src/infrastructure/repositories/`):
   - `LocalStorageResumeRepository.ts`: Saves in-progress drafts to browser `localStorage` (`resume_draft`).
   - `SupabaseResumeRepository.ts`: Saves finalized/generated resumes to Supabase (`generated_resumes` table).
-  - `SupabaseProfileRepository.ts`: Manages user profiles.
+  - `SupabaseProfileRepository.ts`: Manages user profiles and handles full account deletion via `delete_user` RPC.
 - **AI** (`src/infrastructure/ai/`): 
   - `GeminiResumeOptimizer.ts` implements `IResumeOptimizer`.
   - `GeminiResumeExtractor.ts` implements `IResumeExtractor` for parsing uploaded PDFs into structured JSON.
@@ -55,9 +55,9 @@ The project follows **Clean Architecture** principles, separating concerns into 
   - `FormSteps.tsx`: Contains all standard step variations and dynamically handles `isError` validation highlighting.
   - `profile/`: Dedicated section components for Profile setup matching the FormSteps.
   - `profile/ResumeUploadStep.tsx`: Initial drag-and-drop step for PDF-based Resume AI Extraction.
-  - `Preview.tsx`: Real-time preview of the resume.
+  - `Preview.tsx`: Real-time preview of the resume, featuring a Template Selector for switching between ATS-friendly designs (Classic, Modern, Executive), hiding targeting info for production output.
   - `Layout/`: Navbar and shared layout components.
-- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen`, `ProfileSetupScreen`.
+- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen` (includes master profile management and account deletion), `ProfileSetupScreen`.
 
 ## Key Data Models (`src/domain/entities/Resume.ts`)
 - **`ResumeData`**: The aggregate root containing:
@@ -66,6 +66,7 @@ The project follows **Clean Architecture** principles, separating concerns into 
   - `experience`: Array of work experiences with `rawDescription` (user input) and `refinedBullets` (AI output).
   - `projects`, `education`, `skills`, `extracurriculars`, `awards`, `certifications`, `affiliations`, `publications`: Standard resume sections.
   - `userType`: `'experienced'` vs `'student'` (determines visible sections).
+  - `template`: Design choice (`'classic'`, `'modern'`, `'executive'`) for formatting the generated resume.
 - **`ExtractedProfileData`**: A subset interface for representing parsed AI extraction data from PDF uploads.
 
 ## Data Flow

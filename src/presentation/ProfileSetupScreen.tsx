@@ -550,8 +550,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
-                <Loader2 className="animate-spin text-indigo-600" size={40} />
+            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
+                <Loader2 className="animate-spin text-brand-600" size={40} />
             </div>
         );
     }
@@ -559,21 +559,21 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex flex-col">
             {/* Header */}
-            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+            <header className="bg-white/80 backdrop-blur-sm border-b border-charcoal-200 sticky top-0 z-40">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-                        <span className="font-bold text-xl text-gray-900 tracking-tight">Complete Your Profile</span>
+                        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
+                        <span className="font-bold text-xl text-charcoal-900 tracking-tight">Complete Your Profile</span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="text-sm text-gray-500 hidden sm:block">
+                        <div className="text-sm text-charcoal-500 hidden sm:block">
                             Step {currentStepIndex + 1} of {totalSteps}
                         </div>
                         <button
                             onClick={() => signOut()}
-                            className="text-gray-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-gray-100"
+                            className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
                             title="Sign Out"
                         >
                             <LogOut size={20} />
@@ -583,9 +583,9 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             </header>
 
             {/* Progress Bar */}
-            <div className="w-full h-1 bg-gray-200">
+            <div className="w-full h-1 bg-charcoal-200">
                 <div
-                    className="h-full bg-indigo-600 transition-all duration-300 ease-out"
+                    className="h-full bg-brand-600 transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -598,10 +598,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                             <React.Fragment key={step}>
                                 <div className="flex flex-col items-center flex-shrink-0 z-10">
                                     <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 border-2 ${currentStep === step
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-110'
+                                        ? 'bg-brand-600 text-white border-brand-600 shadow-lg scale-110'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'bg-green-500 text-white border-green-500'
-                                            : 'bg-white text-gray-300 border-gray-200'
+                                            : 'bg-white text-charcoal-300 border-charcoal-200'
                                         }`}>
                                         {visibleSteps.indexOf(currentStep) > idx ? (
                                             <CheckCircle2 size={24} />
@@ -610,16 +610,16 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                                         )}
                                     </div>
                                     <span className={`text-xs font-medium mt-3 whitespace-nowrap px-2 transition-colors duration-300 ${currentStep === step
-                                        ? 'text-indigo-700 font-bold'
+                                        ? 'text-brand-700 font-bold'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'text-green-600'
-                                            : 'text-gray-400'
+                                            : 'text-charcoal-400'
                                         }`}>
                                         {getStepLabel(step)}
                                     </span>
                                 </div>
                                 {idx < visibleSteps.length - 1 && (
-                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-gray-200'
+                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
                                         }`} />
                                 )}
                             </React.Fragment>
@@ -630,19 +630,19 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
             {/* Main Content */}
             <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-32">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-charcoal-200 p-6 sm:p-8">
                     {renderCurrentStep()}
                 </div>
             </main>
 
             {/* Fixed Bottom Navigation */}
             {currentStep !== SetupStep.IMPORT_RESUME && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 px-4">
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 py-4 px-4">
                     <div className="max-w-4xl mx-auto flex justify-between items-center">
                         <button
                             onClick={handleBack}
                             disabled={currentStepIndex === 0 || saving}
-                            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 text-charcoal-600 hover:text-charcoal-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                         >
                             <ChevronLeft size={20} />
                             Back
@@ -651,7 +651,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                         <button
                             onClick={handleNext}
                             disabled={saving || !validateCurrentStep(false)}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:text-gray-100 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:bg-charcoal-400 disabled:text-charcoal-100 disabled:cursor-not-allowed transition-colors shadow-sm"
                         >
                             {saving ? (
                                 <>

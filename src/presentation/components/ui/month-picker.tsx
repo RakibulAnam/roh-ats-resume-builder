@@ -52,7 +52,7 @@ export function MonthPicker({ value, onChange, isError }: MonthPickerProps) {
                     variant="outline"
                     className={cn(
                         "w-full justify-start text-left font-normal bg-white",
-                        !parsedDate && "text-gray-500",
+                        !parsedDate && "text-charcoal-500",
                         isError && "border-red-500 ring-1 ring-red-500 text-red-900 focus-visible:ring-red-500"
                     )}
                 >
@@ -79,7 +79,7 @@ export function MonthPicker({ value, onChange, isError }: MonthPickerProps) {
                                 variant={isSelected ? "default" : "ghost"}
                                 className={cn(
                                     "h-9 w-full text-sm",
-                                    isSelected ? "bg-indigo-600 text-white hover:bg-indigo-700" : "hover:bg-indigo-50 hover:text-indigo-900"
+                                    isSelected ? "bg-brand-600 text-white hover:bg-brand-700" : "hover:bg-brand-50 hover:text-brand-900"
                                 )}
                                 onClick={() => handleMonthSelect(idx)}
                             >

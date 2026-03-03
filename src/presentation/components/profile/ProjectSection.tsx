@@ -55,30 +55,30 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2"><FolderGit2 size={20} /> Projects</h3>
+                <h3 className="text-lg font-semibold text-charcoal-800 flex items-center gap-2"><FolderGit2 size={20} /> Projects</h3>
                 {!isEditing && (
-                    <button onClick={handleAddNew} className="flex items-center gap-1 text-sm bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg hover:bg-indigo-100 font-medium">
+                    <button onClick={handleAddNew} className="flex items-center gap-1 text-sm bg-brand-50 text-brand-600 px-3 py-1.5 rounded-lg hover:bg-brand-100 font-medium">
                         <Plus size={16} /> Add New
                     </button>
                 )}
             </div>
 
             {isEditing && (
-                <form onSubmit={handleSave} className="bg-gray-50 p-4 rounded-xl border border-gray-200 animate-in fade-in slide-in-from-top-2">
+                <form onSubmit={handleSave} className="bg-charcoal-50 p-4 rounded-xl border border-charcoal-200 animate-in fade-in slide-in-from-top-2">
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Project Name</label>
+                                <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Project Name</label>
                                 <input
                                     required
-                                    className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                    className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                     value={formData.name || ''}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                     placeholder="e.g. E-commerce Dashboard"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Link (Optional)</label>
+                                <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Link (Optional)</label>
                                 <input
                                     className="w-full p-2 border rounded-lg"
                                     value={formData.link || ''}
@@ -88,18 +88,18 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Technologies (comma separated)</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Technologies (comma separated)</label>
                             <input
-                                className={`w-full p-2 border rounded-lg ${!formData.technologies ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                className={`w-full p-2 border rounded-lg ${!formData.technologies ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.technologies || ''}
                                 onChange={e => setFormData({ ...formData, technologies: e.target.value })}
                                 placeholder="e.g. React, Node.js, TypeScript, MongoDB"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description</label>
                             <textarea
-                                className={`w-full p-2 border rounded-lg h-24 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300'}`}
+                                className={`w-full p-2 border rounded-lg h-24 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.rawDescription || ''}
                                 onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
                                 placeholder="Describe detailed contributions and outcomes..."
@@ -109,14 +109,14 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                             <button
                                 type="button"
                                 onClick={resetForm}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm"
+                                className="px-4 py-2 text-charcoal-600 hover:bg-charcoal-200 rounded-lg text-sm"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={saving}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2"
+                                className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 flex items-center gap-2"
                             >
                                 <Save size={16} /> Save
                             </button>
@@ -126,7 +126,7 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
             )}
 
             <div className="grid grid-cols-1 gap-4">
-                {projects.length === 0 && !isEditing && <p className="text-gray-400 text-center text-sm">No projects added.</p>}
+                {projects.length === 0 && !isEditing && <p className="text-charcoal-400 text-center text-sm">No projects added.</p>}
                 {projects.map(p => (
                     <div key={p.id} className="bg-white border p-4 rounded-xl relative group">
                         <div className="flex justify-between">
@@ -136,10 +136,10 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                                 <button onClick={() => handleDelete(p.id)} className="icon-btn-danger"><Trash2 size={16} /></button>
                             </div>
                         </div>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.rawDescription}</p>
+                        <p className="text-sm text-charcoal-600 mt-1 line-clamp-2">{p.rawDescription}</p>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {p.technologies.split(',').map((t, i) => (
-                                <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{t.trim()}</span>
+                                <span key={i} className="text-xs bg-charcoal-100 px-2 py-1 rounded text-charcoal-600">{t.trim()}</span>
                             ))}
                         </div>
                     </div>

@@ -29,11 +29,11 @@ export const ResumeSourceDialog: React.FC<Props> = ({
             {/* Dialog */}
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900">Create New Application</h2>
+                <div className="flex items-center justify-between p-6 border-b border-charcoal-100">
+                    <h2 className="text-xl font-bold text-charcoal-900">Create New Application</h2>
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 text-charcoal-400 hover:text-charcoal-600 hover:bg-charcoal-100 rounded-full transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -41,7 +41,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
 
                 {/* Content */}
                 <div className="p-6">
-                    <p className="text-gray-600 mb-6">
+                    <p className="text-charcoal-600 mb-6">
                         How would you like to start your new application?
                     </p>
 
@@ -49,15 +49,15 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                         {/* Option 1: From Profile */}
                         <button
                             onClick={onChooseProfile}
-                            className="w-full p-5 border-2 border-gray-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50/50 transition-all text-left group"
+                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-all text-left group"
                         >
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                                <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                                     <User size={24} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-gray-900 mb-1">Use My Profile</h3>
-                                    <p className="text-sm text-gray-500">
+                                    <h3 className="font-semibold text-charcoal-900 mb-1">Use My Profile</h3>
+                                    <p className="text-sm text-charcoal-500">
                                         Pre-fill the application with your saved profile data including experience, projects, and skills.
                                     </p>
                                 </div>
@@ -67,15 +67,15 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                         {/* Option 2: Start Fresh */}
                         <button
                             onClick={onChooseFresh}
-                            className="w-full p-5 border-2 border-gray-200 rounded-xl hover:border-purple-500 hover:bg-purple-50/50 transition-all text-left group"
+                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-all text-left group"
                         >
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                                <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                                     <FileText size={24} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-gray-900 mb-1">Start From Scratch</h3>
-                                    <p className="text-sm text-gray-500">
+                                    <h3 className="font-semibold text-charcoal-900 mb-1">Start From Scratch</h3>
+                                    <p className="text-sm text-charcoal-500">
                                         Create a completely new application without using your saved profile data.
                                     </p>
                                 </div>
@@ -88,7 +88,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                 <div className="p-6 pt-0">
                     <button
                         onClick={onClose}
-                        className="w-full py-2.5 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                        className="w-full py-2.5 text-charcoal-600 hover:text-charcoal-900 font-medium transition-colors"
                     >
                         Cancel
                     </button>

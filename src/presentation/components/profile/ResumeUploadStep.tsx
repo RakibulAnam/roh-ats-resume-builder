@@ -87,21 +87,21 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
     return (
         <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FileText className="text-indigo-600" size={24} />
+                <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="text-brand-600" size={24} />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">Import Your Resume</h2>
-                <p className="text-gray-500">
+                <h2 className="text-2xl font-bold text-charcoal-900">Import Your Resume</h2>
+                <p className="text-charcoal-500">
                     Upload your existing resume to automatically fill out your profile using AI. You can review and edit everything in the next steps.
                 </p>
             </div>
 
             <div
                 className={`relative border-2 border-dashed rounded-2xl p-8 transition-all duration-300 ${isDragging
-                        ? 'border-indigo-500 bg-indigo-50'
+                        ? 'border-brand-500 bg-brand-50'
                         : isProcessing
-                            ? 'border-gray-200 bg-gray-50'
-                            : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+                            ? 'border-charcoal-200 bg-charcoal-50'
+                            : 'border-charcoal-300 hover:border-brand-400 hover:bg-charcoal-50'
                     }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -119,26 +119,26 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
                 <div className="flex flex-col items-center justify-center text-center space-y-4">
                     {isProcessing ? (
                         <>
-                            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-2">
-                                <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+                            <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mb-2">
+                                <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900">Analyzing Document</h3>
-                                <p className="text-sm text-gray-500 mt-1">Our AI is extracting your profile data...</p>
+                                <h3 className="text-lg font-semibold text-charcoal-900">Analyzing Document</h3>
+                                <p className="text-sm text-charcoal-500 mt-1">Our AI is extracting your profile data...</p>
                             </div>
                         </>
                     ) : (
                         <>
-                            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-indigo-100 transition-colors">
-                                <Upload className="w-8 h-8 text-indigo-500" />
+                            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-brand-100 transition-colors">
+                                <Upload className="w-8 h-8 text-brand-500" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900">Click to upload or drag and drop</h3>
-                                <p className="text-sm text-gray-500 mt-1">PDF files only (max 5MB)</p>
+                                <h3 className="text-lg font-semibold text-charcoal-900">Click to upload or drag and drop</h3>
+                                <p className="text-sm text-charcoal-500 mt-1">PDF files only (max 5MB)</p>
                             </div>
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="mt-4 px-6 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                                className="mt-4 px-6 py-2 bg-white border border-charcoal-300 rounded-lg text-sm font-medium text-charcoal-700 hover:bg-charcoal-50 transition-colors shadow-sm"
                             >
                                 Select File
                             </button>
@@ -147,16 +147,16 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
                 </div>
             </div>
 
-            <div className="flex items-center justify-center gap-4 text-sm text-gray-500">
-                <div className="h-px bg-gray-200 flex-1"></div>
+            <div className="flex items-center justify-center gap-4 text-sm text-charcoal-500">
+                <div className="h-px bg-charcoal-200 flex-1"></div>
                 <span>OR</span>
-                <div className="h-px bg-gray-200 flex-1"></div>
+                <div className="h-px bg-charcoal-200 flex-1"></div>
             </div>
 
             <button
                 onClick={onSkip}
                 disabled={isProcessing}
-                className="w-full py-3 px-4 border-2 border-gray-200 text-gray-700 bg-white rounded-xl font-medium hover:border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full py-3 px-4 border-2 border-charcoal-200 text-charcoal-700 bg-white rounded-xl font-medium hover:border-charcoal-300 hover:bg-charcoal-50 transition-colors disabled:opacity-50"
             >
                 Fill Profile Manually
             </button>

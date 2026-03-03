@@ -111,7 +111,19 @@ export interface ResumeData {
   coverLetter?: string; // AI Generated cover letter
   customSections?: { title: string; items: string[] }[];
   visibleSections?: string[]; // User selected sections
+  template?: ResumeTemplate; // ATS Template selection
+  isATSStrict?: boolean; // Force high-compliance basic layout
 }
+
+export type ResumeTemplate =
+  | 'classic'
+  | 'modern'
+  | 'executive'
+  | 'minimal'
+  | 'professional-blue'
+  | 'compact'
+  | 'elegant'
+  | 'technical';
 
 export interface OptimizedResumeData {
   summary: string;
