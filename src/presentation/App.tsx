@@ -208,10 +208,10 @@ const AppContent = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-indigo-600" size={40} />
-          <p className="text-gray-500">Loading...</p>
+          <Loader2 className="animate-spin text-brand-600" size={40} />
+          <p className="text-charcoal-500">Loading...</p>
         </div>
       </div>
     );
@@ -228,10 +228,10 @@ const AppContent = () => {
   // If user exists but still checking profile -> Loading
   if (checkingProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-indigo-600" size={40} />
-          <p className="text-gray-500">Loading Profile...</p>
+          <Loader2 className="animate-spin text-brand-600" size={40} />
+          <p className="text-charcoal-500">Loading Profile...</p>
         </div>
       </div>
     );
@@ -363,7 +363,7 @@ const AppContent = () => {
 
   if (currentScreen === AppScreen.PROFILE) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-charcoal-50">
         <Navbar
           onDashboardClick={() => setCurrentScreen(AppScreen.DASHBOARD)}
           showExitBuilder={false}
@@ -377,34 +377,158 @@ const AppContent = () => {
   const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
   const isLastStep = visibleSteps.length > 0 && visibleSteps[visibleSteps.length - 1].id === step;
 
-  const handleNext = () => {
-    // Validate Experience Description
-    if (step === AppStep.EXPERIENCE && resumeData.userType === 'experienced') {
-      const hasEmptyDescription = resumeData.experience.some(exp => !exp.rawDescription?.trim());
-      if (hasEmptyDescription) {
-        toast.error('Please describe your experience for all positions before proceeding.');
-        return;
-      }
-    }
+  const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
+    const showError = (msg: string) => {
+      if (showToast) toast.error(msg);
+    };
 
-    // Validate Projects Description
-    if (step === AppStep.PROJECTS) {
-      const hasEmptyDescription = resumeData.projects.some(p => !p.rawDescription?.trim());
-      if (hasEmptyDescription) {
-        toast.error('Please add a description for all your projects so the AI can optimize them.');
-        return;
-      }
-    }
-
-    // Validate Extracurriculars Description
-    if (step === AppStep.EXTRACURRICULARS) {
-      if (resumeData.extracurriculars) {
-        const hasEmptyDescription = resumeData.extracurriculars.some(e => !e.description?.trim());
-        if (hasEmptyDescription) {
-          toast.error('Please add a description for all extracurricular activities.');
-          return;
+    switch (currentStepId) {
+      case AppStep.PERSONAL_INFO:
+        if (!(resumeData.personalInfo.fullName || '').trim()) {
+          showError('Please enter your full name');
+          return false;
         }
-      }
+        if (!(resumeData.personalInfo.email || '').trim()) {
+          showError('Please enter your email');
+          return false;
+        }
+        return true;
+
+      case AppStep.EXPERIENCE:
+        if (resumeData.userType === 'experienced' && resumeData.experience.length === 0) {
+          showError('Please add at least one work experience');
+          return false;
+        }
+        for (const exp of resumeData.experience) {
+          if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
+            showError('Please fill in company and role for all experiences');
+            return false;
+          }
+          if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
+            showError('Please provide start and end dates for all experiences');
+            return false;
+          }
+          if (!(exp.rawDescription || '').trim()) {
+            showError('Please provide a description for all experiences');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.PROJECTS:
+        if (resumeData.userType === 'student' && resumeData.projects.length === 0) {
+          showError('Please add at least one project');
+          return false;
+        }
+        for (const proj of resumeData.projects) {
+          if (!(proj.name || '').trim()) {
+            showError('Please fill in name for all projects');
+            return false;
+          }
+          if (!(proj.technologies || '').trim()) {
+            showError('Please add at least one technology for all projects');
+            return false;
+          }
+          if (!(proj.rawDescription || '').trim()) {
+            showError('Please provide a description for all projects');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.EDUCATION:
+        for (const edu of resumeData.education) {
+          if (!(edu.school || '').trim() || !(edu.degree || '').trim() || !(edu.field || '').trim()) {
+            showError('Please fill in school, degree, and field for all education entries');
+            return false;
+          }
+          if (!(edu.startDate || '').trim() || (!edu.isCurrent && !(edu.endDate || '').trim())) {
+            showError('Please provide start and end dates for all education entries');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.SKILLS:
+        if (resumeData.skills.length === 0) {
+          showError('Please add at least one skill');
+          return false;
+        }
+        return true;
+
+      case AppStep.EXTRACURRICULARS:
+        for (const item of (resumeData.extracurriculars || [])) {
+          if (!(item.title || '').trim() || !(item.organization || '').trim()) {
+            showError('Please fill in role and organization for all activities');
+            return false;
+          }
+          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+            showError('Please provide start and end dates for all activities');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.AWARDS:
+        for (const item of (resumeData.awards || [])) {
+          if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
+            showError('Please fill in title and issuer for all awards');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all awards');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.CERTIFICATIONS:
+        for (const item of (resumeData.certifications || [])) {
+          if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
+            showError('Please fill in name and issuer for all certifications');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all certifications');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.AFFILIATIONS:
+        for (const item of (resumeData.affiliations || [])) {
+          if (!(item.organization || '').trim() || !(item.role || '').trim()) {
+            showError('Please fill in organization and role for all affiliations');
+            return false;
+          }
+          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+            showError('Please provide start and end dates for all affiliations');
+            return false;
+          }
+        }
+        return true;
+
+      case AppStep.PUBLICATIONS:
+        for (const item of (resumeData.publications || [])) {
+          if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
+            showError('Please fill in title and publisher for all publications');
+            return false;
+          }
+          if (!(item.date || '').trim()) {
+            showError('Please provide a date for all publications');
+            return false;
+          }
+        }
+        return true;
+
+      default:
+        return true;
+    }
+  };
+
+  const handleNext = () => {
+    if (!validateStep(step, true)) {
+      return;
     }
 
     // Auto-populate visible sections if passing user type for the first time without sections set
@@ -499,26 +623,26 @@ const AppContent = () => {
   // --- Landing Page ---
   if (step === AppStep.LANDING) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white flex flex-col justify-center items-center p-6 text-center">
+      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-white flex flex-col justify-center items-center p-6 text-center">
         <div className="bg-white p-4 rounded-full shadow-md mb-6 animate-bounce">
-          <FileText size={48} className="text-indigo-600" />
+          <FileText size={48} className="text-brand-600" />
         </div>
-        <h1 className="text-5xl font-extrabold text-gray-900 tracking-tight mb-4">
-          Roh ATS Resume <span className="text-indigo-600">Builder</span>
+        <h1 className="text-5xl font-extrabold text-charcoal-900 tracking-tight mb-4">
+          Roh ATS Resume <span className="text-brand-600">Builder</span>
         </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mb-10 leading-relaxed">
+        <p className="text-xl text-charcoal-600 max-w-2xl mb-10 leading-relaxed">
           Don't just write a resume. Tailor it using AI. <br />
           Paste the job description, input your details, and get a perfectly
           optimized PDF in seconds.
         </p>
         <button
           onClick={() => setStep(AppStep.USER_TYPE)}
-          className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-indigo-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl hover:-translate-y-1"
+          className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-brand-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-600 hover:bg-brand-700 shadow-lg hover:shadow-xl hover:-translate-y-1"
         >
           Start Building
           <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" />
         </button>
-        <p className="mt-8 text-sm text-gray-400">
+        <p className="mt-8 text-sm text-charcoal-400">
           Powered by Google Gemini 2.5 Flash
         </p>
       </div>
@@ -545,7 +669,7 @@ const AppContent = () => {
 
   // --- Wizard Layout ---
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-charcoal-50 flex flex-col">
       {/* 1. Global Navbar */}
       <Navbar
         onDashboardClick={() => setCurrentScreen(AppScreen.DASHBOARD)}
@@ -560,7 +684,7 @@ const AppContent = () => {
 
       {/* Main Content */}
       <main className="flex-1 max-w-3xl mx-auto w-full p-4 md:p-8">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-10 min-h-[500px] relative">
+        <div className="bg-white rounded-xl shadow-sm border border-charcoal-100 p-6 md:p-10 min-h-[500px] relative">
           {step === AppStep.USER_TYPE && (
             <UserTypeStep
               userType={resumeData.userType}
@@ -648,15 +772,15 @@ const AppContent = () => {
           {isGenerating && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles size={24} className="text-indigo-600 animate-pulse" />
+                  <Sparkles size={24} className="text-brand-600 animate-pulse" />
                 </div>
               </div>
-              <h3 className="mt-6 text-xl font-bold text-gray-800">
+              <h3 className="mt-6 text-xl font-bold text-charcoal-800">
                 Optimizing Resume...
               </h3>
-              <p className="text-gray-500 mt-2 text-center max-w-md px-4">
+              <p className="text-charcoal-500 mt-2 text-center max-w-md px-4">
                 Our AI is rewriting your bullets to match the job description
                 and formatting your document. This takes about 10-15 seconds.
               </p>
@@ -666,14 +790,14 @@ const AppContent = () => {
       </main>
 
       {/* Footer Controls */}
-      <footer className="bg-white border-t border-gray-200 p-4 sticky bottom-0 z-10">
+      <footer className="bg-white border-t border-charcoal-200 p-4 sticky bottom-0 z-10">
         <div className="max-w-3xl mx-auto flex justify-between items-center">
           <button
             onClick={handleBack}
             disabled={step === AppStep.USER_TYPE || isGenerating}
             className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all ${step === AppStep.USER_TYPE
               ? 'opacity-0 cursor-default'
-              : 'text-gray-600 hover:bg-gray-100'
+              : 'text-charcoal-600 hover:bg-charcoal-100'
               }`}
           >
             <ChevronLeft size={18} /> Back
@@ -689,15 +813,15 @@ const AppContent = () => {
               <button
                 onClick={handleNext}
                 disabled={!resumeData.userType}
-                className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <ChevronRight size={18} />
               </button>
             ) : isLastStep ? (
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-indigo-800 transition-all disabled:opacity-70 disabled:cursor-not-allowed transform active:scale-95"
+                disabled={isGenerating || !validateStep(step, false)}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-brand-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50 transform active:scale-95"
               >
                 {isGenerating ? 'Generating...' : 'Generate Resume'}{' '}
                 <Sparkles size={18} />
@@ -705,7 +829,8 @@ const AppContent = () => {
             ) : (
               <button
                 onClick={handleNext}
-                className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95"
+                disabled={!validateStep(step, false)}
+                className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <ChevronRight size={18} />
               </button>

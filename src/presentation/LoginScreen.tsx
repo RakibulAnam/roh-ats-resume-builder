@@ -65,22 +65,22 @@ export const LoginScreen = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
                 <div className="p-8">
                     {/* Branding */}
                     <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-600 rounded-xl text-white font-bold text-2xl mb-4 shadow-lg shadow-indigo-200">
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-600 rounded-xl text-white font-bold text-2xl mb-4 shadow-lg shadow-brand-200">
                             R
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-900">Roh ATS <span className="text-indigo-600">Builder</span></h2>
+                        <h2 className="text-2xl font-bold text-charcoal-900">Roh ATS <span className="text-brand-600">Builder</span></h2>
                     </div>
 
                     <div className="text-center mb-8">
-                        <h1 className="text-xl font-semibold text-gray-800 mb-2">
+                        <h1 className="text-xl font-semibold text-charcoal-800 mb-2">
                             {isLogin ? 'Welcome Back' : 'Create Account'}
                         </h1>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-charcoal-500">
                             {isLogin
                                 ? 'Enter your credentials to access your dashboard'
                                 : 'Start building your career profile today'}
@@ -105,7 +105,7 @@ export const LoginScreen = () => {
                     <form onSubmit={handleAuth} className="space-y-4">
                         {!isLogin && (
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Full Name</label>
                                 <div className="relative">
                                     <input
                                         type="text"
@@ -115,10 +115,10 @@ export const LoginScreen = () => {
                                             setFullName(e.target.value);
                                             clearErrors();
                                         }}
-                                        className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                        className="w-full px-4 py-2 pl-10 border border-charcoal-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
                                         placeholder="John Doe"
                                     />
-                                    <div className="absolute left-3 top-2.5 text-gray-400">
+                                    <div className="absolute left-3 top-2.5 text-charcoal-400">
                                         <ArrowRight size={18} />
                                     </div>
                                 </div>
@@ -126,7 +126,7 @@ export const LoginScreen = () => {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <label className="block text-sm font-medium text-charcoal-700 mb-1">Email</label>
                             <div className="relative">
                                 <input
                                     type="email"
@@ -138,18 +138,18 @@ export const LoginScreen = () => {
                                     }}
                                     className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-all ${authError
                                             ? 'border-red-300 focus:ring-red-200'
-                                            : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                                            : 'border-charcoal-300 focus:ring-brand-500 focus:border-brand-500'
                                         }`}
                                     placeholder="you@example.com"
                                 />
-                                <div className="absolute left-3 top-2.5 text-gray-400">
+                                <div className="absolute left-3 top-2.5 text-charcoal-400">
                                     <Mail size={18} />
                                 </div>
                             </div>
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <label className="block text-sm font-medium text-charcoal-700 mb-1">Password</label>
                             <div className="relative">
                                 <input
                                     type="password"
@@ -161,11 +161,11 @@ export const LoginScreen = () => {
                                     }}
                                     className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-all ${passwordError || authError
                                             ? 'border-red-500 focus:ring-2 focus:ring-red-200 focus:border-red-500'
-                                            : 'border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500'
+                                            : 'border-charcoal-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
                                         }`}
                                     placeholder="••••••••"
                                 />
-                                <div className="absolute left-3 top-2.5 text-gray-400">
+                                <div className="absolute left-3 top-2.5 text-charcoal-400">
                                     <Lock size={18} />
                                 </div>
                             </div>
@@ -180,7 +180,7 @@ export const LoginScreen = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 transition-all flex items-center justify-center gap-2"
+                            className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <Loader2 className="animate-spin" size={20} />
@@ -193,14 +193,14 @@ export const LoginScreen = () => {
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-gray-600">
+                    <div className="mt-6 text-center text-sm text-charcoal-600">
                         {isLogin ? "Don't have an account? " : "Already have an account? "}
                         <button
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 clearErrors();
                             }}
-                            className="font-semibold text-indigo-600 hover:text-indigo-500 hover:underline"
+                            className="font-semibold text-brand-600 hover:text-brand-500 hover:underline"
                         >
                             {isLogin ? 'Sign up' : 'Log in'}
                         </button>

@@ -90,6 +90,11 @@ export class SupabaseProfileRepository implements IProfileRepository {
         if (error) throw error;
     }
 
+    async deleteProfile(userId: string): Promise<void> {
+        const { error } = await supabase.rpc('delete_user');
+        if (error) throw error;
+    }
+
     // --- Experience ---
     async getExperiences(userId: string): Promise<WorkExperience[]> {
         const { data, error } = await supabase
@@ -136,7 +141,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
 
         const { error } = await supabase
             .from('experiences')
-            .upsert(payload);
+            .upsert(payload, { onConflict: 'id' });
 
         if (error) throw error;
     }
@@ -182,7 +187,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             payload.id = education.id;
         }
 
-        const { error } = await supabase.from('educations').upsert(payload);
+        const { error } = await supabase.from('educations').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -224,7 +229,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             payload.id = project.id;
         }
 
-        const { error } = await supabase.from('projects').upsert(payload);
+        const { error } = await supabase.from('projects').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -303,7 +308,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             description: item.description,
         };
         if (item.id && item.id.length > 20) payload.id = item.id;
-        const { error } = await supabase.from('extracurriculars').upsert(payload);
+        const { error } = await supabase.from('extracurriculars').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -339,7 +344,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             description: item.description,
         };
         if (item.id && item.id.length > 20) payload.id = item.id;
-        const { error } = await supabase.from('awards').upsert(payload);
+        const { error } = await supabase.from('awards').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -375,7 +380,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             link: item.link,
         };
         if (item.id && item.id.length > 20) payload.id = item.id;
-        const { error } = await supabase.from('certifications').upsert(payload);
+        const { error } = await supabase.from('certifications').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -411,7 +416,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             end_date: item.endDate,
         };
         if (item.id && item.id.length > 20) payload.id = item.id;
-        const { error } = await supabase.from('affiliations').upsert(payload);
+        const { error } = await supabase.from('affiliations').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 
@@ -447,7 +452,7 @@ export class SupabaseProfileRepository implements IProfileRepository {
             link: item.link,
         };
         if (item.id && item.id.length > 20) payload.id = item.id;
-        const { error } = await supabase.from('publications').upsert(payload);
+        const { error } = await supabase.from('publications').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     }
 

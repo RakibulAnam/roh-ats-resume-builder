@@ -7,7 +7,7 @@ import {
     UserType
 } from '../domain/entities/Resume';
 import { toast } from 'sonner';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
 import { ExperienceSection } from './components/profile/ExperienceSection';
 import { ProjectSection } from './components/profile/ProjectSection';
 import { EducationSection } from './components/profile/EducationSection';
@@ -32,10 +32,14 @@ const Tabs = [
 ];
 
 export const ProfileScreen = () => {
-    const { user } = useAuth();
+    const { user, signOut } = useAuth();
     const [activeTab, setActiveTab] = useState('Personal');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Deletion states
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     // State for each section
     const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ fullName: '', email: '', phone: '', location: '' });
@@ -113,26 +117,40 @@ export const ProfileScreen = () => {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        if (!user) return;
+        setDeleting(true);
+        try {
+            await profileRepository.deleteProfile(user.id);
+            toast.success('Account deleted successfully');
+            await signOut(); // This should trigger a redirect or re-render based on AuthContext
+        } catch (error) {
+            console.error('Failed to delete account', error);
+            toast.error('Failed to delete account. Please try again.');
+            setDeleting(false);
+        }
+    };
+
     if (loading) {
         return <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>;
     }
 
     return (
         <div className="max-w-6xl mx-auto p-4 md:p-8">
-            <h1 className="text-3xl font-bold mb-2 text-gray-900">Your Master Profile</h1>
-            <p className="text-gray-500 mb-8">
+            <h1 className="text-3xl font-bold mb-2 text-charcoal-900">Your Master Profile</h1>
+            <p className="text-charcoal-500 mb-8">
                 Manage your core information here. When you create a new resume, we'll pull from this data.
             </p>
 
-            <div className="flex gap-2 overflow-x-auto mb-8 border-b border-gray-200 pb-1 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto mb-8 border-b border-charcoal-200 pb-1 scrollbar-hide">
                 {Tabs.map(tab => (
                     <button
                         key={tab}
                         type="button"
                         onClick={() => setActiveTab(tab)}
                         className={`px-4 py-2 font-medium text-sm transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === tab
-                            ? 'text-indigo-600 border-b-2 border-indigo-600'
-                            : 'text-gray-500 hover:text-gray-700'
+                            ? 'text-brand-600 border-b-2 border-brand-600'
+                            : 'text-charcoal-500 hover:text-charcoal-700'
                             }`}
                     >
                         {tab}
@@ -140,63 +158,63 @@ export const ProfileScreen = () => {
                 ))}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-charcoal-100 p-6">
                 {activeTab === 'Personal' && (
                     <form onSubmit={handleSavePersonal} className="space-y-4 animate-in fade-in">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Full Name</label>
                                 <input
                                     type="text"
                                     value={personalInfo.fullName}
                                     onChange={e => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Email</label>
                                 <input
                                     type="email"
                                     value={personalInfo.email}
                                     disabled
-                                    className="w-full p-2 border rounded-lg bg-gray-100 text-gray-500"
+                                    className="w-full p-2 border rounded-lg bg-charcoal-100 text-charcoal-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Phone</label>
                                 <input
                                     type="text"
                                     value={personalInfo.phone}
                                     onChange={e => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Location</label>
                                 <input
                                     type="text"
                                     value={personalInfo.location}
                                     onChange={e => setPersonalInfo({ ...personalInfo, location: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">LinkedIn</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">LinkedIn</label>
                                 <input
                                     type="text"
                                     value={personalInfo.linkedin || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, linkedin: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
                                     placeholder="https://linkedin.com/in/..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Portfolio/Website</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio/Website</label>
                                 <input
                                     type="text"
                                     value={personalInfo.website || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, website: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
                                     placeholder="https://..."
                                 />
                             </div>
@@ -204,14 +222,64 @@ export const ProfileScreen = () => {
                         <div className="flex justify-end pt-4">
                             <button
                                 type="submit"
-                                disabled={saving}
-                                className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
+                                disabled={saving || deleting}
+                                className="flex items-center gap-2 bg-brand-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                                 Save Personal Info
                             </button>
                         </div>
                     </form>
+                )}
+
+                {activeTab === 'Personal' && (
+                    <div className="mt-12 pt-8 border-t border-red-100">
+                        <h3 className="text-lg font-semibold text-red-600 mb-2">Danger Zone</h3>
+                        <p className="text-charcoal-500 mb-4 text-sm">
+                            Once you delete your account, there is no going back. Please be certain.
+                        </p>
+
+                        {!showDeleteConfirm ? (
+                            <button
+                                onClick={() => setShowDeleteConfirm(true)}
+                                type="button"
+                                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors"
+                            >
+                                Delete Account
+                            </button>
+                        ) : (
+                            <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="text-red-500 mt-0.5" size={20} />
+                                    <div>
+                                        <h4 className="font-medium text-red-800">Are you absolutely sure?</h4>
+                                        <p className="text-red-600 text-sm mt-1 mb-4">
+                                            This action cannot be undone. This will permanently delete your account, profile data, experiences, projects, and all generated resumes.
+                                        </p>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                                disabled={deleting}
+                                                type="button"
+                                                className="px-4 py-2 bg-white border border-charcoal-300 text-charcoal-700 rounded-lg hover:bg-charcoal-50 text-sm font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                onClick={handleDeleteAccount}
+                                                disabled={deleting}
+                                                type="button"
+                                                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                {deleting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                                                Yes, delete my account
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {activeTab === 'Experience' && <ExperienceSection experiences={experiences} onRefresh={loadProfileData} />}

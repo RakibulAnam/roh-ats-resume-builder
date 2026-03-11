@@ -1,6 +1,7 @@
 import { GeminiResumeOptimizer } from '../ai/GeminiResumeOptimizer';
 import { WordResumeExporter } from '../export/WordResumeExporter';
 import { GeminiCoverLetterGenerator } from '../ai/GeminiCoverLetterGenerator';
+import { GeminiResumeExtractor } from '../ai/GeminiResumeExtractor';
 import { ResumeService } from '../../application/services/ResumeService';
 import { SupabaseResumeRepository } from '../repositories/SupabaseResumeRepository';
 import { SupabaseProfileRepository } from '../repositories/SupabaseProfileRepository';
@@ -15,6 +16,8 @@ const resumeOptimizer = new GeminiResumeOptimizer(apiKey);
 const resumeExporter = new WordResumeExporter();
 const coverLetterGenerator = new GeminiCoverLetterGenerator(apiKey);
 const resumeRepository = new SupabaseResumeRepository();
+
+export const resumeExtractor = new GeminiResumeExtractor(apiKey);
 
 // Supabase Repositories
 export const profileRepository = new SupabaseProfileRepository();

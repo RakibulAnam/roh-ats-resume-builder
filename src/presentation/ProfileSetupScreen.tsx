@@ -37,7 +37,8 @@ import {
     Award as AwardIcon,
     BookOpen,
     Users,
-    LogOut
+    LogOut,
+    FileText
 } from 'lucide-react';
 import {
     ExtracurricularStep,
@@ -46,12 +47,15 @@ import {
     AffiliationsStep,
     PublicationsStep
 } from './components/FormSteps';
+import { ResumeUploadStep } from './components/profile/ResumeUploadStep';
+import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
 
 interface Props {
     onComplete: () => void;
 }
 
 enum SetupStep {
+    IMPORT_RESUME = -1,
     USER_TYPE = 0,
     PERSONAL_INFO = 1,
     EXPERIENCE_OR_PROJECTS = 2,
@@ -64,6 +68,7 @@ enum SetupStep {
 }
 
 const STEP_LABELS = {
+    [SetupStep.IMPORT_RESUME]: 'Import',
     [SetupStep.USER_TYPE]: 'User Type',
     [SetupStep.PERSONAL_INFO]: 'Personal Info',
     [SetupStep.EXPERIENCE_OR_PROJECTS]: 'Experience/Projects', // Dynamic
@@ -77,7 +82,7 @@ const STEP_LABELS = {
 
 export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
     const { user, signOut } = useAuth();
-    const [currentStep, setCurrentStep] = useState(SetupStep.USER_TYPE);
+    const [currentStep, setCurrentStep] = useState(SetupStep.IMPORT_RESUME);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -135,11 +140,12 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             if (pubs.length > 0) setPublications(pubs);
 
             // Determine appropriate step to restore
-            let nextStep = SetupStep.USER_TYPE;
+            let nextStep = SetupStep.IMPORT_RESUME;
 
             if (uType) {
                 // Determine visible steps logic inline (since state not updated yet)
                 const allSteps = [
+                    SetupStep.IMPORT_RESUME,
                     SetupStep.USER_TYPE,
                     SetupStep.PERSONAL_INFO,
                     SetupStep.EXPERIENCE_OR_PROJECTS,
@@ -199,6 +205,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     const getStepIcon = (step: SetupStep) => {
         switch (step) {
+            case SetupStep.IMPORT_RESUME: return <FileText size={18} />;
             case SetupStep.USER_TYPE: return <User size={18} />;
             case SetupStep.PERSONAL_INFO: return <User size={18} />;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
@@ -212,47 +219,70 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
         }
     };
 
-    const validateCurrentStep = (): boolean => {
+    const validateCurrentStep = (showToast = true): boolean => {
+        const showError = (msg: string) => {
+            if (showToast) toast.error(msg);
+        };
+
         switch (currentStep) {
+            case SetupStep.IMPORT_RESUME:
+                return true;
+
             case SetupStep.USER_TYPE:
                 if (!userType) {
-                    toast.error('Please select your user type');
+                    showError('Please select your user type');
                     return false;
                 }
                 return true;
 
             case SetupStep.PERSONAL_INFO:
-                if (!personalInfo.fullName.trim()) {
-                    toast.error('Please enter your full name');
+                if (!(personalInfo.fullName || '').trim()) {
+                    showError('Please enter your full name');
                     return false;
                 }
-                if (!personalInfo.email.trim()) {
-                    toast.error('Please enter your email');
+                if (!(personalInfo.email || '').trim()) {
+                    showError('Please enter your email');
                     return false;
                 }
                 return true;
 
             case SetupStep.EXPERIENCE_OR_PROJECTS:
                 if (userType === 'experienced' && experiences.length === 0) {
-                    toast.error('Please add at least one work experience');
+                    showError('Please add at least one work experience');
                     return false;
                 }
                 if (userType === 'student' && projects.length === 0) {
-                    toast.error('Please add at least one project');
+                    showError('Please add at least one project');
                     return false;
                 }
-                // Validate experience/project entries have required fields
+
                 if (userType === 'experienced') {
                     for (const exp of experiences) {
-                        if (!exp.company.trim() || !exp.role.trim()) {
-                            toast.error('Please fill in company and role for all experiences');
+                        if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
+                            showError('Please fill in company and role for all experiences');
+                            return false;
+                        }
+                        if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
+                            showError('Please provide start and end dates for all experiences');
+                            return false;
+                        }
+                        if (!(exp.rawDescription || '').trim()) {
+                            showError('Please provide a description for all experiences');
                             return false;
                         }
                     }
                 } else {
                     for (const proj of projects) {
-                        if (!proj.name.trim()) {
-                            toast.error('Please fill in name for all projects');
+                        if (!(proj.name || '').trim()) {
+                            showError('Please fill in name for all projects');
+                            return false;
+                        }
+                        if (!proj.technologies || proj.technologies.length === 0 || !(proj.technologies.join('') || '').trim()) {
+                            showError('Please add at least one technology for all projects');
+                            return false;
+                        }
+                        if (!(proj.rawDescription || '').trim()) {
+                            showError('Please provide a description for all projects');
                             return false;
                         }
                     }
@@ -261,8 +291,73 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
             case SetupStep.SKILLS:
                 if (skills.length === 0) {
-                    toast.error('Please add at least one skill');
+                    showError('Please add at least one skill');
                     return false;
+                }
+                return true;
+
+            case SetupStep.EXTRACURRICULARS:
+                for (const item of extracurriculars) {
+                    if (!(item.title || '').trim() || !(item.organization || '').trim()) {
+                        showError('Please fill in role and organization for all activities');
+                        return false;
+                    }
+                    if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+                        showError('Please provide start and end dates for all activities');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.AWARDS:
+                for (const item of awards) {
+                    if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
+                        showError('Please fill in title and issuer for all awards');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all awards');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.CERTIFICATIONS:
+                for (const item of certifications) {
+                    if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
+                        showError('Please fill in name and issuer for all certifications');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all certifications');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.AFFILIATIONS:
+                for (const item of affiliations) {
+                    if (!(item.organization || '').trim() || !(item.role || '').trim()) {
+                        showError('Please fill in organization and role for all affiliations');
+                        return false;
+                    }
+                    if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
+                        showError('Please provide start and end dates for all affiliations');
+                        return false;
+                    }
+                }
+                return true;
+
+            case SetupStep.PUBLICATIONS:
+                for (const item of publications) {
+                    if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
+                        showError('Please fill in title and publisher for all publications');
+                        return false;
+                    }
+                    if (!(item.date || '').trim()) {
+                        showError('Please provide a date for all publications');
+                        return false;
+                    }
                 }
                 return true;
 
@@ -329,8 +424,42 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
 
 
+    const handleExtracted = (data: ExtractedProfileData) => {
+        if (data.userType) setUserType(data.userType);
+        if (data.personalInfo) {
+            // Fill in missing properties manually to satisfy TypeScript if data.personalInfo is Partial
+            setPersonalInfo(prev => ({
+                fullName: data.personalInfo?.fullName || prev.fullName,
+                email: data.personalInfo?.email || prev.email,
+                phone: data.personalInfo?.phone || prev.phone,
+                location: data.personalInfo?.location || prev.location,
+                linkedin: data.personalInfo?.linkedin || prev.linkedin,
+                github: data.personalInfo?.github || prev.github,
+                website: data.personalInfo?.website || prev.website,
+            }));
+        }
+        if (data.experience && data.experience.length > 0) setExperiences(data.experience);
+        if (data.projects && data.projects.length > 0) setProjects(data.projects);
+        if (data.skills && data.skills.length > 0) setSkills(data.skills);
+        if (data.extracurriculars && data.extracurriculars.length > 0) setExtracurriculars(data.extracurriculars);
+        if (data.awards && data.awards.length > 0) setAwards(data.awards);
+        if (data.certifications && data.certifications.length > 0) setCertifications(data.certifications);
+        if (data.affiliations && data.affiliations.length > 0) setAffiliations(data.affiliations);
+        if (data.publications && data.publications.length > 0) setPublications(data.publications);
+
+        // Move to the next step
+        setCurrentStep(SetupStep.USER_TYPE);
+    };
+
+    const handleSkipImport = () => {
+        setCurrentStep(SetupStep.USER_TYPE);
+    };
+
     const renderCurrentStep = () => {
         switch (currentStep) {
+            case SetupStep.IMPORT_RESUME:
+                return <ResumeUploadStep onExtracted={handleExtracted} onSkip={handleSkipImport} />;
+
             case SetupStep.USER_TYPE:
                 return <UserTypeStep userType={userType} update={setUserType} />;
 
@@ -368,6 +497,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     const getVisibleSteps = () => {
         const allSteps = [
+            SetupStep.IMPORT_RESUME,
             SetupStep.USER_TYPE,
             SetupStep.PERSONAL_INFO,
             SetupStep.EXPERIENCE_OR_PROJECTS,
@@ -420,8 +550,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
-                <Loader2 className="animate-spin text-indigo-600" size={40} />
+            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
+                <Loader2 className="animate-spin text-brand-600" size={40} />
             </div>
         );
     }
@@ -429,21 +559,21 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex flex-col">
             {/* Header */}
-            <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+            <header className="bg-white/80 backdrop-blur-sm border-b border-charcoal-200 sticky top-0 z-40">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-                        <span className="font-bold text-xl text-gray-900 tracking-tight">Complete Your Profile</span>
+                        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
+                        <span className="font-bold text-xl text-charcoal-900 tracking-tight">Complete Your Profile</span>
                     </div>
                     <div className="flex items-center gap-4">
-                        <div className="text-sm text-gray-500 hidden sm:block">
+                        <div className="text-sm text-charcoal-500 hidden sm:block">
                             Step {currentStepIndex + 1} of {totalSteps}
                         </div>
                         <button
                             onClick={() => signOut()}
-                            className="text-gray-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-gray-100"
+                            className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
                             title="Sign Out"
                         >
                             <LogOut size={20} />
@@ -453,9 +583,9 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             </header>
 
             {/* Progress Bar */}
-            <div className="w-full h-1 bg-gray-200">
+            <div className="w-full h-1 bg-charcoal-200">
                 <div
-                    className="h-full bg-indigo-600 transition-all duration-300 ease-out"
+                    className="h-full bg-brand-600 transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -468,10 +598,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                             <React.Fragment key={step}>
                                 <div className="flex flex-col items-center flex-shrink-0 z-10">
                                     <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 border-2 ${currentStep === step
-                                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg scale-110'
+                                        ? 'bg-brand-600 text-white border-brand-600 shadow-lg scale-110'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'bg-green-500 text-white border-green-500'
-                                            : 'bg-white text-gray-300 border-gray-200'
+                                            : 'bg-white text-charcoal-300 border-charcoal-200'
                                         }`}>
                                         {visibleSteps.indexOf(currentStep) > idx ? (
                                             <CheckCircle2 size={24} />
@@ -480,16 +610,16 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                                         )}
                                     </div>
                                     <span className={`text-xs font-medium mt-3 whitespace-nowrap px-2 transition-colors duration-300 ${currentStep === step
-                                        ? 'text-indigo-700 font-bold'
+                                        ? 'text-brand-700 font-bold'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'text-green-600'
-                                            : 'text-gray-400'
+                                            : 'text-charcoal-400'
                                         }`}>
                                         {getStepLabel(step)}
                                     </span>
                                 </div>
                                 {idx < visibleSteps.length - 1 && (
-                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-gray-200'
+                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
                                         }`} />
                                 )}
                             </React.Fragment>
@@ -500,47 +630,49 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
 
             {/* Main Content */}
             <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-32">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-charcoal-200 p-6 sm:p-8">
                     {renderCurrentStep()}
                 </div>
             </main>
 
             {/* Fixed Bottom Navigation */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 py-4 px-4">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <button
-                        onClick={handleBack}
-                        disabled={currentStepIndex === 0 || saving}
-                        className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <ChevronLeft size={20} />
-                        Back
-                    </button>
+            {currentStep !== SetupStep.IMPORT_RESUME && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 py-4 px-4">
+                    <div className="max-w-4xl mx-auto flex justify-between items-center">
+                        <button
+                            onClick={handleBack}
+                            disabled={currentStepIndex === 0 || saving}
+                            className="flex items-center gap-2 px-4 py-2 text-charcoal-600 hover:text-charcoal-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeft size={20} />
+                            Back
+                        </button>
 
-                    <button
-                        onClick={handleNext}
-                        disabled={saving}
-                        className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-70 transition-colors shadow-sm"
-                    >
-                        {saving ? (
-                            <>
-                                <Loader2 className="animate-spin" size={18} />
-                                Saving...
-                            </>
-                        ) : currentStepIndex === visibleSteps.length - 1 ? (
-                            <>
-                                Complete Setup
-                                <CheckCircle2 size={18} />
-                            </>
-                        ) : (
-                            <>
-                                Next
-                                <ChevronRight size={18} />
-                            </>
-                        )}
-                    </button>
+                        <button
+                            onClick={handleNext}
+                            disabled={saving || !validateCurrentStep(false)}
+                            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:bg-charcoal-400 disabled:text-charcoal-100 disabled:cursor-not-allowed transition-colors shadow-sm"
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="animate-spin" size={18} />
+                                    Saving...
+                                </>
+                            ) : currentStepIndex === visibleSteps.length - 1 ? (
+                                <>
+                                    Complete Setup
+                                    <CheckCircle2 size={18} />
+                                </>
+                            ) : (
+                                <>
+                                    Next
+                                    <ChevronRight size={18} />
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

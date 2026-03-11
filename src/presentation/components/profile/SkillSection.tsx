@@ -52,7 +52,7 @@ export const SkillSection = ({ skills, onRefresh }: Props) => {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-charcoal-800 flex items-center gap-2">
                     <Code size={20} /> Skills
                 </h3>
                 {hasChanges && (
@@ -69,17 +69,17 @@ export const SkillSection = ({ skills, onRefresh }: Props) => {
                     onChange={e => setNewSkill(e.target.value)}
                     placeholder="Add a skill (e.g. TypeScript, React)"
                 />
-                <button type="submit" className="bg-gray-900 text-white px-4 rounded-lg hover:bg-black">
+                <button type="submit" className="bg-charcoal-900 text-white px-4 rounded-lg hover:bg-black">
                     <Plus size={20} />
                 </button>
             </form>
 
-            <div className="flex flex-wrap gap-2 min-h-[100px] p-4 bg-gray-50 rounded-xl border border-gray-100">
-                {localSkills.length === 0 && <span className="text-gray-400 italic text-sm">No skills added yet.</span>}
+            <div className="flex flex-wrap gap-2 min-h-[100px] p-4 bg-charcoal-50 rounded-xl border border-charcoal-100">
+                {localSkills.length === 0 && <span className="text-charcoal-400 italic text-sm">No skills added yet.</span>}
                 {localSkills.map((skill, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1 bg-white border border-gray-200 px-3 py-1.5 rounded-full text-sm text-gray-700 shadow-sm">
+                    <span key={idx} className="inline-flex items-center gap-1 bg-white border border-charcoal-200 px-3 py-1.5 rounded-full text-sm text-charcoal-700 shadow-sm">
                         {skill}
-                        <button onClick={() => removeSkill(idx)} className="text-gray-400 hover:text-red-500 rounded-full p-0.5 hover:bg-red-50 transition-colors">
+                        <button onClick={() => removeSkill(idx)} className="text-charcoal-400 hover:text-red-500 rounded-full p-0.5 hover:bg-red-50 transition-colors">
                             <X size={14} />
                         </button>
                     </span>
