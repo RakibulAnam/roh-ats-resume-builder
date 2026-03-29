@@ -168,7 +168,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.fullName}
                                     onChange={e => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -186,7 +186,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.phone}
                                     onChange={e => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -195,7 +195,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.location}
                                     onChange={e => setPersonalInfo({ ...personalInfo, location: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -204,7 +204,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.linkedin || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, linkedin: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                     placeholder="https://linkedin.com/in/..."
                                 />
                             </div>
@@ -214,7 +214,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.website || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, website: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                     placeholder="https://..."
                                 />
                             </div>

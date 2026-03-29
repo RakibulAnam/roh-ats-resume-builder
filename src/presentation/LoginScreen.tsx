@@ -115,7 +115,7 @@ export const LoginScreen = () => {
                                             setFullName(e.target.value);
                                             clearErrors();
                                         }}
-                                        className="w-full px-4 py-2 pl-10 border border-charcoal-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
+                                        className="w-full px-4 py-2 pl-10 border border-charcoal-300 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500 outline-none transition-colors"
                                         placeholder="John Doe"
                                     />
                                     <div className="absolute left-3 top-2.5 text-charcoal-400">
@@ -136,9 +136,9 @@ export const LoginScreen = () => {
                                         setEmail(e.target.value);
                                         clearErrors();
                                     }}
-                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-all ${authError
-                                            ? 'border-red-300 focus:ring-red-200'
-                                            : 'border-charcoal-300 focus:ring-brand-500 focus:border-brand-500'
+                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-colors ${authError
+                                            ? 'border-red-300 focus-visible:ring-red-200 focus-visible:ring-2'
+                                            : 'border-charcoal-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500'
                                         }`}
                                     placeholder="you@example.com"
                                 />
@@ -159,9 +159,9 @@ export const LoginScreen = () => {
                                         setPassword(e.target.value);
                                         clearErrors();
                                     }}
-                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-all ${passwordError || authError
-                                            ? 'border-red-500 focus:ring-2 focus:ring-red-200 focus:border-red-500'
-                                            : 'border-charcoal-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500'
+                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-colors ${passwordError || authError
+                                            ? 'border-red-500 focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:border-red-500'
+                                            : 'border-charcoal-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500'
                                         }`}
                                     placeholder="••••••••"
                                 />
@@ -180,7 +180,7 @@ export const LoginScreen = () => {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 focus:ring-4 focus:ring-brand-200 transition-all flex items-center justify-center gap-2"
+                            className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-semibold hover:bg-brand-700 focus-visible:ring-4 focus-visible:ring-brand-200 transition-colors flex items-center justify-center gap-2"
                         >
                             {loading ? (
                                 <Loader2 className="animate-spin" size={20} />
@@ -196,6 +196,7 @@ export const LoginScreen = () => {
                     <div className="mt-6 text-center text-sm text-charcoal-600">
                         {isLogin ? "Don't have an account? " : "Already have an account? "}
                         <button
+                            type="button"
                             onClick={() => {
                                 setIsLogin(!isLogin);
                                 clearErrors();

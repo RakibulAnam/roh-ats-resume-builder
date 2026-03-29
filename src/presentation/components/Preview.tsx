@@ -228,6 +228,7 @@ export const Preview: React.FC<PreviewProps> = ({
       <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b border-charcoal-200 no-print shadow-sm shrink-0">
         <div className="flex items-center gap-6">
           <button
+            type="button"
             onClick={onGoHome}
             className="flex items-center gap-2 text-charcoal-500 hover:text-charcoal-900 transition-colors text-sm font-medium"
           >
@@ -265,17 +266,19 @@ export const Preview: React.FC<PreviewProps> = ({
           )}
 
           <button
+            type="button"
             onClick={activeTab === 'resume' ? handleWordExport : handleCoverLetterExport}
             disabled={isExporting || (activeTab !== 'resume' && !onExportCoverLetter)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-charcoal-700 bg-white border border-charcoal-300 rounded-md hover:bg-charcoal-50 shadow-sm transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-charcoal-700 bg-white border border-charcoal-300 rounded-md hover:bg-charcoal-50 shadow-sm transition-colors disabled:opacity-50"
           >
             <FileText size={16} />
             Download Word
           </button>
 
           <button
+            type="button"
             onClick={handlePDFExport}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#FF6B35] rounded-md hover:bg-[#E85D2B] shadow-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-[#FF6B35] rounded-md hover:bg-[#E85D2B] shadow-sm transition-colors"
           >
             <Download size={16} />
             Download PDF
@@ -293,12 +296,13 @@ export const Preview: React.FC<PreviewProps> = ({
                 const isActive = templateId === t.id && activeTab === 'resume';
                 return (
                   <button
+                    type="button"
                     key={t.id}
                     onClick={() => {
                       setActiveTab('resume');
                       onUpdate({ ...data, template: t.id });
                     }}
-                    className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-all ${isActive
+                    className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${isActive
                       ? 'bg-[#FFF5F2] text-[#FF6B35] border border-[#FFD8CC]'
                       : 'text-charcoal-600 border border-transparent hover:bg-charcoal-50'
                       }`}
@@ -319,8 +323,9 @@ export const Preview: React.FC<PreviewProps> = ({
                 <div className="my-6 border-t border-charcoal-100"></div>
                 <h2 className="text-xs font-bold text-charcoal-400 uppercase tracking-widest mb-4">Documents</h2>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('coverLetter')}
-                  className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-all ${activeTab === 'coverLetter'
+                  className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${activeTab === 'coverLetter'
                     ? 'bg-[#FFF5F2] text-[#FF6B35] border border-[#FFD8CC]'
                     : 'text-charcoal-600 border border-transparent hover:bg-charcoal-50'
                     }`}

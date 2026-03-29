@@ -1,35 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ResumeData, AppStep } from '../domain/entities';
-import {
-  UserTypeStep,
-  TargetJobStep,
-  PersonalInfoStep,
-  ExperienceStep,
-  ProjectsStep,
-  EducationStep,
-  SkillsStep,
-  ExtracurricularStep,
-  AwardsStep,
-  CertificationsStep,
-  AffiliationsStep,
-  PublicationsStep,
-} from './components/FormSteps';
-import { Preview } from './components/Preview';
+import { BuilderScreen } from './BuilderScreen';
 import { ResumeService } from '../application/services/ResumeService';
 import { createResumeService, profileRepository } from '../infrastructure/config/dependencies';
 import { AuthProvider, useAuth } from '../infrastructure/auth/AuthContext';
 import { LoginScreen } from './LoginScreen';
 import { LandingScreen } from './LandingScreen';
-import { ChevronRight, ChevronLeft, Sparkles, FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, ChevronRight } from 'lucide-react';
 
-// New Imports
 import { Navbar } from './components/Layout/Navbar';
-import { BuilderStepper } from './components/Builder/BuilderStepper';
 import { DashboardScreen } from './DashboardScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { ProfileSetupScreen } from './ProfileSetupScreen';
 import { ResumeSourceDialog } from './components/ResumeSourceDialog';
+import { AppScreen } from '../domain/enums';
 
 const INITIAL_DATA: ResumeData = {
   userType: undefined,
@@ -47,99 +32,25 @@ const INITIAL_DATA: ResumeData = {
   publications: [],
 };
 
-const STEPS_INFO = [
-  { id: AppStep.USER_TYPE, title: 'User Type' },
-  { id: AppStep.SECTIONS, title: 'Sections' }, // Add new step here
-  { id: AppStep.TARGET_JOB, title: 'Target Job' },
-  { id: AppStep.PERSONAL_INFO, title: 'Personal Info' },
-  { id: AppStep.EXPERIENCE, title: 'Experience' },
-  { id: AppStep.PROJECTS, title: 'Projects' },
-  { id: AppStep.EDUCATION, title: 'Education' },
-  { id: AppStep.SKILLS, title: 'Skills' },
-  { id: AppStep.EXTRACURRICULARS, title: 'Activities' },
-  { id: AppStep.AWARDS, title: 'Awards' },
-  { id: AppStep.CERTIFICATIONS, title: 'Certifications' },
-  { id: AppStep.AFFILIATIONS, title: 'Affiliations' },
-  { id: AppStep.PUBLICATIONS, title: 'Publications' },
-];
-
 const DEFAULT_SECTIONS = [
   'experience', 'education', 'projects', 'skills',
   'extracurriculars', 'awards', 'certifications', 'affiliations', 'publications'
 ];
 
-// Get visible steps
-const getVisibleSteps = (userType?: 'experienced' | 'student', visibleSections?: string[]) => {
-  // Base steps
-  const baseSteps = [AppStep.SECTIONS, AppStep.TARGET_JOB, AppStep.PERSONAL_INFO];
-
-  // Only show User Type if not set (or always show? User asked to remove it).
-  // Strategy: If userType is set, start navigation at SECTIONS. User Type step is hidden.
-  // To change it, user handles it differently (e.g. clear form).
-  const stepsToShow = userType ? baseSteps : [AppStep.USER_TYPE, ...baseSteps];
-
-  // Map section IDs to AppStep
-  const sectionMap: Record<string, AppStep> = {
-    'experience': AppStep.EXPERIENCE,
-    'projects': AppStep.PROJECTS,
-    'education': AppStep.EDUCATION,
-    'skills': AppStep.SKILLS,
-    'extracurriculars': AppStep.EXTRACURRICULARS,
-    'awards': AppStep.AWARDS,
-    'certifications': AppStep.CERTIFICATIONS,
-    'affiliations': AppStep.AFFILIATIONS,
-    'publications': AppStep.PUBLICATIONS,
-  };
-
-  return STEPS_INFO.filter(s => {
-    // Show if in our computed base/visible list
-    if (stepsToShow.includes(s.id)) return true;
-
-    // Check if step maps to a section
-    const sectionKey = Object.keys(sectionMap).find(key => sectionMap[key] === s.id);
-
-    // If it corresponds to a section
-    if (sectionKey) {
-      // If visibleSections is defined, check directly
-      if (visibleSections && visibleSections.length > 0) {
-        return visibleSections.includes(sectionKey);
-      }
-
-      // Fallback defaults if visibleSections not yet set
-      if (!userType) return false;
-      if (userType === 'student') {
-        if ([AppStep.EXPERIENCE, AppStep.CERTIFICATIONS, AppStep.AFFILIATIONS, AppStep.PUBLICATIONS].includes(s.id)) return false;
-      }
-      if (userType === 'experienced') {
-        if ([AppStep.EXTRACURRICULARS, AppStep.AWARDS].includes(s.id)) return false;
-      }
-      return true;
-    }
-
-    return false;
-  });
-};
-
-import { AppScreen } from '../domain/enums';
-// Import new step
-import { SectionSelectionStep } from './components/FormSteps';
-
 const AppContent = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [showSourceDialog, setShowSourceDialog] = useState(false);
 
-  // Builder State
-  const [step, setStep] = useState<AppStep>(AppStep.USER_TYPE);
-  const [resumeData, setResumeData] = useState<ResumeData>(INITIAL_DATA);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
   const [resumeService, setResumeService] = useState<ResumeService | null>(null);
+  
+  // Builder Hand-off State
+  const [builderData, setBuilderData] = useState<ResumeData>(INITIAL_DATA);
+  const [builderStep, setBuilderStep] = useState<AppStep>(AppStep.USER_TYPE);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
 
-  // Initialize service and load draft
   useEffect(() => {
     try {
       const service = createResumeService();
@@ -147,14 +58,12 @@ const AppContent = () => {
 
       const savedDraft = service.loadDraft();
       if (savedDraft) {
-        // Ensure visibleSections has defaults if missing but userType exists (migration)
         let dataToSet = { ...savedDraft };
         if (savedDraft.userType && (!savedDraft.visibleSections || savedDraft.visibleSections.length === 0)) {
           const defaults = ['skills', 'education', 'projects'];
           if (savedDraft.userType === 'experienced') defaults.push('experience');
           if (savedDraft.userType === 'student') defaults.push('extracurriculars');
 
-          // Check for data presence
           if (savedDraft.extracurriculars?.length) defaults.push('extracurriculars');
           if (savedDraft.awards?.length) defaults.push('awards');
           if (savedDraft.certifications?.length) defaults.push('certifications');
@@ -164,11 +73,10 @@ const AppContent = () => {
           dataToSet.visibleSections = Array.from(new Set(defaults));
         }
 
-        setResumeData(dataToSet);
+        setBuilderData(dataToSet);
 
-        // If user type is set, start at Sections instead of User Type
         if (savedDraft.userType) {
-          setStep(AppStep.SECTIONS);
+          setBuilderStep(AppStep.SECTIONS);
         }
       }
     } catch (error) {
@@ -177,7 +85,6 @@ const AppContent = () => {
     }
   }, []);
 
-  // Check profile completeness on login
   useEffect(() => {
     const checkProfileCompleteness = async () => {
       if (!user) {
@@ -196,7 +103,6 @@ const AppContent = () => {
         }
       } catch (error) {
         console.error('Error checking profile:', error);
-        // Default to profile setup if check fails
         setCurrentScreen(AppScreen.PROFILE_SETUP);
       } finally {
         setCheckingProfile(false);
@@ -204,20 +110,19 @@ const AppContent = () => {
     };
 
     checkProfileCompleteness();
-  }, [user?.id]);
+  }, [user]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
-          <p className="text-charcoal-500">Loading...</p>
+          <p className="text-charcoal-500">Loading…</p>
         </div>
       </div>
     );
   }
 
-  // If not loading and no user -> Landing
   if (!user) {
     if (showLogin) {
       return <LoginScreen />;
@@ -225,19 +130,17 @@ const AppContent = () => {
     return <LandingScreen onGetStarted={() => setShowLogin(true)} />;
   }
 
-  // If user exists but still checking profile -> Loading
   if (checkingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
-          <p className="text-charcoal-500">Loading Profile...</p>
+          <p className="text-charcoal-500">Loading Profile…</p>
         </div>
       </div>
     );
   }
 
-  // Helper to pre-fill resume from profile
   const prefillFromProfile = async () => {
     if (!user) return;
     try {
@@ -255,21 +158,19 @@ const AppContent = () => {
         profileRepository.getPublications(user.id),
       ]);
 
-      // Determine default visible sections based on populated data + user type defaults
-      const initialVisible: string[] = ['skills', 'education', 'projects']; // Always nice to have
+      const initialVisible: string[] = ['skills', 'education', 'projects'];
       if (uType === 'experienced') initialVisible.push('experience');
       if (uType === 'student') initialVisible.push('extracurriculars');
-      // Add if data exists
+      
       if (extras.length > 0) initialVisible.push('extracurriculars');
       if (awds.length > 0) initialVisible.push('awards');
       if (certs.length > 0) initialVisible.push('certifications');
       if (affils.length > 0) initialVisible.push('affiliations');
       if (pubs.length > 0) initialVisible.push('publications');
 
-      // Dedupe
       const uniqueVisible = Array.from(new Set(initialVisible));
 
-      setResumeData({
+      setBuilderData({
         ...INITIAL_DATA,
         userType: uType || undefined,
         personalInfo: profile || INITIAL_DATA.personalInfo,
@@ -284,9 +185,11 @@ const AppContent = () => {
         publications: pubs,
         visibleSections: uniqueVisible
       });
-      // Skip user type step if already known
+      
       if (uType) {
-        setStep(AppStep.SECTIONS); // Go to sections selection to confirm
+        setBuilderStep(AppStep.SECTIONS);
+      } else {
+        setBuilderStep(AppStep.USER_TYPE);
       }
     } catch (error) {
       console.error('Error loading profile data:', error);
@@ -294,7 +197,6 @@ const AppContent = () => {
     }
   };
 
-  // Handle source choice
   const handleChooseProfile = async () => {
     setShowSourceDialog(false);
     await prefillFromProfile();
@@ -303,25 +205,22 @@ const AppContent = () => {
 
   const handleChooseFresh = () => {
     setShowSourceDialog(false);
-    setResumeData({
+    setBuilderData({
       ...INITIAL_DATA,
-      visibleSections: DEFAULT_SECTIONS // Default to all or allow user to pick later?
-      // Actually, let's keep it undefined initially so defaults logic in getVisibleSteps works, 
-      // OR better: Initialize with defaults based on nothing, and let user pick.
+      visibleSections: DEFAULT_SECTIONS
     });
-    setStep(AppStep.USER_TYPE);
+    setBuilderStep(AppStep.USER_TYPE);
     setCurrentScreen(AppScreen.BUILDER);
   };
 
-  // Authenticated Routing
   const handleOpenResume = async (id: string) => {
     if (!user || !resumeService) return;
     try {
       const data = await resumeService.getGeneratedResume(id);
       if (data) {
-        setResumeData(data);
+        setBuilderData(data);
         setCurrentResumeId(id);
-        setStep(AppStep.PREVIEW); // Or AppStep.SECTIONS if editing? Usually Preview to check first.
+        setBuilderStep(AppStep.PREVIEW);
         setCurrentScreen(AppScreen.BUILDER);
       }
     } catch (error) {
@@ -345,8 +244,7 @@ const AppContent = () => {
           onCreateNew={() => setShowSourceDialog(true)}
           onEditProfile={() => setCurrentScreen(AppScreen.PROFILE)}
           onOpenApplication={(id) => {
-            console.log("Open App", id);
-            // TODO: Load application data then switch to builder
+            // Implementation pending per existing codebase
             setCurrentScreen(AppScreen.BUILDER);
           }}
           onOpenResume={handleOpenResume}
@@ -373,480 +271,34 @@ const AppContent = () => {
     );
   }
 
-  // ... Builder Logic (Render the existing wizard if screen is BUILDER) ...
-  const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
-  const isLastStep = visibleSteps.length > 0 && visibleSteps[visibleSteps.length - 1].id === step;
-
-  const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
-    const showError = (msg: string) => {
-      if (showToast) toast.error(msg);
-    };
-
-    switch (currentStepId) {
-      case AppStep.PERSONAL_INFO:
-        if (!(resumeData.personalInfo.fullName || '').trim()) {
-          showError('Please enter your full name');
-          return false;
-        }
-        if (!(resumeData.personalInfo.email || '').trim()) {
-          showError('Please enter your email');
-          return false;
-        }
-        return true;
-
-      case AppStep.EXPERIENCE:
-        if (resumeData.userType === 'experienced' && resumeData.experience.length === 0) {
-          showError('Please add at least one work experience');
-          return false;
-        }
-        for (const exp of resumeData.experience) {
-          if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
-            showError('Please fill in company and role for all experiences');
-            return false;
-          }
-          if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
-            showError('Please provide start and end dates for all experiences');
-            return false;
-          }
-          if (!(exp.rawDescription || '').trim()) {
-            showError('Please provide a description for all experiences');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.PROJECTS:
-        if (resumeData.userType === 'student' && resumeData.projects.length === 0) {
-          showError('Please add at least one project');
-          return false;
-        }
-        for (const proj of resumeData.projects) {
-          if (!(proj.name || '').trim()) {
-            showError('Please fill in name for all projects');
-            return false;
-          }
-          if (!(proj.technologies || '').trim()) {
-            showError('Please add at least one technology for all projects');
-            return false;
-          }
-          if (!(proj.rawDescription || '').trim()) {
-            showError('Please provide a description for all projects');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.EDUCATION:
-        for (const edu of resumeData.education) {
-          if (!(edu.school || '').trim() || !(edu.degree || '').trim() || !(edu.field || '').trim()) {
-            showError('Please fill in school, degree, and field for all education entries');
-            return false;
-          }
-          if (!(edu.startDate || '').trim() || (!edu.isCurrent && !(edu.endDate || '').trim())) {
-            showError('Please provide start and end dates for all education entries');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.SKILLS:
-        if (resumeData.skills.length === 0) {
-          showError('Please add at least one skill');
-          return false;
-        }
-        return true;
-
-      case AppStep.EXTRACURRICULARS:
-        for (const item of (resumeData.extracurriculars || [])) {
-          if (!(item.title || '').trim() || !(item.organization || '').trim()) {
-            showError('Please fill in role and organization for all activities');
-            return false;
-          }
-          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-            showError('Please provide start and end dates for all activities');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.AWARDS:
-        for (const item of (resumeData.awards || [])) {
-          if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
-            showError('Please fill in title and issuer for all awards');
-            return false;
-          }
-          if (!(item.date || '').trim()) {
-            showError('Please provide a date for all awards');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.CERTIFICATIONS:
-        for (const item of (resumeData.certifications || [])) {
-          if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
-            showError('Please fill in name and issuer for all certifications');
-            return false;
-          }
-          if (!(item.date || '').trim()) {
-            showError('Please provide a date for all certifications');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.AFFILIATIONS:
-        for (const item of (resumeData.affiliations || [])) {
-          if (!(item.organization || '').trim() || !(item.role || '').trim()) {
-            showError('Please fill in organization and role for all affiliations');
-            return false;
-          }
-          if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-            showError('Please provide start and end dates for all affiliations');
-            return false;
-          }
-        }
-        return true;
-
-      case AppStep.PUBLICATIONS:
-        for (const item of (resumeData.publications || [])) {
-          if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
-            showError('Please fill in title and publisher for all publications');
-            return false;
-          }
-          if (!(item.date || '').trim()) {
-            showError('Please provide a date for all publications');
-            return false;
-          }
-        }
-        return true;
-
-      default:
-        return true;
-    }
-  };
-
-  const handleNext = () => {
-    if (!validateStep(step, true)) {
-      return;
-    }
-
-    // Auto-populate visible sections if passing user type for the first time without sections set
-    if (step === AppStep.USER_TYPE && (!resumeData.visibleSections || resumeData.visibleSections.length === 0)) {
-      const defaults = ['education', 'skills', 'projects'];
-      if (resumeData.userType === 'experienced') defaults.push('experience');
-      // Add others as needed
-      setResumeData(prev => ({ ...prev, visibleSections: defaults }));
-    }
-
-    const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
-    const currentIndex = visibleSteps.findIndex(s => s.id === step);
-
-    if (currentIndex < visibleSteps.length - 1) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setStep(visibleSteps[currentIndex + 1].id);
-    } else {
-      // Proceed to Preview if we are at the last step
-      handleGenerate();
-    }
-  };
-
-  const handleBack = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
-    const currentIndex = visibleSteps.findIndex(s => s.id === step);
-
-    if (currentIndex > 0) {
-      setStep(visibleSteps[currentIndex - 1].id);
-    } else if (step === AppStep.PREVIEW) {
-      // From Preview go back to last visible step
-      setStep(visibleSteps[visibleSteps.length - 1].id);
-    } else {
-      // Can't go back further than first step
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!resumeService) {
-      toast.error('Service not initialized. Please refresh the page.');
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationError(null);
-    try {
-      const optimizedData = await resumeService.optimizeResume(resumeData);
-      const mergedData = resumeService.mergeOptimizedData(resumeData, optimizedData);
-      setResumeData(mergedData);
-      setStep(AppStep.PREVIEW);
-      toast.success('Resume generated successfully!');
-
-      // Auto-save to Dashboard
-      if (user) {
-        try {
-          const title = mergedData.targetJob?.title
-            ? `${mergedData.targetJob.title} Resume`
-            : `Resume - ${new Date().toLocaleDateString()}`;
-          await resumeService.saveGeneratedResume(user.id, mergedData, title);
-        } catch (saveErr) {
-          console.error('Auto-save failed', saveErr);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'Failed to generate resume. Please check your internet connection or API key and try again.';
-      toast.error(errorMessage);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-
-  const handleExportWord = async (data: ResumeData) => {
-    if (!resumeService) {
-      throw new Error('Service not initialized');
-    }
-    await resumeService.exportToWord(data);
-  };
-
-  const handleExportCoverLetter = async (data: ResumeData) => {
-    if (!resumeService) {
-      throw new Error('Service not initialized');
-    }
-    await resumeService.exportCoverLetterToWord(data);
-  };
-
-  // --- Landing Page ---
-  if (step === AppStep.LANDING) {
+  if (currentScreen === AppScreen.BUILDER) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-brand-50 to-white flex flex-col justify-center items-center p-6 text-center">
-        <div className="bg-white p-4 rounded-full shadow-md mb-6 animate-bounce">
-          <FileText size={48} className="text-brand-600" />
-        </div>
-        <h1 className="text-5xl font-extrabold text-charcoal-900 tracking-tight mb-4">
-          Roh ATS Resume <span className="text-brand-600">Builder</span>
-        </h1>
-        <p className="text-xl text-charcoal-600 max-w-2xl mb-10 leading-relaxed">
-          Don't just write a resume. Tailor it using AI. <br />
-          Paste the job description, input your details, and get a perfectly
-          optimized PDF in seconds.
-        </p>
-        <button
-          onClick={() => setStep(AppStep.USER_TYPE)}
-          className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all duration-200 bg-brand-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-600 hover:bg-brand-700 shadow-lg hover:shadow-xl hover:-translate-y-1"
-        >
-          Start Building
-          <ChevronRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-        </button>
-        <p className="mt-8 text-sm text-charcoal-400">
-          Powered by Google Gemini 2.5 Flash
-        </p>
-      </div>
-    );
-  }
-
-  // --- Preview Page ---
-  if (step === AppStep.PREVIEW) {
-    return (
-      <Preview
-        data={resumeData}
-        onUpdate={setResumeData}
-        onGoHome={() => {
-          setCurrentScreen(AppScreen.DASHBOARD);
-          // Optional: clear current resume ID if you want to ensuring fresh state next time
-          // but keeping it might be fine. Let's just switch screen.
-        }}
-        onExportWord={handleExportWord}
-        onExportCoverLetter={handleExportCoverLetter}
-        readOnly={!!currentResumeId && step === AppStep.PREVIEW}
+      <BuilderScreen 
+        initialData={builderData}
+        initialStep={builderStep}
+        currentResumeId={currentResumeId}
+        resumeService={resumeService}
+        onExit={() => setCurrentScreen(AppScreen.DASHBOARD)}
       />
     );
   }
 
-  // --- Wizard Layout ---
+  // Fallback / Landing (Only reachable if screen is somehow forced null after login)
   return (
-    <div className="min-h-screen bg-charcoal-50 flex flex-col">
-      {/* 1. Global Navbar */}
-      <Navbar
-        onDashboardClick={() => setCurrentScreen(AppScreen.DASHBOARD)}
-        showExitBuilder={true}
-      />
-
-      {/* 2. Builder Progress Stepper */}
-      <BuilderStepper
-        steps={getVisibleSteps(resumeData.userType, resumeData.visibleSections)}
-        currentStep={step}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-3xl mx-auto w-full p-4 md:p-8">
-        <div className="bg-white rounded-xl shadow-sm border border-charcoal-100 p-6 md:p-10 min-h-[500px] relative">
-          {step === AppStep.USER_TYPE && (
-            <UserTypeStep
-              userType={resumeData.userType}
-              update={userType => setResumeData({ ...resumeData, userType })}
-            />
-          )}
-          {step === AppStep.SECTIONS && (
-            <SectionSelectionStep
-              selected={resumeData.visibleSections || []}
-              update={sections => setResumeData({ ...resumeData, visibleSections: sections })}
-              userType={resumeData.userType}
-            />
-          )}
-          {step === AppStep.TARGET_JOB && (
-            <TargetJobStep
-              data={resumeData.targetJob}
-              update={d =>
-                setResumeData({ ...resumeData, targetJob: d })
-              }
-            />
-          )}
-          {step === AppStep.PERSONAL_INFO && (
-            <PersonalInfoStep
-              data={resumeData.personalInfo}
-              update={d =>
-                setResumeData({ ...resumeData, personalInfo: d })
-              }
-            />
-          )}
-          {step === AppStep.EXPERIENCE && resumeData.userType === 'experienced' && (
-            <ExperienceStep
-              data={resumeData.experience}
-              update={d => setResumeData({ ...resumeData, experience: d })}
-            />
-          )}
-          {step === AppStep.PROJECTS && (
-            <ProjectsStep
-              data={resumeData.projects}
-              update={d => setResumeData({ ...resumeData, projects: d })}
-            />
-          )}
-          {step === AppStep.EDUCATION && (
-            <EducationStep
-              data={resumeData.education}
-              update={d => setResumeData({ ...resumeData, education: d })}
-            />
-          )}
-          {step === AppStep.SKILLS && (
-            <SkillsStep
-              data={resumeData.skills}
-              update={d => setResumeData({ ...resumeData, skills: d })}
-            />
-          )}
-          {step === AppStep.EXTRACURRICULARS && (
-            <ExtracurricularStep
-              data={resumeData.extracurriculars || []}
-              update={d => setResumeData({ ...resumeData, extracurriculars: d })}
-            />
-          )}
-          {step === AppStep.AWARDS && (
-            <AwardsStep
-              data={resumeData.awards || []}
-              update={d => setResumeData({ ...resumeData, awards: d })}
-            />
-          )}
-          {step === AppStep.CERTIFICATIONS && (
-            <CertificationsStep
-              data={resumeData.certifications || []}
-              update={d => setResumeData({ ...resumeData, certifications: d })}
-            />
-          )}
-          {step === AppStep.AFFILIATIONS && (
-            <AffiliationsStep
-              data={resumeData.affiliations || []}
-              update={d => setResumeData({ ...resumeData, affiliations: d })}
-            />
-          )}
-          {step === AppStep.PUBLICATIONS && (
-            <PublicationsStep
-              data={resumeData.publications || []}
-              update={d => setResumeData({ ...resumeData, publications: d })}
-            />
-          )}
-
-          {isGenerating && (
-            <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles size={24} className="text-brand-600 animate-pulse" />
-                </div>
-              </div>
-              <h3 className="mt-6 text-xl font-bold text-charcoal-800">
-                Optimizing Resume...
-              </h3>
-              <p className="text-charcoal-500 mt-2 text-center max-w-md px-4">
-                Our AI is rewriting your bullets to match the job description
-                and formatting your document. This takes about 10-15 seconds.
-              </p>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Footer Controls */}
-      <footer className="bg-white border-t border-charcoal-200 p-4 sticky bottom-0 z-10">
-        <div className="max-w-3xl mx-auto flex justify-between items-center">
-          <button
-            onClick={handleBack}
-            disabled={step === AppStep.USER_TYPE || isGenerating}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all ${step === AppStep.USER_TYPE
-              ? 'opacity-0 cursor-default'
-              : 'text-charcoal-600 hover:bg-charcoal-100'
-              }`}
-          >
-            <ChevronLeft size={18} /> Back
-          </button>
-
-          <div className="flex flex-col items-end">
-            {generationError && (
-              <p className="text-red-500 text-xs mb-2 font-medium">
-                {generationError}
-              </p>
-            )}
-            {step === AppStep.USER_TYPE ? (
-              <button
-                onClick={handleNext}
-                disabled={!resumeData.userType}
-                className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <ChevronRight size={18} />
-              </button>
-            ) : isLastStep ? (
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !validateStep(step, false)}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-brand-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50 transform active:scale-95"
-              >
-                {isGenerating ? 'Generating...' : 'Generate Resume'}{' '}
-                <Sparkles size={18} />
-              </button>
-            ) : (
-              <button
-                onClick={handleNext}
-                disabled={!validateStep(step, false)}
-                className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <ChevronRight size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-      </footer>
-      <Toaster richColors position="top-center" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
+      <div className="flex flex-col items-center gap-4">
+        <Loader2 className="animate-spin text-brand-600" size={40} />
+      </div>
     </div>
   );
-}
+};
 
 export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <Toaster richColors position="top-center" />
     </AuthProvider>
   );
 }
+

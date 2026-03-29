@@ -572,6 +572,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                             Step {currentStepIndex + 1} of {totalSteps}
                         </div>
                         <button
+                            type="button"
                             onClick={() => signOut()}
                             className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
                             title="Sign Out"
@@ -585,7 +586,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             {/* Progress Bar */}
             <div className="w-full h-1 bg-charcoal-200">
                 <div
-                    className="h-full bg-brand-600 transition-all duration-300 ease-out"
+                    className="h-full bg-brand-600 transition-[width] duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -597,7 +598,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                         {visibleSteps.map((step, idx) => (
                             <React.Fragment key={step}>
                                 <div className="flex flex-col items-center flex-shrink-0 z-10">
-                                    <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 border-2 ${currentStep === step
+                                    <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-[background-color,border-color,transform] duration-300 border-2 ${currentStep === step
                                         ? 'bg-brand-600 text-white border-brand-600 shadow-lg scale-110'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'bg-green-500 text-white border-green-500'
@@ -619,7 +620,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                                     </span>
                                 </div>
                                 {idx < visibleSteps.length - 1 && (
-                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
+                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-colors duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
                                         }`} />
                                 )}
                             </React.Fragment>
@@ -640,6 +641,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 py-4 px-4">
                     <div className="max-w-4xl mx-auto flex justify-between items-center">
                         <button
+                            type="button"
                             onClick={handleBack}
                             disabled={currentStepIndex === 0 || saving}
                             className="flex items-center gap-2 px-4 py-2 text-charcoal-600 hover:text-charcoal-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -649,6 +651,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                         </button>
 
                         <button
+                            type="button"
                             onClick={handleNext}
                             disabled={saving || !validateCurrentStep(false)}
                             className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:bg-charcoal-400 disabled:text-charcoal-100 disabled:cursor-not-allowed transition-colors shadow-sm"

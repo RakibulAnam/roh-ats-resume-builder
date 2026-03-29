@@ -97,7 +97,7 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
             </div>
 
             <div
-                className={`relative border-2 border-dashed rounded-2xl p-8 transition-all duration-300 ${isDragging
+                className={`relative border-2 border-dashed rounded-2xl p-8 transition-colors duration-300 ${isDragging
                         ? 'border-brand-500 bg-brand-50'
                         : isProcessing
                             ? 'border-charcoal-200 bg-charcoal-50'
@@ -137,6 +137,7 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
                                 <p className="text-sm text-charcoal-500 mt-1">PDF files only (max 5MB)</p>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => fileInputRef.current?.click()}
                                 className="mt-4 px-6 py-2 bg-white border border-charcoal-300 rounded-lg text-sm font-medium text-charcoal-700 hover:bg-charcoal-50 transition-colors shadow-sm"
                             >
@@ -154,6 +155,7 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
             </div>
 
             <button
+                type="button"
                 onClick={onSkip}
                 disabled={isProcessing}
                 className="w-full py-3 px-4 border-2 border-charcoal-200 text-charcoal-700 bg-white rounded-xl font-medium hover:border-charcoal-300 hover:bg-charcoal-50 transition-colors disabled:opacity-50"

@@ -32,6 +32,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                 <div className="flex items-center justify-between p-6 border-b border-charcoal-100">
                     <h2 className="text-xl font-bold text-charcoal-900">Create New Application</h2>
                     <button
+                        type="button"
                         onClick={onClose}
                         className="p-2 text-charcoal-400 hover:text-charcoal-600 hover:bg-charcoal-100 rounded-full transition-colors"
                     >
@@ -48,8 +49,9 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                     <div className="space-y-4">
                         {/* Option 1: From Profile */}
                         <button
+                            type="button"
                             onClick={onChooseProfile}
-                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-all text-left group"
+                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-colors text-left group"
                         >
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
@@ -66,8 +68,9 @@ export const ResumeSourceDialog: React.FC<Props> = ({
 
                         {/* Option 2: Start Fresh */}
                         <button
+                            type="button"
                             onClick={onChooseFresh}
-                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-all text-left group"
+                            className="w-full p-5 border-2 border-charcoal-200 rounded-xl hover:border-brand-500 hover:bg-brand-50/50 transition-colors text-left group"
                         >
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
@@ -87,6 +90,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                 {/* Footer */}
                 <div className="p-6 pt-0">
                     <button
+                        type="button"
                         onClick={onClose}
                         className="w-full py-2.5 text-charcoal-600 hover:text-charcoal-900 font-medium transition-colors"
                     >
