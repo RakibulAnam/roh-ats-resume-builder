@@ -42,15 +42,6 @@ export const templateRegistry: Record<ResumeTemplate, TemplateDefinition> = {
         spacing: { sectionGap: 'mb-6', itemGap: 'space-y-5' },
         layout: { headerAlignment: 'left', sectionDivider: 'none', nameStyle: 'uppercase', skillStyle: 'inline' },
     },
-    modern: {
-        id: 'modern',
-        displayName: 'Modern',
-        description: 'Clean sans-serif typography with subtle branding accents.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-brand-900', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-brand-100' },
-        spacing: { sectionGap: 'mb-6', itemGap: 'space-y-5' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'tags' },
-    },
     executive: {
         id: 'executive',
         displayName: 'Executive',
@@ -69,15 +60,6 @@ export const templateRegistry: Record<ResumeTemplate, TemplateDefinition> = {
         spacing: { sectionGap: 'mb-8', itemGap: 'space-y-4' },
         layout: { headerAlignment: 'left', sectionDivider: 'none', nameStyle: 'normal', skillStyle: 'inline' },
     },
-    'professional-blue': {
-        id: 'professional-blue',
-        displayName: 'Pro Blue',
-        description: 'Corporate aesthetic with clear section dividers and blue accents.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-blue-800', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-blue-800' },
-        spacing: { sectionGap: 'mb-5', itemGap: 'space-y-4' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'tags' },
-    },
     compact: {
         id: 'compact',
         displayName: 'Compact',
@@ -86,15 +68,6 @@ export const templateRegistry: Record<ResumeTemplate, TemplateDefinition> = {
         colors: { primary: 'text-charcoal-900', text: 'text-charcoal-900', muted: 'text-charcoal-700', divider: 'border-charcoal-300' },
         spacing: { sectionGap: 'mb-3', itemGap: 'space-y-2' },
         layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'inline' },
-    },
-    elegant: {
-        id: 'elegant',
-        displayName: 'Elegant',
-        description: 'Sophisticated typography pairing with refined spacing structure.',
-        typography: { fontFamily: 'font-serif', baseSize: 'text-sm', headingWeight: 'font-semibold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-charcoal-800', text: 'text-charcoal-800', muted: 'text-charcoal-500', divider: 'border-charcoal-200' },
-        spacing: { sectionGap: 'mb-7', itemGap: 'space-y-5' },
-        layout: { headerAlignment: 'center', sectionDivider: 'none', nameStyle: 'bold', skillStyle: 'tags' },
     },
     technical: {
         id: 'technical',

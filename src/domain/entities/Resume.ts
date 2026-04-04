@@ -117,12 +117,9 @@ export interface ResumeData {
 
 export type ResumeTemplate =
   | 'classic'
-  | 'modern'
   | 'executive'
   | 'minimal'
-  | 'professional-blue'
   | 'compact'
-  | 'elegant'
   | 'technical';
 
 export interface OptimizedResumeData {
