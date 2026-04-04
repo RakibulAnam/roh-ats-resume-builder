@@ -157,31 +157,34 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                                 <div className="w-10 h-10 bg-brand-50 rounded-lg flex items-center justify-center text-brand-600 group-hover:bg-brand-600 group-hover:text-white transition-colors">
                                                     <FileText size={20} />
                                                 </div>
-                                                <div className="relative">
-                                                    <button
-                                                        type="button"
-                                                        className="text-charcoal-400 hover:text-charcoal-600 p-1 rounded-full hover:bg-charcoal-100 transition-colors"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenuId(activeMenuId === resume.id ? null : resume.id);
-                                                        }}
-                                                    >
-                                                        <MoreVertical size={18} />
-                                                    </button>
+                                                
+                                                {resume.title !== 'General Resume' && (
+                                                    <div className="relative">
+                                                        <button
+                                                            type="button"
+                                                            className="text-charcoal-400 hover:text-charcoal-600 p-1 rounded-full hover:bg-charcoal-100 transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setActiveMenuId(activeMenuId === resume.id ? null : resume.id);
+                                                            }}
+                                                        >
+                                                            <MoreVertical size={18} />
+                                                        </button>
 
-                                                    {activeMenuId === resume.id && (
-                                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-charcoal-100 ring-1 ring-black ring-opacity-5">
-                                                            <button
-                                                                type="button"
-                                                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                                                onClick={(e) => handleDeleteResume(resume.id, e)}
-                                                            >
-                                                                <Trash size={16} className="mr-2" />
-                                                                Delete Resume
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                        {activeMenuId === resume.id && (
+                                                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-charcoal-100 ring-1 ring-black ring-opacity-5">
+                                                                <button
+                                                                    type="button"
+                                                                    className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                                    onClick={(e) => handleDeleteResume(resume.id, e)}
+                                                                >
+                                                                    <Trash size={16} className="mr-2" />
+                                                                    Delete Resume
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                             <h3 className="font-bold text-charcoal-900 mb-1 line-clamp-1">
                                                 {resume.title.replace(/ Resume$/i, '').replace(/Resume$/i, '').trim()}

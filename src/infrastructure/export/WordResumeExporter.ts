@@ -389,40 +389,84 @@ export class WordResumeExporter implements IResumeExporter {
       day: 'numeric',
     });
 
+    // Sender contact block
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: data.personalInfo.fullName, bold: true, size: 24, font: 'Georgia' })],
+        spacing: { after: 40 },
+      })
+    );
+    if (data.personalInfo.email) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: data.personalInfo.email, size: 20, font: 'Georgia' })],
+          spacing: { after: 20 },
+        })
+      );
+    }
+    if (data.personalInfo.phone) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: data.personalInfo.phone, size: 20, font: 'Georgia' })],
+          spacing: { after: 20 },
+        })
+      );
+    }
+    if (data.personalInfo.location) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: data.personalInfo.location, size: 20, font: 'Georgia' })],
+          spacing: { after: 20 },
+        })
+      );
+    }
+    if (data.personalInfo.linkedin) {
+      paragraphs.push(
+        new Paragraph({
+          children: [new TextRun({ text: data.personalInfo.linkedin, size: 20, font: 'Georgia' })],
+          spacing: { after: 20 },
+        })
+      );
+    }
+
+    // Spacer after sender block
+    paragraphs.push(new Paragraph({ text: '', spacing: { after: 240 } }));
+
     // Date
     paragraphs.push(
       new Paragraph({
-        text: today,
-        alignment: AlignmentType.LEFT,
+        children: [new TextRun({ text: today, size: 22, font: 'Georgia' })],
         spacing: { after: 240 },
       })
     );
 
-    // Recipient (if company name available)
+    // Recipient
+    paragraphs.push(
+      new Paragraph({
+        children: [new TextRun({ text: 'Hiring Manager', size: 22, font: 'Georgia' })],
+        spacing: { after: 40 },
+      })
+    );
     if (data.targetJob.company) {
       paragraphs.push(
         new Paragraph({
-          text: data.targetJob.company,
-          spacing: { after: 60 },
+          children: [new TextRun({ text: data.targetJob.company, size: 22, font: 'Georgia' })],
+          spacing: { after: 240 },
         })
       );
+    } else {
+      paragraphs.push(new Paragraph({ text: '', spacing: { after: 200 } }));
     }
-    paragraphs.push(
-      new Paragraph({
-        text: 'Hiring Manager',
-        spacing: { after: 240 },
-      })
-    );
 
     // Salutation
     paragraphs.push(
       new Paragraph({
-        text: 'Dear Hiring Manager,',
+        children: [new TextRun({ text: 'Dear Hiring Manager,', size: 22, font: 'Georgia' })],
         spacing: { after: 240 },
       })
     );
 
-    // Cover letter body - split by paragraphs
+    // Body paragraphs — split by double newlines
     const coverLetterText = data.coverLetter || '';
     const bodyParagraphs = coverLetterText
       .split(/\n\s*\n/)
@@ -430,20 +474,11 @@ export class WordResumeExporter implements IResumeExporter {
       .map(p => p.trim());
 
     bodyParagraphs.forEach((para, index) => {
-      // Skip if it's a greeting or closing
-      if (
-        para.toLowerCase().includes('dear') ||
-        para.toLowerCase().includes('sincerely') ||
-        para.toLowerCase().includes('best regards') ||
-        para.toLowerCase().includes('respectfully')
-      ) {
-        return;
-      }
-
       paragraphs.push(
         new Paragraph({
-          children: [new TextRun(para)],
-          spacing: { after: index < bodyParagraphs.length - 1 ? 180 : 240 },
+          children: [new TextRun({ text: para, size: 22, font: 'Georgia' })],
+          spacing: { after: index < bodyParagraphs.length - 1 ? 200 : 280 },
+          alignment: AlignmentType.JUSTIFIED,
         })
       );
     });
@@ -451,34 +486,18 @@ export class WordResumeExporter implements IResumeExporter {
     // Closing
     paragraphs.push(
       new Paragraph({
-        text: 'Sincerely,',
-        spacing: { before: 240, after: 480 },
+        children: [new TextRun({ text: 'Sincerely,', size: 22, font: 'Georgia' })],
+        spacing: { before: 120, after: 480 },
       })
     );
 
-    // Signature line
+    // Signature
     paragraphs.push(
       new Paragraph({
-        text: data.personalInfo.fullName,
+        children: [new TextRun({ text: data.personalInfo.fullName, bold: true, size: 22, font: 'Georgia' })],
         spacing: { after: 60 },
       })
     );
-
-    if (data.personalInfo.email) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: data.personalInfo.email, size: 20 })],
-        })
-      );
-    }
-
-    if (data.personalInfo.phone) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: data.personalInfo.phone, size: 20 })],
-        })
-      );
-    }
 
     return new Document({
       sections: [
@@ -486,7 +505,7 @@ export class WordResumeExporter implements IResumeExporter {
           properties: {
             page: {
               margin: {
-                top: 720, // 0.5 inch
+                top: 720,
                 right: 720,
                 bottom: 720,
                 left: 720,

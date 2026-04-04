@@ -53,10 +53,10 @@ export class SupabaseResumeRepository implements IResumeRepository {
         if (error) throw error;
     }
 
-    async getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; company?: string }[]> {
+    async getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; updatedAt?: string; company?: string }[]> {
         const { data, error } = await supabase
             .from('generated_resumes')
-            .select('id, title, created_at, data')
+            .select('id, title, created_at, updated_at, data')
             .eq('user_id', userId)
             .order('created_at', { ascending: false });
 
@@ -66,6 +66,7 @@ export class SupabaseResumeRepository implements IResumeRepository {
             id: item.id,
             title: item.title,
             date: item.created_at,
+            updatedAt: item.updated_at || item.created_at,
             company: item.data?.targetJob?.company
         }));
     }
@@ -82,6 +83,19 @@ export class SupabaseResumeRepository implements IResumeRepository {
     }
 
     async deleteGeneratedResume(id: string): Promise<void> {
+        // Prevent deletion of the protected General Resume
+        const { data: resumeData, error: fetchError } = await supabase
+            .from('generated_resumes')
+            .select('title')
+            .eq('id', id)
+            .single();
+
+        if (fetchError) throw fetchError;
+        
+        if (resumeData?.title === 'General Resume') {
+            throw new Error('The General Resume cannot be deleted.');
+        }
+
         const { error } = await supabase
             .from('generated_resumes')
             .delete()

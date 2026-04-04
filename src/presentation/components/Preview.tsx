@@ -1,6 +1,6 @@
 // Presentation Layer - Preview Component
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { ResumeData, ResumeTemplate } from '../../domain/entities/Resume';
 import { templateRegistry } from '../templates/TemplateRegistry';
@@ -23,6 +23,9 @@ import {
   FileSignature,
   File,
   Terminal,
+  RefreshCw,
+  Lock,
+  Loader2,
 } from 'lucide-react';
 import { EditableElement } from './EditableElement';
 
@@ -49,6 +52,10 @@ interface PreviewProps {
   onExportCoverLetter?: (data: ResumeData) => Promise<void>;
   onGoHome: () => void;
   readOnly?: boolean;
+  isGeneralResume?: boolean;
+  onRegenerate?: () => Promise<void>;
+  canRegenerate?: boolean;
+  cooldownEndsAt?: Date | null;
 }
 
 export const Preview: React.FC<PreviewProps> = ({
@@ -58,9 +65,38 @@ export const Preview: React.FC<PreviewProps> = ({
   onExportCoverLetter,
   onGoHome,
   readOnly = false,
+  isGeneralResume = false,
+  onRegenerate,
+  canRegenerate = true,
+  cooldownEndsAt,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<'resume' | 'coverLetter'>('resume');
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [cooldownText, setCooldownText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!cooldownEndsAt || canRegenerate) {
+      setCooldownText(null);
+      return;
+    }
+
+    const updateCooldownText = () => {
+      const now = new Date();
+      const diffStr = cooldownEndsAt.getTime() - now.getTime();
+      if (diffStr <= 0) {
+        setCooldownText(null);
+        return;
+      }
+      const hours = Math.floor(diffStr / (1000 * 60 * 60));
+      const minutes = Math.floor((diffStr % (1000 * 60 * 60)) / (1000 * 60));
+      setCooldownText(`Regeneration locked. Try again in ${hours}h ${minutes}m`);
+    };
+
+    updateCooldownText();
+    const interval = setInterval(updateCooldownText, 60000); // update every minute
+    return () => clearInterval(interval);
+  }, [cooldownEndsAt, canRegenerate]);
 
   const templateId = data.template || 'classic';
   const template = templateRegistry[templateId] || templateRegistry['classic'];
@@ -225,8 +261,8 @@ export const Preview: React.FC<PreviewProps> = ({
         }
       `}</style>
       {/* Top Navbar */}
-      <header className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-white border-b border-charcoal-200 no-print shadow-sm shrink-0">
-        <div className="flex items-center gap-6">
+      <header className="sticky top-0 z-10 flex flex-col md:flex-row items-start md:items-center justify-between px-4 md:px-6 py-4 bg-white border-b border-charcoal-200 no-print shadow-sm shrink-0 gap-4">
+        <div className="flex items-center justify-between w-full md:w-auto md:justify-start gap-4 md:gap-6">
           <button
             type="button"
             onClick={onGoHome}
@@ -243,7 +279,7 @@ export const Preview: React.FC<PreviewProps> = ({
           </h1>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto justify-end flex-wrap overflow-x-auto scrollbar-hide">
           {activeTab === 'resume' && (
             <label className="flex items-center gap-3 text-sm font-semibold text-charcoal-600 cursor-pointer hover:text-charcoal-900 transition-colors bg-charcoal-50 px-4 py-2 rounded-full border border-charcoal-200">
               <span className="text-xs tracking-widest uppercase">ATS STRICT MODE</span>
@@ -263,6 +299,36 @@ export const Preview: React.FC<PreviewProps> = ({
                 />
               </div>
             </label>
+          )}
+
+          {isGeneralResume && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (onRegenerate) {
+                  setIsRegenerating(true);
+                  try {
+                    await onRegenerate();
+                  } finally {
+                    setIsRegenerating(false);
+                  }
+                }
+              }}
+              disabled={!canRegenerate || isRegenerating}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md border shadow-sm transition-colors
+                disabled:opacity-50
+                bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
+              title={cooldownText || 'Regenerate General Resume'}
+            >
+              {isRegenerating ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : !canRegenerate ? (
+                <Lock size={16} className="text-brand-400" />
+              ) : (
+                <RefreshCw size={16} />
+              )}
+              {!canRegenerate ? 'Regenerate Locked' : 'Regenerate'}
+            </button>
           )}
 
           <button
@@ -286,12 +352,13 @@ export const Preview: React.FC<PreviewProps> = ({
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden print:overflow-visible print:block">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden print:overflow-visible print:block">
         {/* Left Sidebar */}
-        <aside className="w-[280px] bg-white border-r border-charcoal-100 overflow-y-auto no-print flex-shrink-0">
-          <div className="p-6">
-            <h2 className="text-xs font-bold text-charcoal-400 uppercase tracking-widest mb-4">Select Template</h2>
-            <div className="flex flex-col gap-1">
+        <aside className="w-full md:w-[280px] bg-white border-b md:border-b-0 md:border-r border-charcoal-100 overflow-x-auto md:overflow-y-auto no-print flex-shrink-0 scrollbar-hide">
+          <div className="p-4 md:p-6 flex flex-row md:flex-col gap-6">
+            <div>
+              <h2 className="text-xs font-bold text-charcoal-400 uppercase tracking-widest mb-3">Select Template</h2>
+              <div className="flex flex-row md:flex-col gap-2 min-w-max md:min-w-0">
               {Object.values(templateRegistry).map(t => {
                 const isActive = templateId === t.id && activeTab === 'resume';
                 return (
@@ -317,12 +384,15 @@ export const Preview: React.FC<PreviewProps> = ({
                 );
               })}
             </div>
+            </div>
 
             {data.coverLetter && (
-              <>
-                <div className="my-6 border-t border-charcoal-100"></div>
-                <h2 className="text-xs font-bold text-charcoal-400 uppercase tracking-widest mb-4">Documents</h2>
-                <button
+              <div className="flex items-center md:items-start md:flex-col gap-4 md:gap-0">
+                <div className="hidden md:block my-6 border-t border-charcoal-100 w-full"></div>
+                <div className="mx-2 md:hidden h-8 w-px bg-charcoal-200 self-center"></div>
+                <div>
+                  <h2 className="text-xs font-bold text-charcoal-400 uppercase tracking-widest mb-3">Documents</h2>
+                  <button
                   type="button"
                   onClick={() => setActiveTab('coverLetter')}
                   className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${activeTab === 'coverLetter'
@@ -337,15 +407,16 @@ export const Preview: React.FC<PreviewProps> = ({
                     Cover Letter
                   </span>
                 </button>
-              </>
+                </div>
+              </div>
             )}
 
           </div>
         </aside>
 
         {/* Main Content Area */}
-        <main className="flex-1 bg-charcoal-50 overflow-y-auto relative print:overflow-visible print:block print:bg-white">
-          <div className="py-12 flex justify-center print:py-0 print:block">
+        <main className="flex-1 bg-charcoal-50 overflow-auto relative print:overflow-visible print:block print:bg-white">
+          <div className="p-4 md:py-12 flex justify-center print:p-0 print:block min-w-max md:min-w-0">
             {/* Resume Preview */}
             <div
               id="resume-preview"
@@ -750,48 +821,61 @@ export const Preview: React.FC<PreviewProps> = ({
                   id="cover-letter-preview"
                   className={`w-[210mm] min-h-[297mm] bg-white shadow-xl p-[15mm] text-left shrink-0
                      print:shadow-none print:w-full print:min-h-0 print:h-auto print:p-[15mm] print:mx-0
-                     flex flex-col ${activeTab !== 'coverLetter' ? 'hidden print:hidden' : ''}`}
-                  style={{ color: '#000' }}
+                     flex flex-col font-serif text-[11pt] leading-relaxed ${activeTab !== 'coverLetter' ? 'hidden print:hidden' : ''}`}
+                  style={{ color: '#1F2937' }}
                 >
-                  {/* Header */}
-                  <div className="mb-8 break-inside-avoid">
-                    <div className="flex flex-wrap gap-2 text-sm text-charcoal-600 mb-4">
-                      {data.personalInfo.email && (
-                        <span>{data.personalInfo.email}</span>
+                  {/* Sender Contact Block */}
+                  <div className="mb-6 break-inside-avoid">
+                    <div className="font-bold text-base text-charcoal-900">{data.personalInfo.fullName}</div>
+                    <div className="text-sm text-charcoal-600 mt-1 space-y-0.5">
+                      {data.personalInfo.email && <div>{data.personalInfo.email}</div>}
+                      {data.personalInfo.phone && <div>{data.personalInfo.phone}</div>}
+                      {data.personalInfo.location && <div>{data.personalInfo.location}</div>}
+                      {data.personalInfo.linkedin && (
+                        <div>{data.personalInfo.linkedin}</div>
                       )}
-                      {data.personalInfo.phone && (
-                        <span>• {data.personalInfo.phone}</span>
-                      )}
-                      {data.personalInfo.location && (
-                        <span>• {data.personalInfo.location}</span>
-                      )}
-                    </div>
-                    <div className="text-sm text-charcoal-600 mb-4">
-                      {new Date().toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    </div>
-                    {data.targetJob.company && (
-                      <div className="text-sm text-charcoal-800 mb-2">
-                        {data.targetJob.company}
-                      </div>
-                    )}
-                    <div className="text-sm text-charcoal-800 mb-6">
-                      Hiring Manager
                     </div>
                   </div>
 
-                  {/* Cover Letter Body */}
-                  <div className="flex-1 text-sm leading-relaxed text-charcoal-800 whitespace-pre-line break-words">
-                    {data.coverLetter}
+                  {/* Date */}
+                  <div className="mb-6 text-sm text-charcoal-800">
+                    {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
                   </div>
 
-                  {/* Closing */}
+                  {/* Recipient Block */}
+                  <div className="mb-6 text-sm text-charcoal-800 break-inside-avoid">
+                    <div>Hiring Manager</div>
+                    {data.targetJob.company && <div>{data.targetJob.company}</div>}
+                  </div>
+
+                  {/* Salutation */}
+                  <div className="mb-4 text-sm text-charcoal-900">
+                    Dear Hiring Manager,
+                  </div>
+
+                  {/* Body Paragraphs */}
+                  <div className="flex-1 space-y-4">
+                    {data.coverLetter
+                      .split(/\n\s*\n/)
+                      .filter(p => p.trim().length > 0)
+                      .map((paragraph, idx) => (
+                        <p
+                          key={idx}
+                          className="text-sm leading-relaxed text-charcoal-800 text-justify"
+                        >
+                          {paragraph.trim()}
+                        </p>
+                      ))}
+                  </div>
+
+                  {/* Closing & Signature */}
                   <div className="mt-8 break-inside-avoid">
-                    <div className="mb-4">Sincerely,</div>
-                    <div className="font-semibold">{data.personalInfo.fullName}</div>
+                    <div className="text-sm text-charcoal-800 mb-6">Sincerely,</div>
+                    <div className="font-bold text-charcoal-900">{data.personalInfo.fullName}</div>
                   </div>
                 </div>
               )

@@ -5,6 +5,7 @@ import { OptimizeResumeUseCase, IResumeOptimizer } from '../../domain/usecases/O
 import { ExportResumeUseCase, IResumeExporter } from '../../domain/usecases/ExportResumeUseCase';
 import { GenerateCoverLetterUseCase, ICoverLetterGenerator } from '../../domain/usecases/GenerateCoverLetterUseCase';
 import { IResumeRepository } from '../../domain/repositories/IResumeRepository';
+import { IProfileRepository } from '../../domain/repositories/IProfileRepository';
 
 export class ResumeService {
   private optimizeUseCase: OptimizeResumeUseCase;
@@ -15,7 +16,8 @@ export class ResumeService {
     resumeOptimizer: IResumeOptimizer,
     resumeExporter: IResumeExporter,
     coverLetterGenerator: ICoverLetterGenerator,
-    private repository: IResumeRepository
+    private repository: IResumeRepository,
+    private profileRepository?: IProfileRepository
   ) {
     this.optimizeUseCase = new OptimizeResumeUseCase(resumeOptimizer);
     this.exportUseCase = new ExportResumeUseCase(resumeExporter);
@@ -38,7 +40,7 @@ export class ResumeService {
     return this.repository.updateGeneratedResume(id, data, title);
   }
 
-  async getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; company?: string }[]> {
+  async getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; updatedAt?: string; company?: string }[]> {
     return this.repository.getGeneratedResumes(userId);
   }
 
@@ -116,6 +118,179 @@ export class ResumeService {
         })
         : [],
     };
+  }
+
+  // ================================
+  // General Resume Generation
+  // ================================
+
+  static readonly GENERAL_RESUME_TITLE = 'General Resume';
+
+  async hasGeneralResume(userId: string): Promise<boolean> {
+    const resumes = await this.repository.getGeneratedResumes(userId);
+    return resumes.some(r => r.title === ResumeService.GENERAL_RESUME_TITLE);
+  }
+
+  /**
+   * Returns info about the general resume including cooldown status.
+   * Returns null if no general resume exists.
+   */
+  async getGeneralResumeInfo(userId: string): Promise<{ id: string; canRegenerate: boolean; cooldownEndsAt: Date | null } | null> {
+    const resumes = await this.repository.getGeneratedResumes(userId);
+    const generalResume = resumes.find(r => r.title === ResumeService.GENERAL_RESUME_TITLE);
+    if (!generalResume) return null;
+
+    const lastUpdated = new Date(generalResume.updatedAt || generalResume.date);
+    const cooldownEnd = new Date(lastUpdated.getTime() + 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const canRegenerate = now >= cooldownEnd;
+
+    return {
+      id: generalResume.id,
+      canRegenerate,
+      cooldownEndsAt: canRegenerate ? null : cooldownEnd,
+    };
+  }
+
+  async generateGeneralResume(userId: string): Promise<string> {
+    if (!this.profileRepository) {
+      throw new Error('Profile repository is required for general resume generation');
+    }
+
+    // Check if general resume already exists
+    const exists = await this.hasGeneralResume(userId);
+    if (exists) {
+      throw new Error('A General Resume already exists. You can only generate one.');
+    }
+
+    // Load all profile data
+    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs] = await Promise.all([
+      this.profileRepository.getProfile(userId),
+      this.profileRepository.getUserType(userId),
+      this.profileRepository.getExperiences(userId),
+      this.profileRepository.getProjects(userId),
+      this.profileRepository.getSkills(userId),
+      this.profileRepository.getEducations(userId),
+      this.profileRepository.getExtracurriculars(userId),
+      this.profileRepository.getAwards(userId),
+      this.profileRepository.getCertifications(userId),
+      this.profileRepository.getAffiliations(userId),
+      this.profileRepository.getPublications(userId),
+    ]);
+
+    // Determine visible sections based on user type and available data
+    const visibleSections: string[] = ['skills', 'education', 'projects'];
+    if (uType === 'experienced') visibleSections.push('experience');
+    if (uType === 'student') visibleSections.push('extracurriculars');
+    if (extras.length > 0 && !visibleSections.includes('extracurriculars')) visibleSections.push('extracurriculars');
+    if (awds.length > 0) visibleSections.push('awards');
+    if (certs.length > 0) visibleSections.push('certifications');
+    if (affs.length > 0) visibleSections.push('affiliations');
+    if (pubs.length > 0) visibleSections.push('publications');
+
+    // Assemble ResumeData with a generic target job
+    const resumeData: ResumeData = {
+      userType: uType || undefined,
+      targetJob: {
+        title: 'General Purpose Resume',
+        company: '',
+        description: 'Create a strong, general-purpose professional resume that highlights the candidate\'s key strengths, experiences, and skills. Focus on versatility and broad appeal to multiple industries and roles. Emphasize transferable skills, measurable achievements, and professional growth.',
+      },
+      personalInfo: profile || { fullName: '', email: '', phone: '', location: '' },
+      summary: '',
+      experience: exps,
+      projects: projs,
+      skills: skls,
+      education: edus,
+      extracurriculars: extras,
+      awards: awds,
+      certifications: certs,
+      affiliations: affs,
+      publications: pubs,
+      visibleSections: Array.from(new Set(visibleSections)),
+      template: 'classic',
+    };
+
+    // Optimize via AI
+    const optimizedData = await this.optimizeResume(resumeData);
+    const mergedData = this.mergeOptimizedData(resumeData, optimizedData);
+
+    // Save and return ID
+    const id = await this.saveGeneratedResume(userId, mergedData, ResumeService.GENERAL_RESUME_TITLE);
+    return id;
+  }
+
+  /**
+   * Regenerate the General Resume from updated profile data.
+   * Enforces a 24-hour cooldown between regenerations.
+   */
+  async regenerateGeneralResume(userId: string, existingResumeId: string): Promise<ResumeData> {
+    if (!this.profileRepository) {
+      throw new Error('Profile repository is required for general resume regeneration');
+    }
+
+    // Check cooldown
+    const info = await this.getGeneralResumeInfo(userId);
+    if (info && !info.canRegenerate && info.cooldownEndsAt) {
+      const hoursLeft = Math.ceil((info.cooldownEndsAt.getTime() - Date.now()) / (1000 * 60 * 60));
+      throw new Error(`General Resume can only be regenerated once every 24 hours. Try again in ~${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}.`);
+    }
+
+    // Load fresh profile data
+    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs] = await Promise.all([
+      this.profileRepository.getProfile(userId),
+      this.profileRepository.getUserType(userId),
+      this.profileRepository.getExperiences(userId),
+      this.profileRepository.getProjects(userId),
+      this.profileRepository.getSkills(userId),
+      this.profileRepository.getEducations(userId),
+      this.profileRepository.getExtracurriculars(userId),
+      this.profileRepository.getAwards(userId),
+      this.profileRepository.getCertifications(userId),
+      this.profileRepository.getAffiliations(userId),
+      this.profileRepository.getPublications(userId),
+    ]);
+
+    // Determine visible sections
+    const visibleSections: string[] = ['skills', 'education', 'projects'];
+    if (uType === 'experienced') visibleSections.push('experience');
+    if (uType === 'student') visibleSections.push('extracurriculars');
+    if (extras.length > 0 && !visibleSections.includes('extracurriculars')) visibleSections.push('extracurriculars');
+    if (awds.length > 0) visibleSections.push('awards');
+    if (certs.length > 0) visibleSections.push('certifications');
+    if (affs.length > 0) visibleSections.push('affiliations');
+    if (pubs.length > 0) visibleSections.push('publications');
+
+    // Assemble fresh ResumeData
+    const resumeData: ResumeData = {
+      userType: uType || undefined,
+      targetJob: {
+        title: 'General Purpose Resume',
+        company: '',
+        description: 'Create a strong, general-purpose professional resume that highlights the candidate\'s key strengths, experiences, and skills. Focus on versatility and broad appeal to multiple industries and roles. Emphasize transferable skills, measurable achievements, and professional growth.',
+      },
+      personalInfo: profile || { fullName: '', email: '', phone: '', location: '' },
+      summary: '',
+      experience: exps,
+      projects: projs,
+      skills: skls,
+      education: edus,
+      extracurriculars: extras,
+      awards: awds,
+      certifications: certs,
+      affiliations: affs,
+      publications: pubs,
+      visibleSections: Array.from(new Set(visibleSections)),
+      template: 'classic',
+    };
+
+    // Optimize via AI
+    const optimizedData = await this.optimizeResume(resumeData);
+    const mergedData = this.mergeOptimizedData(resumeData, optimizedData);
+
+    // Update existing resume
+    await this.updateGeneratedResume(existingResumeId, mergedData, ResumeService.GENERAL_RESUME_TITLE);
+    return mergedData;
   }
 }
 

@@ -28,6 +28,7 @@ export const createResumeService = () => {
     resumeOptimizer,
     resumeExporter,
     coverLetterGenerator,
-    resumeRepository
+    resumeRepository,
+    profileRepository
   );
 };

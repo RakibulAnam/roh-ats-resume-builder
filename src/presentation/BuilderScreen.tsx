@@ -105,6 +105,48 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   // Validation errors map field paths (e.g. "personalInfo.fullName") to error messages
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [isGeneralResume, setIsGeneralResume] = useState(false);
+  const [canRegenerate, setCanRegenerate] = useState(true);
+  const [cooldownEndsAt, setCooldownEndsAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const checkResumeStatus = async () => {
+      if (!user || !resumeService || !currentResumeId) return;
+      const resumes = await resumeService.getGeneratedResumes(user.id);
+      const current = resumes.find(r => r.id === currentResumeId);
+      
+      const isGeneral = current?.title === ResumeService.GENERAL_RESUME_TITLE;
+      setIsGeneralResume(isGeneral);
+
+      if (isGeneral) {
+        const info = await resumeService.getGeneralResumeInfo(user.id);
+        if (info) {
+          setCanRegenerate(info.canRegenerate);
+          setCooldownEndsAt(info.cooldownEndsAt);
+        }
+      }
+    };
+    checkResumeStatus();
+  }, [user, resumeService, currentResumeId]);
+
+  const handleRegenerateGeneralResume = async () => {
+      if (!user || !resumeService || !currentResumeId) return;
+      try {
+        const newData = await resumeService.regenerateGeneralResume(user.id, currentResumeId);
+        setResumeData(newData);
+        toast.success('General Resume regenerated successfully!');
+        
+        // update cooldown logic
+        const info = await resumeService.getGeneralResumeInfo(user.id);
+        if (info) {
+          setCanRegenerate(info.canRegenerate);
+          setCooldownEndsAt(info.cooldownEndsAt);
+        }
+      } catch (error) {
+         toast.error(error instanceof Error ? error.message : 'Failed to regenerate resume');
+      }
+  };
+
   const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
     const newErrors: Record<string, string> = {};
     let isValid = true;
@@ -405,6 +447,10 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         onExportWord={handleExportWord}
         onExportCoverLetter={handleExportCoverLetter}
         readOnly={!!currentResumeId && step === AppStep.PREVIEW}
+        isGeneralResume={isGeneralResume}
+        canRegenerate={canRegenerate}
+        cooldownEndsAt={cooldownEndsAt}
+        onRegenerate={handleRegenerateGeneralResume}
       />
     );
   }

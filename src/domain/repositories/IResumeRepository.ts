@@ -7,7 +7,7 @@ export interface IResumeRepository {
     load(): ResumeData | null;
     saveGeneratedResume(userId: string, data: ResumeData, title: string): Promise<string>;
     updateGeneratedResume(id: string, data: ResumeData, title: string): Promise<void>;
-    getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; company?: string }[]>;
+    getGeneratedResumes(userId: string): Promise<{ id: string; title: string; date: string; updatedAt?: string; company?: string }[]>;
     getGeneratedResume(id: string): Promise<ResumeData | null>;
     deleteGeneratedResume(id: string): Promise<void>;
 }

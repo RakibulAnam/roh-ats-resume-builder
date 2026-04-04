@@ -97,6 +97,13 @@ Before responding, internally verify:
   // ================================
 
   private buildSchema(data: ResumeData): Schema {
+    const required: string[] = ['summary', 'skills'];
+
+    // Dynamically require arrays that have input data so the AI never skips them
+    if (data.experience.length > 0) required.push('experience');
+    if (data.projects.length > 0) required.push('projects');
+    if (data.extracurriculars && data.extracurriculars.length > 0) required.push('extracurriculars');
+
     return {
       type: Type.OBJECT,
       properties: {
@@ -148,7 +155,7 @@ Before responding, internally verify:
           },
         },
       },
-      required: ['summary', 'skills'],
+      required,
     };
   }
 
@@ -160,6 +167,34 @@ Before responding, internally verify:
     const totalExperience = this.calculateTotalExperience(data.experience);
     const isStudent = data.userType === 'student';
 
+    // Strip refinedBullets from data sent to AI to avoid confusion
+    const cleanExperience = data.experience.map(e => ({
+      id: e.id,
+      company: e.company,
+      role: e.role,
+      startDate: e.startDate,
+      endDate: e.endDate,
+      isCurrent: e.isCurrent,
+      description: e.rawDescription,
+    }));
+
+    const cleanProjects = data.projects.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.rawDescription,
+      technologies: p.technologies,
+      link: p.link,
+    }));
+
+    const cleanExtracurriculars = (data.extracurriculars || []).map(e => ({
+      id: e.id,
+      title: e.title,
+      organization: e.organization,
+      startDate: e.startDate,
+      endDate: e.endDate,
+      description: e.description,
+    }));
+
     return `
 TARGET JOB:
 Title: ${data.targetJob.title}
@@ -169,14 +204,14 @@ Description: ${data.targetJob.description}
 CANDIDATE TYPE: ${isStudent ? 'Student' : 'Experienced Professional'}
 TOTAL EXPERIENCE: ${totalExperience}
 
-EXPERIENCE:
-${JSON.stringify(data.experience)}
+EXPERIENCE (${cleanExperience.length} items — each MUST produce refinedBullets):
+${JSON.stringify(cleanExperience)}
 
-PROJECTS:
-${JSON.stringify(data.projects)}
+PROJECTS (${cleanProjects.length} items — each MUST produce refinedBullets):
+${JSON.stringify(cleanProjects)}
 
-EXTRACURRICULARS:
-${JSON.stringify(data.extracurriculars)}
+EXTRACURRICULARS (${cleanExtracurriculars.length} items — each MUST produce refinedBullets):
+${JSON.stringify(cleanExtracurriculars)}
 
 EDUCATION:
 ${JSON.stringify(data.education)}
@@ -186,7 +221,10 @@ ${data.skills.join(', ')}
 
 TASK:
 - Optimize summary aligned to target job.
-- Refine each description into 3–5 strong action-result bullets.
+- For each EXPERIENCE entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
+- For each PROJECT entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
+- For each EXTRACURRICULAR entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
+- Every item MUST have a non-empty "refinedBullets" array. Never return an empty array.
 - Preserve IDs exactly.
 - Align honestly with candidate experience.
 `;

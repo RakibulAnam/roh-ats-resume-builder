@@ -232,6 +232,7 @@ const AppContent = () => {
   if (currentScreen === AppScreen.PROFILE_SETUP) {
     return (
       <ProfileSetupScreen
+        resumeService={resumeService}
         onComplete={() => setCurrentScreen(AppScreen.DASHBOARD)}
       />
     );
