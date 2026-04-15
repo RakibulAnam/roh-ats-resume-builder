@@ -75,11 +75,11 @@ export const PublicationSection = ({ items, onRefresh }: Props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Title</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.title ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Machine Learning in Healthcare" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.title ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.title || ''} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="e.g. Nursing Care Best Practices; The Future of B2B Marketing; A Study on Neural Networks" />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Publisher</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.publisher ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.publisher || ''} onChange={e => setFormData({ ...formData, publisher: e.target.value })} placeholder="e.g. Journal of Medical AI" />
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Publisher / Conference</label>
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.publisher ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.publisher || ''} onChange={e => setFormData({ ...formData, publisher: e.target.value })} placeholder="e.g. Harvard Business Review, JAMA, Medium, NeurIPS" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Date</label>

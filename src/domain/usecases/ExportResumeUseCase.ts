@@ -6,6 +6,7 @@ export interface IResumeExporter {
   exportToWord(data: ResumeData): Promise<void>;
   exportToPDF?(data: ResumeData): Promise<void>;
   exportCoverLetterToWord?(data: ResumeData): Promise<void>;
+  exportCoverLetterToPDF?(data: ResumeData): Promise<void>;
 }
 
 export class ExportResumeUseCase {

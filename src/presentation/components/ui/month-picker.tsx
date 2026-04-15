@@ -50,6 +50,7 @@ export function MonthPicker({ value, onChange, isError }: MonthPickerProps) {
             <PopoverTrigger asChild>
                 <Button
                     variant="outline"
+                    aria-invalid={!!isError}
                     className={cn(
                         "w-full justify-start text-left font-normal bg-white",
                         !parsedDate && "text-charcoal-500",

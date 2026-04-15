@@ -50,14 +50,15 @@ The project follows **Clean Architecture** principles, separating concerns into 
 
 ### 4. Presentation Layer (`src/presentation/`)
 *UI components and views.*
-- **App.tsx**: Main controller. Manages the wizard state (`step`, `resumeData`), centralized section validation (`validateStep`), user authentication check, and navigation.
+- **App.tsx**: Main global router. Delegates wizard state management and application creation logic to dedicated screens.
+- **BuilderScreen.tsx**: The core Wizard Controller, decoupled from App.tsx. It isolates resume builder state, step navigation, and centralized `errors` mapping.
 - **Components** (`src/presentation/components/`):
-  - `FormSteps.tsx`: Contains all standard step variations and dynamically handles `isError` validation highlighting.
-  - `profile/`: Dedicated section components for Profile setup matching the FormSteps.
+  - `FormSteps.tsx`: Contains all standard step variations. Utilizes accessible `aria-invalid` attributes instead of generic boolean error props, conforming to Vercel UI best practices.
+  - `profile/`: Dedicated section components for Profile setup.
   - `profile/ResumeUploadStep.tsx`: Initial drag-and-drop step for PDF-based Resume AI Extraction.
-  - `Preview.tsx`: Real-time preview of the resume, featuring a Template Selector for switching between ATS-friendly designs (Classic, Modern, Executive), hiding targeting info for production output.
+  - `Preview.tsx`: Real-time preview of the resume, featuring a Template Selector for switching between ATS-friendly designs.
   - `Layout/`: Navbar and shared layout components.
-- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen` (includes master profile management and account deletion), `ProfileSetupScreen`.
+- **Screens**: `DashboardScreen`, `LoginScreen`, `LandingScreen`, `ProfileScreen`, `ProfileSetupScreen`. All rigorously adhere to web interface guidelines ensuring performant CSS (`transition-colors`), accessibility (`focus-visible`), and explicit HTML semantics (`type="button"`).
 
 ## Key Data Models (`src/domain/entities/Resume.ts`)
 - **`ResumeData`**: The aggregate root containing:
@@ -70,7 +71,7 @@ The project follows **Clean Architecture** principles, separating concerns into 
 - **`ExtractedProfileData`**: A subset interface for representing parsed AI extraction data from PDF uploads.
 
 ## Data Flow
-1. **User Input**: User fills out forms in `FormSteps`. Data is stored in `App.tsx` state.
+1. **User Input**: User fills out forms dynamically routed by `BuilderScreen` (via `FormSteps`). Data is validated via centralized error maps.
 2. **Draft Saving**: `ResumeService.saveDraft()` persists state to `localStorage`.
 3. **AI Optimization**: User clicks "Generate". `ResumeService.optimizeResume()` calls `GeminiResumeOptimizer` to generate `refinedBullets` and `summary` based on `targetJob`.
 4. **Final Save**: `ResumeService.saveGeneratedResume()` saves the optimized resume to Supabase.

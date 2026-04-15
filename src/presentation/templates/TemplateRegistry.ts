@@ -1,3 +1,15 @@
+// Template definitions for ATS-safe resume variants.
+//
+// All values are in POINTS (pt). The PDF exporter consumes them directly
+// (jsPDF's default unit is pt). The Preview component consumes them as CSS
+// `pt` values (CSS supports pt natively). This guarantees WYSIWYG between
+// preview and downloaded PDF — no separate sizing constants to drift apart.
+//
+// Every template is single-column, real-text, no icons / no tables / no
+// columns / no rasterization — i.e. structurally ATS-safe regardless of
+// which one the user picks. The only differences between templates are
+// typography (font family, sizes), header alignment, and whitespace density.
+
 import { ResumeTemplate } from '../../domain/entities/Resume';
 
 export interface TemplateDefinition {
@@ -5,104 +17,152 @@ export interface TemplateDefinition {
     displayName: string;
     description: string;
 
-    typography: {
-        fontFamily: string;
-        baseSize: string;
-        headingWeight: string;
-        lineHeight: string;
-    };
+    // Font — must map to a jsPDF Standard Type 1 font (helvetica | times |
+    // courier). These are guaranteed text-extractable by every ATS parser.
+    pdfFont: 'helvetica' | 'times' | 'courier';
+    // CSS font-family used by Preview to mirror the PDF visual.
+    cssFont: string;
 
-    colors: {
-        primary: string;
-        text: string;
-        muted: string;
-        divider: string;
-    };
+    // Font sizes in points
+    sizeName: number;
+    sizeHeading: number;     // section heading (EXPERIENCE, EDUCATION…)
+    sizeItemTitle: number;   // role / school / project name
+    sizeBody: number;        // bullet text, summary
+    sizeMeta: number;        // dates, company italic line
 
-    spacing: {
-        sectionGap: string;
-        itemGap: string;
-    };
+    // Line height multiplier
+    lineHeight: number;
 
-    layout: {
-        headerAlignment: 'left' | 'center';
-        sectionDivider: 'line' | 'none';
-        nameStyle: 'bold' | 'uppercase' | 'normal';
-        skillStyle: 'inline' | 'tags';
-    };
+    // Page margin in points
+    margin: number;
+
+    // Spacing in points
+    sectionGapBefore: number; // vertical gap before each section heading
+    headingGapAfter: number;  // gap between heading underline and first item
+    itemGap: number;          // gap between items within a section
+    bulletGap: number;        // gap between bullets within an item
+
+    // Layout
+    headerAlignment: 'left' | 'center';
+    sectionDivider: 'rule' | 'none';
+    nameStyle: 'bold' | 'uppercase';
 }
 
 export const templateRegistry: Record<ResumeTemplate, TemplateDefinition> = {
-    classic: {
-        id: 'classic',
-        displayName: 'Classic',
-        description: 'Traditional monochrome layout with serif fonts for a timeless professional look.',
-        typography: { fontFamily: 'font-serif', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-charcoal-900', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-charcoal-900' },
-        spacing: { sectionGap: 'mb-6', itemGap: 'space-y-5' },
-        layout: { headerAlignment: 'left', sectionDivider: 'none', nameStyle: 'uppercase', skillStyle: 'inline' },
+    'ats-classic': {
+        id: 'ats-classic',
+        displayName: 'ATS Classic',
+        description:
+            'Left-aligned Helvetica with bold uppercase section headings and a thin underline. The most universally compatible layout — the safest default for any application.',
+        pdfFont: 'helvetica',
+        cssFont:
+            "'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif",
+        sizeName: 20,
+        sizeHeading: 11,
+        sizeItemTitle: 10.5,
+        sizeBody: 10,
+        sizeMeta: 9.5,
+        lineHeight: 1.25,
+        margin: 40,
+        sectionGapBefore: 14,
+        headingGapAfter: 8,
+        itemGap: 8,
+        bulletGap: 2,
+        headerAlignment: 'left',
+        sectionDivider: 'rule',
+        nameStyle: 'bold',
     },
-    modern: {
-        id: 'modern',
-        displayName: 'Modern',
-        description: 'Clean sans-serif typography with subtle branding accents.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-brand-900', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-brand-100' },
-        spacing: { sectionGap: 'mb-6', itemGap: 'space-y-5' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'tags' },
+    'ats-modern': {
+        id: 'ats-modern',
+        displayName: 'ATS Modern',
+        description:
+            'Centered name and contact line with bold uppercase section headings. Same parser-safe structure as Classic — just a more modern, balanced visual.',
+        pdfFont: 'helvetica',
+        cssFont:
+            "'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif",
+        sizeName: 22,
+        sizeHeading: 11,
+        sizeItemTitle: 10.5,
+        sizeBody: 10,
+        sizeMeta: 9.5,
+        lineHeight: 1.3,
+        margin: 42,
+        sectionGapBefore: 16,
+        headingGapAfter: 8,
+        itemGap: 9,
+        bulletGap: 2,
+        headerAlignment: 'center',
+        sectionDivider: 'rule',
+        nameStyle: 'bold',
     },
-    executive: {
-        id: 'executive',
-        displayName: 'Executive',
-        description: 'Centered headers and increased spacing for senior leadership roles.',
-        typography: { fontFamily: 'font-serif', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-loose' },
-        colors: { primary: 'text-charcoal-900', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-charcoal-400' },
-        spacing: { sectionGap: 'mb-8', itemGap: 'space-y-6' },
-        layout: { headerAlignment: 'center', sectionDivider: 'line', nameStyle: 'uppercase', skillStyle: 'inline' },
+    'ats-serif': {
+        id: 'ats-serif',
+        displayName: 'ATS Serif',
+        description:
+            'Times Roman, left-aligned, with bold uppercase headings and a thin underline. Traditional, conservative tone preferred in finance, law, and academia.',
+        pdfFont: 'times',
+        cssFont:
+            "'Times New Roman', 'Liberation Serif', 'DejaVu Serif', Times, serif",
+        sizeName: 20,
+        sizeHeading: 11.5,
+        sizeItemTitle: 11,
+        sizeBody: 10.5,
+        sizeMeta: 10,
+        lineHeight: 1.3,
+        margin: 44,
+        sectionGapBefore: 14,
+        headingGapAfter: 7,
+        itemGap: 8,
+        bulletGap: 2,
+        headerAlignment: 'left',
+        sectionDivider: 'rule',
+        nameStyle: 'bold',
     },
-    minimal: {
-        id: 'minimal',
-        displayName: 'Minimal',
-        description: 'Stripped back design emphasizing whitespace and content over structure.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-sm', headingWeight: 'font-medium', lineHeight: 'leading-loose' },
-        colors: { primary: 'text-charcoal-900', text: 'text-charcoal-700', muted: 'text-charcoal-500', divider: 'border-transparent' },
-        spacing: { sectionGap: 'mb-8', itemGap: 'space-y-4' },
-        layout: { headerAlignment: 'left', sectionDivider: 'none', nameStyle: 'normal', skillStyle: 'inline' },
+    'ats-compact': {
+        id: 'ats-compact',
+        displayName: 'ATS Compact',
+        description:
+            'Helvetica with tighter spacing and slightly smaller type so longer histories fit on one page. Same parser-safe structure as Classic.',
+        pdfFont: 'helvetica',
+        cssFont:
+            "'Helvetica Neue', Helvetica, Arial, 'Liberation Sans', sans-serif",
+        sizeName: 18,
+        sizeHeading: 10.5,
+        sizeItemTitle: 10,
+        sizeBody: 9.5,
+        sizeMeta: 9,
+        lineHeight: 1.2,
+        margin: 32,
+        sectionGapBefore: 10,
+        headingGapAfter: 5,
+        itemGap: 5,
+        bulletGap: 1,
+        headerAlignment: 'left',
+        sectionDivider: 'rule',
+        nameStyle: 'bold',
     },
-    'professional-blue': {
-        id: 'professional-blue',
-        displayName: 'Pro Blue',
-        description: 'Corporate aesthetic with clear section dividers and blue accents.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-blue-800', text: 'text-charcoal-800', muted: 'text-charcoal-600', divider: 'border-blue-800' },
-        spacing: { sectionGap: 'mb-5', itemGap: 'space-y-4' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'tags' },
-    },
-    compact: {
-        id: 'compact',
-        displayName: 'Compact',
-        description: 'High-density layout perfect for fitting extensive experience onto a single page.',
-        typography: { fontFamily: 'font-sans', baseSize: 'text-xs', headingWeight: 'font-bold', lineHeight: 'leading-snug' },
-        colors: { primary: 'text-charcoal-900', text: 'text-charcoal-900', muted: 'text-charcoal-700', divider: 'border-charcoal-300' },
-        spacing: { sectionGap: 'mb-3', itemGap: 'space-y-2' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'bold', skillStyle: 'inline' },
-    },
-    elegant: {
-        id: 'elegant',
-        displayName: 'Elegant',
-        description: 'Sophisticated typography pairing with refined spacing structure.',
-        typography: { fontFamily: 'font-serif', baseSize: 'text-sm', headingWeight: 'font-semibold', lineHeight: 'leading-relaxed' },
-        colors: { primary: 'text-charcoal-800', text: 'text-charcoal-800', muted: 'text-charcoal-500', divider: 'border-charcoal-200' },
-        spacing: { sectionGap: 'mb-7', itemGap: 'space-y-5' },
-        layout: { headerAlignment: 'center', sectionDivider: 'none', nameStyle: 'bold', skillStyle: 'tags' },
-    },
-    technical: {
-        id: 'technical',
-        displayName: 'Technical',
-        description: 'Dense and data-driven visually highlighting skills and technologies.',
-        typography: { fontFamily: 'font-mono', baseSize: 'text-sm', headingWeight: 'font-bold', lineHeight: 'leading-normal' },
-        colors: { primary: 'text-slate-900', text: 'text-slate-800', muted: 'text-slate-600', divider: 'border-slate-800' },
-        spacing: { sectionGap: 'mb-5', itemGap: 'space-y-4' },
-        layout: { headerAlignment: 'left', sectionDivider: 'line', nameStyle: 'uppercase', skillStyle: 'tags' },
-    }
 };
+
+// Backward-compatibility map for resumes saved before the template overhaul.
+// Old IDs ('classic', 'executive', 'minimal', 'compact', 'technical') are
+// transparently resolved to their closest current equivalent so existing
+// saved resumes continue to render without forcing a data migration.
+const LEGACY_TEMPLATE_MAP: Record<string, ResumeTemplate> = {
+    classic: 'ats-classic',
+    executive: 'ats-modern',
+    minimal: 'ats-classic',
+    compact: 'ats-compact',
+    technical: 'ats-classic',
+};
+
+export function resolveTemplate(id: string | undefined | null): TemplateDefinition {
+    if (id && id in templateRegistry) {
+        return templateRegistry[id as ResumeTemplate];
+    }
+    if (id && id in LEGACY_TEMPLATE_MAP) {
+        return templateRegistry[LEGACY_TEMPLATE_MAP[id]];
+    }
+    return templateRegistry['ats-classic'];
+}
+
+export const DEFAULT_TEMPLATE_ID: ResumeTemplate = 'ats-classic';

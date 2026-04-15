@@ -1,4 +1,10 @@
-// Infrastructure - Word Export Implementation
+// Infrastructure - Word (.docx) export.
+//
+// Uses the docx library's native paragraph + run primitives — no tables,
+// no text boxes, no multi-column layout — so the generated document is
+// fully ATS-parseable. Typography and spacing are driven by the shared
+// TemplateRegistry (same one the Preview and PDF exporter read from), so
+// switching templates gives a consistent visual across all three surfaces.
 
 import {
   Document,
@@ -14,12 +20,34 @@ import {
 import FileSaver from 'file-saver';
 import { ResumeData } from '../../domain/entities/Resume';
 import { IResumeExporter } from '../../domain/usecases/ExportResumeUseCase';
-import { templateRegistry } from '../../presentation/templates/TemplateRegistry';
+import {
+  TemplateDefinition,
+  resolveTemplate,
+} from '../../presentation/templates/TemplateRegistry';
+
+// docx represents font size in half-points. helper to convert pt → half-pt.
+const pt = (points: number) => Math.round(points * 2);
+
+// docx represents paragraph spacing in twips (1/20 of a point).
+const twips = (points: number) => Math.round(points * 20);
+
+function pdfFontToWordFont(pdfFont: TemplateDefinition['pdfFont']): string {
+  switch (pdfFont) {
+    case 'times':
+      return 'Times New Roman';
+    case 'courier':
+      return 'Courier New';
+    case 'helvetica':
+    default:
+      return 'Arial';
+  }
+}
 
 export class WordResumeExporter implements IResumeExporter {
   async exportToWord(data: ResumeData): Promise<void> {
     try {
-      const doc = this.createDocument(data);
+      const template = resolveTemplate(data.template);
+      const doc = this.createDocument(data, template);
       const blob = await Packer.toBlob(doc);
       const fileName = `${data.personalInfo.fullName.replace(/\s+/g, '_')}_Resume.docx`;
       FileSaver.saveAs(blob, fileName);
@@ -37,7 +65,8 @@ export class WordResumeExporter implements IResumeExporter {
     }
 
     try {
-      const doc = this.createCoverLetterDocument(data);
+      const template = resolveTemplate(data.template);
+      const doc = this.createCoverLetterDocument(data, template);
       const blob = await Packer.toBlob(doc);
       const fileName = `${data.personalInfo.fullName.replace(/\s+/g, '_')}_Cover_Letter.docx`;
       FileSaver.saveAs(blob, fileName);
@@ -49,72 +78,26 @@ export class WordResumeExporter implements IResumeExporter {
     }
   }
 
-  private getTemplateConfig(data: ResumeData) {
-    const templateId = data.template || 'classic';
-    const template = templateRegistry[templateId] || templateRegistry['classic'];
-    const isStrict = data.isATSStrict || false;
+  // ────────────────────────────────────────────────────────────
+  // RESUME
+  // ────────────────────────────────────────────────────────────
 
-    let fontFamily = 'Arial';
-    if (template.typography.fontFamily === 'font-serif') fontFamily = 'Georgia';
-    else if (template.typography.fontFamily === 'font-mono') fontFamily = 'Courier New';
+  private createDocument(data: ResumeData, t: TemplateDefinition): Document {
+    const fontFamily = pdfFontToWordFont(t.pdfFont);
+    const headerAlignment =
+      t.headerAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
 
-    const colorMap: Record<string, string> = {
-      'text-brand-900': '312E81',
-      'text-charcoal-900': '111827',
-      'text-charcoal-800': '1F2937',
-      'text-blue-800': '1E40AF',
-      'text-slate-900': '0F172A',
-    };
-
-    const primaryColor = isStrict ? '000000' : (colorMap[template.colors.primary] || '111827');
-    const textColor = isStrict ? '000000' : (colorMap[template.colors.text] || '1F2937');
-    const headerAlignment = template.layout.headerAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT;
-    const sectionDivider = isStrict ? false : template.layout.sectionDivider === 'line';
-    const nameAllCaps = template.layout.nameStyle === 'uppercase';
-
-    let nameSize = 32;
-    let headingSize = 14;
-    if (template.id === 'executive') nameSize = 36;
-    else if (template.id === 'modern') nameSize = 36;
-    else if (template.id === 'minimal') headingSize = 12;
-
-    let itemSpacing = 120;
-    let sectionGap = 240;
-    if (template.id === 'compact') {
-      itemSpacing = 60;
-      sectionGap = 120;
-    } else if (template.id === 'executive' || template.id === 'minimal') {
-      itemSpacing = 180;
-      sectionGap = 360;
-    }
-
-    return {
-      fontFamily,
-      primaryColor,
-      textColor,
-      headerAlignment,
-      sectionDivider,
-      nameAllCaps,
-      nameSize: nameSize * 2,
-      headingSize: headingSize * 2,
-      itemSpacing,
-      sectionGap
-    };
-  }
-
-  private createDocument(data: ResumeData): Document {
-    const config = this.getTemplateConfig(data);
-    const headerLines = this.createHeader(data, config);
-    const sections = this.createSections(data, config);
+    const headerLines = this.createHeader(data, t, fontFamily, headerAlignment);
+    const sections = this.createSections(data, t, fontFamily);
 
     return new Document({
       styles: {
         default: {
           document: {
             run: {
-              font: config.fontFamily,
-              color: config.textColor,
-              size: 20, // 10pt
+              font: fontFamily,
+              color: '000000',
+              size: pt(t.sizeBody),
             },
           },
         },
@@ -126,15 +109,15 @@ export class WordResumeExporter implements IResumeExporter {
             next: 'Normal',
             quickFormat: true,
             run: {
-              size: config.nameSize,
+              size: pt(t.sizeName),
               bold: true,
-              color: config.primaryColor,
-              font: config.fontFamily,
-              allCaps: config.nameAllCaps,
+              color: '000000',
+              font: fontFamily,
+              allCaps: t.nameStyle === 'uppercase',
             },
             paragraph: {
-              alignment: config.headerAlignment,
-              spacing: { after: 120 },
+              alignment: headerAlignment,
+              spacing: { after: twips(4) },
             },
           },
           {
@@ -144,15 +127,18 @@ export class WordResumeExporter implements IResumeExporter {
             next: 'Normal',
             quickFormat: true,
             run: {
-              size: config.headingSize,
+              size: pt(t.sizeHeading),
               bold: true,
-              color: config.primaryColor,
-              font: config.fontFamily,
+              color: '000000',
+              font: fontFamily,
               allCaps: true,
             },
             paragraph: {
-              alignment: config.headerAlignment,
-              spacing: { before: config.sectionGap, after: 100 },
+              alignment: AlignmentType.LEFT,
+              spacing: {
+                before: twips(t.sectionGapBefore),
+                after: twips(t.headingGapAfter),
+              },
             },
           },
         ],
@@ -161,7 +147,12 @@ export class WordResumeExporter implements IResumeExporter {
         {
           properties: {
             page: {
-              margin: { top: 720, right: 720, bottom: 720, left: 720 },
+              margin: {
+                top: twips(t.margin),
+                right: twips(t.margin),
+                bottom: twips(t.margin),
+                left: twips(t.margin),
+              },
             },
           },
           children: [...headerLines, ...sections],
@@ -170,8 +161,13 @@ export class WordResumeExporter implements IResumeExporter {
     });
   }
 
-  private createHeader(data: ResumeData, config: ReturnType<typeof this.getTemplateConfig>): Paragraph[] {
-    const headerLines = [
+  private createHeader(
+    data: ResumeData,
+    t: TemplateDefinition,
+    fontFamily: string,
+    headerAlignment: typeof AlignmentType[keyof typeof AlignmentType]
+  ): Paragraph[] {
+    const headerLines: Paragraph[] = [
       new Paragraph({
         text: data.personalInfo.fullName,
         heading: HeadingLevel.HEADING_1,
@@ -190,9 +186,15 @@ export class WordResumeExporter implements IResumeExporter {
     if (contactParts.length > 0) {
       headerLines.push(
         new Paragraph({
-          children: [new TextRun({ text: contactParts.join(' | '), size: 20 })],
-          alignment: config.headerAlignment,
-          spacing: { after: 240 },
+          children: [
+            new TextRun({
+              text: contactParts.join('  |  '),
+              size: pt(t.sizeBody),
+              font: fontFamily,
+            }),
+          ],
+          alignment: headerAlignment,
+          spacing: { after: twips(t.sectionGapBefore) },
         })
       );
     }
@@ -200,162 +202,298 @@ export class WordResumeExporter implements IResumeExporter {
     return headerLines;
   }
 
-  private createSections(data: ResumeData, config: ReturnType<typeof this.getTemplateConfig>): Paragraph[] {
+  private createSections(
+    data: ResumeData,
+    t: TemplateDefinition,
+    fontFamily: string
+  ): Paragraph[] {
     const sections: Paragraph[] = [];
 
+    const isVisible = (key: string) =>
+      !data.visibleSections || data.visibleSections.includes(key);
+
     if (data.summary) {
-      sections.push(this.createSectionHeading('Professional Summary', config));
-      sections.push(new Paragraph({ children: [new TextRun(data.summary)], spacing: { after: config.itemSpacing } }));
+      sections.push(this.createSectionHeading('Professional Summary', t));
+      sections.push(
+        new Paragraph({
+          children: [new TextRun({ text: data.summary, size: pt(t.sizeBody) })],
+          spacing: { after: twips(t.itemGap) },
+        })
+      );
     }
 
-    if (data.experience && data.experience.length > 0) {
-      sections.push(this.createSectionHeading('Experience', config));
+    if (isVisible('experience') && data.experience && data.experience.length > 0) {
+      sections.push(this.createSectionHeading('Experience', t));
       for (const exp of data.experience) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: exp.role, bold: true, size: 22 }),
-              new TextRun({ text: `\t${exp.startDate} – ${exp.isCurrent ? 'Present' : exp.endDate}`, bold: true }),
+              new TextRun({ text: exp.role, bold: true, size: pt(t.sizeItemTitle) }),
+              new TextRun({
+                text: `\t${exp.startDate} \u2013 ${exp.isCurrent ? 'Present' : exp.endDate}`,
+                bold: true,
+                size: pt(t.sizeMeta),
+              }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: config.itemSpacing },
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        sections.push(new Paragraph({ children: [new TextRun({ text: exp.company, italics: true })], spacing: { after: 60 } }));
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: exp.company, italics: true, size: pt(t.sizeMeta) }),
+            ],
+            spacing: { after: twips(t.bulletGap + 2) },
+          })
+        );
 
         if (exp.refinedBullets && exp.refinedBullets.length > 0) {
-          exp.refinedBullets.forEach(bullet => sections.push(this.createBullet(bullet, config.itemSpacing)));
-        } else {
-          sections.push(this.createBullet(exp.rawDescription, config.itemSpacing));
+          exp.refinedBullets.forEach((b) =>
+            sections.push(this.createBullet(b, t))
+          );
+        } else if (exp.rawDescription) {
+          sections.push(this.createBullet(exp.rawDescription, t));
         }
       }
     }
 
-    if (data.projects && data.projects.length > 0) {
-      sections.push(this.createSectionHeading('Projects', config));
+    if (isVisible('projects') && data.projects && data.projects.length > 0) {
+      sections.push(this.createSectionHeading('Projects', t));
       for (const proj of data.projects) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: proj.name, bold: true, size: 22 }),
-              new TextRun({ text: proj.technologies ? ` | ${proj.technologies}` : '', italics: true }),
+              new TextRun({
+                text: proj.name,
+                bold: true,
+                size: pt(t.sizeItemTitle),
+              }),
+              new TextRun({
+                text: proj.technologies ? `\t${proj.technologies}` : '',
+                italics: true,
+                size: pt(t.sizeMeta),
+              }),
             ],
-            spacing: { before: config.itemSpacing }
+            tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        if (proj.link) sections.push(new Paragraph({ children: [new TextRun({ text: proj.link, color: '0563C1' })] }));
+        if (proj.link) {
+          sections.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: proj.link,
+                  size: pt(t.sizeMeta),
+                  color: '0563C1',
+                }),
+              ],
+              spacing: { after: twips(t.bulletGap) },
+            })
+          );
+        }
         if (proj.refinedBullets && proj.refinedBullets.length > 0) {
-          proj.refinedBullets.forEach(b => sections.push(this.createBullet(b, config.itemSpacing)));
-        } else {
-          sections.push(this.createBullet(proj.rawDescription, config.itemSpacing));
+          proj.refinedBullets.forEach((b) =>
+            sections.push(this.createBullet(b, t))
+          );
+        } else if (proj.rawDescription) {
+          sections.push(this.createBullet(proj.rawDescription, t));
         }
       }
     }
 
-    if (data.education && data.education.length > 0) {
-      sections.push(this.createSectionHeading('Education', config));
+    if (isVisible('education') && data.education && data.education.length > 0) {
+      sections.push(this.createSectionHeading('Education', t));
       for (const edu of data.education) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: edu.school, bold: true, size: 22 }),
-              new TextRun({ text: `\t${edu.startDate} – ${edu.endDate}`, bold: true }),
+              new TextRun({
+                text: edu.school,
+                bold: true,
+                size: pt(t.sizeItemTitle),
+              }),
+              new TextRun({
+                text: `\t${edu.startDate} \u2013 ${edu.endDate}`,
+                bold: true,
+                size: pt(t.sizeMeta),
+              }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: config.itemSpacing },
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        const degreeText = `${edu.degree}${edu.field ? ` in ${edu.field}` : ''}${edu.gpa ? ` • GPA: ${edu.gpa}` : ''}`;
-        sections.push(new Paragraph({ text: degreeText, spacing: { after: 60 } }));
+        const degreeText = `${edu.degree}${edu.field ? ` in ${edu.field}` : ''}${edu.gpa ? ` \u2022 GPA: ${edu.gpa}` : ''}`;
+        sections.push(
+          new Paragraph({
+            children: [new TextRun({ text: degreeText, size: pt(t.sizeBody) })],
+            spacing: { after: twips(t.itemGap) },
+          })
+        );
       }
     }
 
-    if (data.certifications && data.certifications.length > 0) {
-      sections.push(this.createSectionHeading('Certifications', config));
+    if (
+      isVisible('certifications') &&
+      data.certifications &&
+      data.certifications.length > 0
+    ) {
+      sections.push(this.createSectionHeading('Certifications', t));
       for (const cert of data.certifications) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: cert.name, bold: true, size: 22 }),
-              new TextRun({ text: `\t${cert.date}`, bold: true }),
+              new TextRun({
+                text: cert.name,
+                bold: true,
+                size: pt(t.sizeItemTitle),
+              }),
+              new TextRun({
+                text: `\t${cert.date}`,
+                bold: true,
+                size: pt(t.sizeMeta),
+              }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: config.itemSpacing }
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        sections.push(new Paragraph({ children: [new TextRun({ text: cert.issuer, italics: true })], spacing: { after: 60 } }));
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: cert.issuer, italics: true, size: pt(t.sizeMeta) }),
+            ],
+            spacing: { after: twips(t.itemGap) },
+          })
+        );
       }
     }
 
-    if (data.extracurriculars && data.extracurriculars.length > 0) {
-      sections.push(this.createSectionHeading('Extracurricular Activities', config));
+    if (
+      isVisible('extracurriculars') &&
+      data.extracurriculars &&
+      data.extracurriculars.length > 0
+    ) {
+      sections.push(this.createSectionHeading('Extracurricular Activities', t));
       for (const extra of data.extracurriculars) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: extra.title, bold: true, size: 22 }),
-              new TextRun({ text: `\t${extra.startDate} – ${extra.endDate}`, bold: true }),
+              new TextRun({
+                text: extra.title,
+                bold: true,
+                size: pt(t.sizeItemTitle),
+              }),
+              new TextRun({
+                text: `\t${extra.startDate} \u2013 ${extra.endDate}`,
+                bold: true,
+                size: pt(t.sizeMeta),
+              }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: config.itemSpacing }
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        sections.push(new Paragraph({ children: [new TextRun({ text: extra.organization, italics: true })], spacing: { after: 60 } }));
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: extra.organization,
+                italics: true,
+                size: pt(t.sizeMeta),
+              }),
+            ],
+            spacing: { after: twips(t.bulletGap + 2) },
+          })
+        );
         if (extra.refinedBullets && extra.refinedBullets.length > 0) {
-          extra.refinedBullets.forEach(b => sections.push(this.createBullet(b, config.itemSpacing)));
-        } else {
-          sections.push(this.createBullet(extra.description, config.itemSpacing));
+          extra.refinedBullets.forEach((b) =>
+            sections.push(this.createBullet(b, t))
+          );
+        } else if (extra.description) {
+          sections.push(this.createBullet(extra.description, t));
         }
       }
     }
 
-    if (data.awards && data.awards.length > 0) {
-      sections.push(this.createSectionHeading('Awards & Honors', config));
+    if (isVisible('awards') && data.awards && data.awards.length > 0) {
+      sections.push(this.createSectionHeading('Awards & Honors', t));
       for (const award of data.awards) {
         sections.push(
           new Paragraph({
             children: [
-              new TextRun({ text: award.title, bold: true }),
-              new TextRun({ text: `\t${award.date}` }),
+              new TextRun({ text: award.title, bold: true, size: pt(t.sizeItemTitle) }),
+              new TextRun({ text: `\t${award.date}`, size: pt(t.sizeMeta) }),
             ],
             tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-            spacing: { before: config.itemSpacing }
+            spacing: { before: twips(t.bulletGap + 2) },
           })
         );
-        sections.push(new Paragraph({ text: `${award.issuer}${award.description ? ` - ${award.description}` : ''}`, spacing: { after: 60 } }));
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `${award.issuer}${award.description ? ` \u2013 ${award.description}` : ''}`,
+                size: pt(t.sizeBody),
+              }),
+            ],
+            spacing: { after: twips(t.itemGap) },
+          })
+        );
       }
     }
 
-    if (data.publications && data.publications.length > 0) {
-      sections.push(this.createSectionHeading('Publications', config));
+    if (
+      isVisible('publications') &&
+      data.publications &&
+      data.publications.length > 0
+    ) {
+      sections.push(this.createSectionHeading('Publications', t));
       for (const pub of data.publications) {
         sections.push(
           new Paragraph({
-            text: `${pub.title}, ${pub.publisher}, ${pub.date}${pub.link ? ` [${pub.link}]` : ''}`,
-            spacing: { before: config.itemSpacing }
+            children: [
+              new TextRun({
+                text: `${pub.title}${pub.publisher ? `, ${pub.publisher}` : ''}, ${pub.date}${pub.link ? ` [${pub.link}]` : ''}`,
+                size: pt(t.sizeBody),
+              }),
+            ],
+            spacing: { before: twips(t.bulletGap) },
           })
         );
       }
     }
 
-    if (data.affiliations && data.affiliations.length > 0) {
-      sections.push(this.createSectionHeading('Affiliations', config));
+    if (
+      isVisible('affiliations') &&
+      data.affiliations &&
+      data.affiliations.length > 0
+    ) {
+      sections.push(this.createSectionHeading('Affiliations', t));
       for (const aff of data.affiliations) {
         sections.push(
           new Paragraph({
-            text: `${aff.role}, ${aff.organization} (${aff.startDate} – ${aff.endDate})`,
-            spacing: { before: config.itemSpacing }
+            children: [
+              new TextRun({
+                text: `${aff.role}, ${aff.organization} (${aff.startDate} \u2013 ${aff.endDate})`,
+                size: pt(t.sizeBody),
+              }),
+            ],
+            spacing: { before: twips(t.bulletGap) },
           })
         );
       }
     }
 
-    if (data.skills && data.skills.length > 0) {
-      sections.push(this.createSectionHeading('Skills', config));
+    if (isVisible('skills') && data.skills && data.skills.length > 0) {
+      sections.push(this.createSectionHeading('Skills', t));
       sections.push(
         new Paragraph({
-          children: [new TextRun(data.skills.join(' • '))],
-          spacing: { after: config.itemSpacing },
+          children: [
+            new TextRun({ text: data.skills.join(', '), size: pt(t.sizeBody) }),
+          ],
+          spacing: { after: twips(t.itemGap) },
         })
       );
     }
@@ -363,25 +501,44 @@ export class WordResumeExporter implements IResumeExporter {
     return sections;
   }
 
-  private createSectionHeading(text: string, config: ReturnType<typeof this.getTemplateConfig>): Paragraph {
+  private createSectionHeading(
+    text: string,
+    t: TemplateDefinition
+  ): Paragraph {
     return new Paragraph({
       text,
       heading: HeadingLevel.HEADING_2,
-      border: config.sectionDivider ? {
-        bottom: { color: config.primaryColor, space: 1, style: BorderStyle.SINGLE, size: 6 },
-      } : undefined,
+      border:
+        t.sectionDivider === 'rule'
+          ? {
+              bottom: {
+                color: '000000',
+                space: 1,
+                style: BorderStyle.SINGLE,
+                size: 6,
+              },
+            }
+          : undefined,
     });
   }
 
-  private createBullet(text: string, itemSpacing: number): Paragraph {
+  private createBullet(text: string, t: TemplateDefinition): Paragraph {
     return new Paragraph({
-      text: text,
+      children: [new TextRun({ text, size: pt(t.sizeBody) })],
       bullet: { level: 0 },
-      spacing: { before: 40, after: 40 },
+      spacing: { before: twips(t.bulletGap), after: twips(t.bulletGap) },
     });
   }
 
-  private createCoverLetterDocument(data: ResumeData): Document {
+  // ────────────────────────────────────────────────────────────
+  // COVER LETTER
+  // ────────────────────────────────────────────────────────────
+
+  private createCoverLetterDocument(
+    data: ResumeData,
+    t: TemplateDefinition
+  ): Document {
+    const fontFamily = pdfFontToWordFont(t.pdfFont);
     const paragraphs: Paragraph[] = [];
     const today = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
@@ -389,61 +546,116 @@ export class WordResumeExporter implements IResumeExporter {
       day: 'numeric',
     });
 
-    // Date
+    // Sender block
     paragraphs.push(
       new Paragraph({
-        text: today,
-        alignment: AlignmentType.LEFT,
-        spacing: { after: 240 },
+        children: [
+          new TextRun({
+            text: data.personalInfo.fullName,
+            bold: true,
+            size: pt(t.sizeItemTitle),
+            font: fontFamily,
+          }),
+        ],
+        spacing: { after: twips(2) },
       })
     );
-
-    // Recipient (if company name available)
-    if (data.targetJob.company) {
+    const senderFields = [
+      data.personalInfo.email,
+      data.personalInfo.phone,
+      data.personalInfo.location,
+      data.personalInfo.linkedin,
+    ].filter(Boolean) as string[];
+    for (const line of senderFields) {
       paragraphs.push(
         new Paragraph({
-          text: data.targetJob.company,
-          spacing: { after: 60 },
+          children: [
+            new TextRun({ text: line, size: pt(t.sizeBody), font: fontFamily }),
+          ],
+          spacing: { after: twips(1) },
         })
       );
     }
+
+    paragraphs.push(
+      new Paragraph({ text: '', spacing: { after: twips(t.sectionGapBefore) } })
+    );
+
+    // Date
     paragraphs.push(
       new Paragraph({
-        text: 'Hiring Manager',
-        spacing: { after: 240 },
+        children: [
+          new TextRun({ text: today, size: pt(t.sizeBody), font: fontFamily }),
+        ],
+        spacing: { after: twips(t.sectionGapBefore) },
       })
     );
+
+    // Recipient
+    paragraphs.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Hiring Manager',
+            size: pt(t.sizeBody),
+            font: fontFamily,
+          }),
+        ],
+        spacing: { after: twips(2) },
+      })
+    );
+    if (data.targetJob.company) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: data.targetJob.company,
+              size: pt(t.sizeBody),
+              font: fontFamily,
+            }),
+          ],
+          spacing: { after: twips(t.sectionGapBefore) },
+        })
+      );
+    } else {
+      paragraphs.push(
+        new Paragraph({ text: '', spacing: { after: twips(t.itemGap) } })
+      );
+    }
 
     // Salutation
     paragraphs.push(
       new Paragraph({
-        text: 'Dear Hiring Manager,',
-        spacing: { after: 240 },
+        children: [
+          new TextRun({
+            text: 'Dear Hiring Manager,',
+            size: pt(t.sizeBody),
+            font: fontFamily,
+          }),
+        ],
+        spacing: { after: twips(t.sectionGapBefore) },
       })
     );
 
-    // Cover letter body - split by paragraphs
+    // Body
     const coverLetterText = data.coverLetter || '';
     const bodyParagraphs = coverLetterText
       .split(/\n\s*\n/)
-      .filter(p => p.trim().length > 0)
-      .map(p => p.trim());
+      .filter((p) => p.trim().length > 0)
+      .map((p) => p.trim());
 
     bodyParagraphs.forEach((para, index) => {
-      // Skip if it's a greeting or closing
-      if (
-        para.toLowerCase().includes('dear') ||
-        para.toLowerCase().includes('sincerely') ||
-        para.toLowerCase().includes('best regards') ||
-        para.toLowerCase().includes('respectfully')
-      ) {
-        return;
-      }
-
       paragraphs.push(
         new Paragraph({
-          children: [new TextRun(para)],
-          spacing: { after: index < bodyParagraphs.length - 1 ? 180 : 240 },
+          children: [
+            new TextRun({ text: para, size: pt(t.sizeBody), font: fontFamily }),
+          ],
+          spacing: {
+            after: twips(
+              index < bodyParagraphs.length - 1 ? t.itemGap : t.sectionGapBefore
+            ),
+          },
+          alignment: AlignmentType.JUSTIFIED,
         })
       );
     });
@@ -451,34 +663,31 @@ export class WordResumeExporter implements IResumeExporter {
     // Closing
     paragraphs.push(
       new Paragraph({
-        text: 'Sincerely,',
-        spacing: { before: 240, after: 480 },
+        children: [
+          new TextRun({
+            text: 'Sincerely,',
+            size: pt(t.sizeBody),
+            font: fontFamily,
+          }),
+        ],
+        spacing: { before: twips(t.sectionGapBefore), after: twips(t.sectionGapBefore * 2) },
       })
     );
 
-    // Signature line
+    // Signature
     paragraphs.push(
       new Paragraph({
-        text: data.personalInfo.fullName,
-        spacing: { after: 60 },
+        children: [
+          new TextRun({
+            text: data.personalInfo.fullName,
+            bold: true,
+            size: pt(t.sizeBody),
+            font: fontFamily,
+          }),
+        ],
+        spacing: { after: twips(t.bulletGap) },
       })
     );
-
-    if (data.personalInfo.email) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: data.personalInfo.email, size: 20 })],
-        })
-      );
-    }
-
-    if (data.personalInfo.phone) {
-      paragraphs.push(
-        new Paragraph({
-          children: [new TextRun({ text: data.personalInfo.phone, size: 20 })],
-        })
-      );
-    }
 
     return new Document({
       sections: [
@@ -486,10 +695,10 @@ export class WordResumeExporter implements IResumeExporter {
           properties: {
             page: {
               margin: {
-                top: 720, // 0.5 inch
-                right: 720,
-                bottom: 720,
-                left: 720,
+                top: twips(t.margin),
+                right: twips(t.margin),
+                bottom: twips(t.margin),
+                left: twips(t.margin),
               },
             },
           },
@@ -499,4 +708,3 @@ export class WordResumeExporter implements IResumeExporter {
     });
   }
 }
-

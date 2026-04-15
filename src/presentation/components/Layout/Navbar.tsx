@@ -31,6 +31,7 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                     <div className="hidden md:flex items-center flex-1 justify-center px-8">
                         {showExitBuilder && (
                             <button
+                                type="button"
                                 onClick={onDashboardClick}
                                 className="text-sm font-medium text-charcoal-500 hover:text-brand-600 transition-colors px-3 py-1 rounded-md hover:bg-charcoal-50 bg-charcoal-50"
                             >
@@ -52,8 +53,9 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                         </div>
 
                         <button
+                            type="button"
                             onClick={() => signOut()}
-                            className="p-2 text-charcoal-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
+                            className="p-2 text-charcoal-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
                             title="Sign Out"
                         >
                             <LogOut size={20} />
@@ -63,8 +65,9 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                     {/* Mobile Menu Button */}
                     <div className="flex items-center md:hidden">
                         <button
+                            type="button"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
-                            className="inline-flex items-center justify-center p-2 rounded-md text-charcoal-400 hover:text-charcoal-500 hover:bg-charcoal-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500"
+                            className="inline-flex items-center justify-center p-2 rounded-md text-charcoal-400 hover:text-charcoal-500 hover:bg-charcoal-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500"
                         >
                             <Menu size={24} />
                         </button>
@@ -78,6 +81,7 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                     <div className="pt-2 pb-3 space-y-1 px-4">
                         {showExitBuilder && (
                             <button
+                                type="button"
                                 onClick={onDashboardClick}
                                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-charcoal-700 hover:text-charcoal-900 hover:bg-charcoal-50"
                             >
@@ -89,6 +93,7 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                             <p className="text-sm font-bold text-charcoal-900 truncate">{user?.email}</p>
                         </div>
                         <button
+                            type="button"
                             onClick={() => signOut()}
                             className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
                         >

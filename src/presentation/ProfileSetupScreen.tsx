@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../infrastructure/auth/AuthContext';
 import { profileRepository } from '../infrastructure/config/dependencies';
+import { ResumeService } from '../application/services/ResumeService';
 import { toast } from 'sonner';
 import {
     UserTypeStep,
@@ -52,6 +53,7 @@ import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
 
 interface Props {
     onComplete: () => void;
+    resumeService: ResumeService | null;
 }
 
 enum SetupStep {
@@ -80,11 +82,16 @@ const STEP_LABELS = {
     [SetupStep.PUBLICATIONS]: 'Publications',
 };
 
-export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
+export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService }) => {
     const { user, signOut } = useAuth();
     const [currentStep, setCurrentStep] = useState(SetupStep.IMPORT_RESUME);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+
+    // General resume generation states
+    const [isGeneratingResume, setIsGeneratingResume] = useState(false);
+    const [generationFailed, setGenerationFailed] = useState(false);
+    const [generationError, setGenerationError] = useState<string | null>(null);
 
     // Form data
     const [userType, setUserType] = useState<UserType | undefined>(undefined);
@@ -277,10 +284,9 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                             showError('Please fill in name for all projects');
                             return false;
                         }
-                        if (!proj.technologies || proj.technologies.length === 0 || !(proj.technologies.join('') || '').trim()) {
-                            showError('Please add at least one technology for all projects');
-                            return false;
-                        }
+                        // Tools / Methods / Technologies is intentionally optional —
+                        // many non-tech projects (research, campaigns, curriculum,
+                        // legal cases, art portfolios) have no tools to list.
                         if (!(proj.rawDescription || '').trim()) {
                             showError('Please provide a description for all projects');
                             return false;
@@ -521,6 +527,35 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
     const progress = ((currentStepIndex + 1) / totalSteps) * 100;
 
     // Override handlers 
+    const handleGenerateGeneralResume = async () => {
+        if (!user || !resumeService) {
+            // No service available, just complete
+            onComplete();
+            return;
+        }
+
+        setIsGeneratingResume(true);
+        setGenerationFailed(false);
+        setGenerationError(null);
+
+        try {
+            await resumeService.generateGeneralResume(user.id);
+            toast.success('Your General Resume has been created!');
+            onComplete();
+        } catch (error) {
+            console.error('General resume generation failed:', error);
+            const message = error instanceof Error ? error.message : 'Failed to generate resume';
+            setGenerationError(message);
+            setGenerationFailed(true);
+            setIsGeneratingResume(false);
+        }
+    };
+
+    const handleSkipGeneration = () => {
+        toast.info('You can generate your General Resume later from the Profile section.');
+        onComplete();
+    };
+
     const handleNext = async () => {
         if (!validateCurrentStep()) return;
 
@@ -530,11 +565,11 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
         if (currentStepIndex < visibleSteps.length - 1) {
             setCurrentStep(visibleSteps[currentStepIndex + 1]);
         } else {
-            // Mark profile as complete
+            // Last step — mark profile complete, then generate general resume
             try {
                 await profileRepository.markProfileComplete(user.id);
                 toast.success('Profile setup complete!');
-                onComplete();
+                await handleGenerateGeneralResume();
             } catch (error) {
                 console.error('Error completing profile:', error);
                 toast.error('Failed to complete setup. Please try again.');
@@ -547,6 +582,68 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             setCurrentStep(visibleSteps[currentStepIndex - 1]);
         }
     };
+
+    // Show generating resume screen
+    if (isGeneratingResume) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-6 text-center px-4">
+                    <div className="relative">
+                        <div className="w-20 h-20 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <Sparkles size={28} className="text-brand-600 animate-pulse" />
+                        </div>
+                    </div>
+                    <h2 className="text-2xl font-bold text-charcoal-900">Generating Your General Resume</h2>
+                    <p className="text-charcoal-500 max-w-md">
+                        Our AI is crafting a professional resume from your profile data. This takes about 15–20 seconds.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    // Show generation failed screen with retry
+    if (generationFailed) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
+                <div className="bg-white rounded-2xl shadow-lg border border-charcoal-200 p-8 max-w-md w-full mx-4 text-center">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Sparkles size={28} className="text-red-500" />
+                    </div>
+                    <h2 className="text-xl font-bold text-charcoal-900 mb-2">Resume Generation Failed</h2>
+                    <p className="text-charcoal-500 mb-2">
+                        We couldn't generate your General Resume at this time.
+                    </p>
+                    {generationError && (
+                        <p className="text-sm text-red-500 mb-6 bg-red-50 rounded-lg p-3">
+                            {generationError}
+                        </p>
+                    )}
+                    <div className="flex flex-col gap-3">
+                        <button
+                            type="button"
+                            onClick={handleGenerateGeneralResume}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors shadow-sm"
+                        >
+                            <Sparkles size={18} />
+                            Try Again
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSkipGeneration}
+                            className="w-full px-6 py-3 text-charcoal-600 hover:text-charcoal-900 font-medium hover:bg-charcoal-50 rounded-lg transition-colors"
+                        >
+                            Skip for Now
+                        </button>
+                        <p className="text-xs text-charcoal-400 mt-1">
+                            You can generate your General Resume later from the Profile section.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) {
         return (
@@ -572,6 +669,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                             Step {currentStepIndex + 1} of {totalSteps}
                         </div>
                         <button
+                            type="button"
                             onClick={() => signOut()}
                             className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
                             title="Sign Out"
@@ -585,7 +683,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
             {/* Progress Bar */}
             <div className="w-full h-1 bg-charcoal-200">
                 <div
-                    className="h-full bg-brand-600 transition-all duration-300 ease-out"
+                    className="h-full bg-brand-600 transition-[width] duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                 />
             </div>
@@ -597,7 +695,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                         {visibleSteps.map((step, idx) => (
                             <React.Fragment key={step}>
                                 <div className="flex flex-col items-center flex-shrink-0 z-10">
-                                    <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 border-2 ${currentStep === step
+                                    <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-[background-color,border-color,transform] duration-300 border-2 ${currentStep === step
                                         ? 'bg-brand-600 text-white border-brand-600 shadow-lg scale-110'
                                         : visibleSteps.indexOf(currentStep) > idx
                                             ? 'bg-green-500 text-white border-green-500'
@@ -619,7 +717,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                                     </span>
                                 </div>
                                 {idx < visibleSteps.length - 1 && (
-                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-all duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
+                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-colors duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
                                         }`} />
                                 )}
                             </React.Fragment>
@@ -640,6 +738,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 py-4 px-4">
                     <div className="max-w-4xl mx-auto flex justify-between items-center">
                         <button
+                            type="button"
                             onClick={handleBack}
                             disabled={currentStepIndex === 0 || saving}
                             className="flex items-center gap-2 px-4 py-2 text-charcoal-600 hover:text-charcoal-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -649,6 +748,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete }) => {
                         </button>
 
                         <button
+                            type="button"
                             onClick={handleNext}
                             disabled={saving || !validateCurrentStep(false)}
                             className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:bg-charcoal-400 disabled:text-charcoal-100 disabled:cursor-not-allowed transition-colors shadow-sm"

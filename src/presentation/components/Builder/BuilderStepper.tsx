@@ -30,7 +30,7 @@ export const BuilderStepper = ({ steps, currentStep }: BuilderStepperProps) => {
                                 <div key={s.id} className="flex flex-col items-center relative z-10">
                                     {/* Circle */}
                                     <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 border-2 ${isActive
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-[background-color,border-color,color,transform] duration-300 border-2 ${isActive
                                                 ? 'bg-brand-600 border-brand-600 text-white shadow-lg scale-110'
                                                 : isCompleted
                                                     ? 'bg-white border-green-500 text-green-500'
@@ -74,7 +74,7 @@ export const BuilderStepper = ({ steps, currentStep }: BuilderStepperProps) => {
                             const progress = ((currentStepIndex + 1) / steps.length) * 100;
                             return (
                                 <div
-                                    className="h-full bg-brand-600 transition-all duration-500 ease-out rounded-full"
+                                    className="h-full bg-brand-600 transition-[width] duration-500 ease-out rounded-full"
                                     style={{ width: `${progress}%` }}
                                 />
                             );

@@ -101,23 +101,23 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                 <form onSubmit={handleSave} className="bg-charcoal-50 p-4 rounded-xl border border-charcoal-200 animate-in fade-in slide-in-from-top-2">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Company</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Company / Organization</label>
                             <input
                                 required
                                 className={`w-full p-2 border rounded-lg ${!formData.company ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.company || ''}
                                 onChange={e => setFormData({ ...formData, company: e.target.value })}
-                                placeholder="Company Name"
+                                placeholder="e.g. Mayo Clinic, Acme Corp, Oakwood High School"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Role</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Role / Job Title</label>
                             <input
                                 required
                                 className={`w-full p-2 border rounded-lg ${!formData.role ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.role || ''}
                                 onChange={e => setFormData({ ...formData, role: e.target.value })}
-                                placeholder="Job Title"
+                                placeholder="e.g. Registered Nurse, Marketing Manager, Software Engineer"
                             />
                         </div>
                         <div>
@@ -154,12 +154,18 @@ export const ExperienceSection = ({ experiences, onRefresh }: Props) => {
                         </div>
                     </div>
                     <div className="mb-4">
-                        <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description</label>
+                        <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description (Brain dump — AI will refine)</label>
                         <textarea
-                            className={`w-full p-2 border rounded-lg h-32 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
+                            className={`w-full p-2 border rounded-lg h-40 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                             value={formData.rawDescription || ''}
                             onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
-                            placeholder="- Built feature X using React..."
+                            placeholder={`List your main responsibilities, achievements, and outcomes — include real numbers where you have them.
+
+Examples from different fields:
+- Led a team of 5 and shipped features that cut site load time 50%.
+- Managed a caseload of 20+ patients across 3 units; reduced readmissions 15%.
+- Designed lesson plans for 120 students; raised state assessment scores 12%.
+- Closed $1.2M in new business; grew territory pipeline 35% YoY.`}
                         />
                     </div>
                     <div className="flex justify-end gap-2">

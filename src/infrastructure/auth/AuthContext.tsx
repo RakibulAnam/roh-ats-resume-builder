@@ -37,12 +37,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setLoading(false);
         });
 
-        // Listen for changes on auth state (sign in, sign out, etc.)
+        // Listen for changes on auth state (sign in, sign out, etc.).
+        //
+        // IMPORTANT: Supabase fires `TOKEN_REFRESHED` (and sometimes
+        // `SIGNED_IN`) every time the browser tab regains visibility — that's
+        // baked into GoTrue's auto-refresh behavior. Calling setUser/setSession
+        // with a fresh object reference every time would cause every
+        // `useEffect([user])` downstream to re-run on tab focus, which would
+        // look to the user like the app "reloading" on every tab switch.
+        //
+        // So we treat the handler as idempotent on user identity: if the
+        // signed-in user id hasn't changed, we don't touch React state.
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+        } = supabase.auth.onAuthStateChange((_event, newSession) => {
+            const newUserId = newSession?.user?.id ?? null;
+
+            setUser((prev) => {
+                const prevUserId = prev?.id ?? null;
+                // Same user (or still signed out): return the existing
+                // reference so consumers keyed on [user] don't re-fire.
+                if (prevUserId === newUserId) return prev;
+                return newSession?.user ?? null;
+            });
+
+            setSession((prev) => {
+                const prevUserId = prev?.user?.id ?? null;
+                if (prevUserId === newUserId) return prev;
+                return newSession;
+            });
+
             setLoading(false);
         });
 

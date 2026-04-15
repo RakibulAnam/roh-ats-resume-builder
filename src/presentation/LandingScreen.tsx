@@ -16,6 +16,7 @@ export const LandingScreen = ({ onGetStarted }: Props) => {
                         <span className="font-bold text-xl text-charcoal-900 tracking-tight">Roh ATS <span className="text-brand-600">Builder</span></span>
                     </div>
                     <button
+                        type="button"
                         onClick={onGetStarted}
                         className="text-sm font-semibold text-charcoal-600 hover:text-brand-600 transition-colors"
                     >
@@ -40,18 +41,20 @@ export const LandingScreen = ({ onGetStarted }: Props) => {
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                             <button
+                                type="button"
                                 onClick={onGetStarted}
-                                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition-all bg-brand-600 rounded-xl hover:bg-brand-700 hover:shadow-lg hover:-translate-y-1 ring-offset-2 focus:ring-2 ring-brand-600"
+                                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white transition bg-brand-600 rounded-xl hover:bg-brand-700 hover:shadow-lg hover:-translate-y-1 ring-offset-2 focus-visible:ring-2 ring-brand-600"
                             >
                                 Get Started Free
                                 <ArrowRight className="ml-2" />
                             </button>
                             <button
+                                type="button"
                                 onClick={() => {
                                     const features = document.getElementById('features');
                                     features?.scrollIntoView({ behavior: 'smooth' });
                                 }}
-                                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-charcoal-700 transition-all bg-charcoal-100 rounded-xl hover:bg-charcoal-200"
+                                className="inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-charcoal-700 transition-colors bg-charcoal-100 rounded-xl hover:bg-charcoal-200"
                             >
                                 View Features
                             </button>

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../infrastructure/auth/AuthContext';
-import { profileRepository } from '../infrastructure/config/dependencies';
+import { profileRepository, createResumeService } from '../infrastructure/config/dependencies';
 import {
     PersonalInfo, WorkExperience, Education, Project,
     Extracurricular, Award, Certification, Affiliation, Publication,
     UserType
 } from '../domain/entities/Resume';
 import { toast } from 'sonner';
-import { Loader2, Save, Trash2, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
 import { ExperienceSection } from './components/profile/ExperienceSection';
 import { ProjectSection } from './components/profile/ProjectSection';
 import { EducationSection } from './components/profile/EducationSection';
@@ -53,6 +53,10 @@ export const ProfileScreen = () => {
     const [certifications, setCertifications] = useState<Certification[]>([]);
     const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
     const [publications, setPublications] = useState<Publication[]>([]);
+
+    // General resume states
+    const [hasGeneralResume, setHasGeneralResume] = useState(true); // default true to hide banner until checked
+    const [generatingGeneral, setGeneratingGeneral] = useState(false);
 
     useEffect(() => {
         if (user?.id) {
@@ -103,6 +107,38 @@ export const ProfileScreen = () => {
         }
     };
 
+    // Check if general resume exists
+    useEffect(() => {
+        const checkGeneralResume = async () => {
+            if (!user) return;
+            try {
+                const service = createResumeService();
+                const exists = await service.hasGeneralResume(user.id);
+                setHasGeneralResume(exists);
+            } catch {
+                // Silently fail, keep banner hidden
+            }
+        };
+        checkGeneralResume();
+    }, [user]);
+
+    const handleGenerateGeneralResume = async () => {
+        if (!user) return;
+        setGeneratingGeneral(true);
+        try {
+            const service = createResumeService();
+            await service.generateGeneralResume(user.id);
+            setHasGeneralResume(true);
+            toast.success('Your General Resume has been created!');
+        } catch (error) {
+            console.error('General resume generation failed:', error);
+            const message = error instanceof Error ? error.message : 'Failed to generate resume';
+            toast.error(message);
+        } finally {
+            setGeneratingGeneral(false);
+        }
+    };
+
     const handleSavePersonal = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
@@ -138,9 +174,44 @@ export const ProfileScreen = () => {
     return (
         <div className="max-w-6xl mx-auto p-4 md:p-8">
             <h1 className="text-3xl font-bold mb-2 text-charcoal-900">Your Master Profile</h1>
-            <p className="text-charcoal-500 mb-8">
+            <p className="text-charcoal-500 mb-6">
                 Manage your core information here. When you create a new resume, we'll pull from this data.
             </p>
+
+            {/* General Resume Banner */}
+            {!hasGeneralResume && (
+                <div className="mb-6 bg-gradient-to-r from-brand-50 to-brand-100/60 border border-brand-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-brand-600 rounded-lg flex items-center justify-center text-white flex-shrink-0 mt-0.5">
+                            <Sparkles size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-charcoal-900">Generate Your General Resume</h3>
+                            <p className="text-sm text-charcoal-500 mt-0.5">
+                                Create a one-time general-purpose resume from your profile data using AI.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleGenerateGeneralResume}
+                        disabled={generatingGeneral}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex-shrink-0"
+                    >
+                        {generatingGeneral ? (
+                            <>
+                                <Loader2 className="animate-spin" size={18} />
+                                Generating...
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={18} />
+                                Generate Now
+                            </>
+                        )}
+                    </button>
+                </div>
+            )}
 
             <div className="flex gap-2 overflow-x-auto mb-8 border-b border-charcoal-200 pb-1 scrollbar-hide">
                 {Tabs.map(tab => (
@@ -168,7 +239,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.fullName}
                                     onChange={e => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -186,7 +257,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.phone}
                                     onChange={e => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -195,7 +266,7 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.location}
                                     onChange={e => setPersonalInfo({ ...personalInfo, location: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                 />
                             </div>
                             <div>
@@ -204,18 +275,28 @@ export const ProfileScreen = () => {
                                     type="text"
                                     value={personalInfo.linkedin || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, linkedin: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
                                     placeholder="https://linkedin.com/in/..."
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio/Website</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">GitHub / Code Portfolio (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={personalInfo.github || ''}
+                                    onChange={e => setPersonalInfo({ ...personalInfo, github: e.target.value })}
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
+                                    placeholder="https://github.com/..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio / Website</label>
                                 <input
                                     type="text"
                                     value={personalInfo.website || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, website: e.target.value })}
-                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-brand-500"
-                                    placeholder="https://..."
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
+                                    placeholder="e.g. https://yourname.com or Behance / Dribbble / personal site"
                                 />
                             </div>
                         </div>
