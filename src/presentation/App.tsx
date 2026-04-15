@@ -85,9 +85,16 @@ const AppContent = () => {
     }
   }, []);
 
+  // Depend on user?.id (stable string), NOT user (object reference). The
+  // AuthContext is already idempotent on identity changes, but using the id
+  // here is belt-and-braces: even if a fresh user object ever slips through,
+  // we'd only re-check profile completeness when the actual user identity
+  // changes (e.g. sign-in or sign-out), never on a tab-focus token refresh.
+  const userId = user?.id ?? null;
+
   useEffect(() => {
     const checkProfileCompleteness = async () => {
-      if (!user) {
+      if (!userId) {
         setCheckingProfile(false);
         setCurrentScreen(null);
         return;
@@ -95,7 +102,7 @@ const AppContent = () => {
 
       setCheckingProfile(true);
       try {
-        const isComplete = await profileRepository.isProfileComplete(user.id);
+        const isComplete = await profileRepository.isProfileComplete(userId);
         if (isComplete) {
           setCurrentScreen(AppScreen.DASHBOARD);
         } else {
@@ -110,7 +117,7 @@ const AppContent = () => {
     };
 
     checkProfileCompleteness();
-  }, [user]);
+  }, [userId]);
 
   if (loading) {
     return (

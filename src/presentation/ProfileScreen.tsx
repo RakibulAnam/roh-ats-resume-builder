@@ -280,13 +280,23 @@ export const ProfileScreen = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio/Website</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">GitHub / Code Portfolio (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={personalInfo.github || ''}
+                                    onChange={e => setPersonalInfo({ ...personalInfo, github: e.target.value })}
+                                    className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
+                                    placeholder="https://github.com/..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio / Website</label>
                                 <input
                                     type="text"
                                     value={personalInfo.website || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, website: e.target.value })}
                                     className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
-                                    placeholder="https://..."
+                                    placeholder="e.g. https://yourname.com or Behance / Dribbble / personal site"
                                 />
                             </div>
                         </div>

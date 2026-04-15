@@ -23,7 +23,19 @@ export class GeminiCoverLetterGenerator implements ICoverLetterGenerator {
         contents: prompt,
         config: {
           temperature: 0.4,
-          systemInstruction: `You are an expert cover letter writer. You write ONLY the body paragraphs of a cover letter — no date, no address block, no greeting/salutation, no closing line, no signature. The application handles all formatting chrome (header, "Dear Hiring Manager,", "Sincerely,", signature block) separately. Return ONLY the 3–4 body paragraphs of plain text, separated by blank lines. No markdown. No bullet points. No bold formatting.`,
+          systemInstruction: `You are a senior cover-letter writer specializing in applications that pass BOTH ATS keyword screening AND human hiring-manager review.
+
+SCOPE — You write ONLY the body paragraphs. The application renders the date, sender block, recipient block, "Dear Hiring Manager,", "Sincerely,", and signature separately. Do NOT include any of those.
+
+FORMAT — Return 3–4 plain-text body paragraphs separated by a single blank line. No markdown, no bold, no bullets, no headings, no code fences.
+
+LENGTH — 250–400 words total across all paragraphs. Tight, specific, confident. No filler.
+
+TONE — Professional, direct, authentic. No clichés ("I am writing to express my interest", "team player", "think outside the box", "proven track record" as a standalone phrase). No hedging ("I believe I could maybe…"). No grandiosity.
+
+ATS & KEYWORD DISCIPLINE — Mirror the job description's exact hard-skill and tool keywords verbatim (matching casing). Weave them naturally into truthful statements about the candidate. Never keyword-stuff; never invent experience.
+
+HONESTY — Do not fabricate metrics, employers, outcomes, or credentials. Only use what the provided candidate data supports.`,
         },
       });
 
@@ -111,60 +123,101 @@ export class GeminiCoverLetterGenerator implements ICoverLetterGenerator {
     const isStudent = data.userType === 'student';
     const hasExperience = data.experience.length > 0;
 
+    // Use refined (AI-polished) bullets where available — they're the strongest signal
+    const experienceBlock = hasExperience
+      ? data.experience
+          .map(exp => {
+            const bullets = (exp.refinedBullets && exp.refinedBullets.length > 0)
+              ? exp.refinedBullets
+              : (exp.rawDescription ? [exp.rawDescription] : []);
+            const header = `- ${exp.role} at ${exp.company} (${exp.startDate} – ${exp.isCurrent ? 'Present' : exp.endDate})`;
+            const body = bullets.length > 0
+              ? bullets.map(b => `    • ${b}`).join('\n')
+              : '';
+            return body ? `${header}\n${body}` : header;
+          })
+          .join('\n')
+      : '';
+
+    const projectsBlock = data.projects.length > 0
+      ? data.projects
+          .map(p => {
+            const bullets = (p.refinedBullets && p.refinedBullets.length > 0)
+              ? p.refinedBullets
+              : (p.rawDescription ? [p.rawDescription] : []);
+            const header = `- ${p.name}${p.technologies ? ` (${p.technologies})` : ''}`;
+            const body = bullets.length > 0
+              ? bullets.map(b => `    • ${b}`).join('\n')
+              : '';
+            return body ? `${header}\n${body}` : header;
+          })
+          .join('\n')
+      : '';
+
+    const educationBlock = data.education.length > 0
+      ? data.education
+          .map(edu => `- ${edu.degree}${edu.field ? ` in ${edu.field}` : ''} from ${edu.school}${edu.gpa ? ` (GPA: ${edu.gpa})` : ''}`)
+          .join('\n')
+      : 'Not provided';
+
     return `
-Write ONLY the body paragraphs for a professional cover letter. Do NOT include any of the following — they are handled separately by the application:
-- Date
-- Sender address / contact information
-- Recipient address
-- "Dear Hiring Manager," or any greeting
-- "Sincerely," or any closing
-- Signature or name at the bottom
+Write the 3–4 body paragraphs of a cover letter (no date, no addresses, no greeting, no closing, no signature — those are rendered separately).
 
-Return exactly 3–4 paragraphs of plain text separated by blank lines.
+═══════════════════════════════════════════════
+JOB DETAILS (keyword source of truth)
+═══════════════════════════════════════════════
+Position: ${data.targetJob.title || 'N/A'}
+Company: ${data.targetJob.company || 'N/A'}
 
-JOB DETAILS:
-Position: ${data.targetJob.title}
-Company: ${data.targetJob.company}
-Job Description: ${data.targetJob.description}
+Job Description:
+${data.targetJob.description}
 
-CANDIDATE:
+Before writing, mentally extract the top 3–5 hard-skill/tool keywords and the top 2 responsibility themes from the JD. Mirror those keywords verbatim (same casing) across your paragraphs where they are truthful for this candidate.
+
+═══════════════════════════════════════════════
+CANDIDATE
+═══════════════════════════════════════════════
 Name: ${data.personalInfo.fullName}
 Type: ${isStudent ? 'Student / Entry-level' : 'Experienced Professional'}
-Summary: ${data.summary || 'Not provided'}
+Professional Summary: ${data.summary || '(not provided)'}
 
-${hasExperience
-  ? `WORK EXPERIENCE:
-${data.experience
-  .map(exp => `- ${exp.role} at ${exp.company} (${exp.startDate} – ${exp.isCurrent ? 'Present' : exp.endDate})`)
-  .join('\n')}`
-  : ''}
+${hasExperience ? `WORK EXPERIENCE (use specific bullets as source for concrete achievements):\n${experienceBlock}` : 'WORK EXPERIENCE: (none provided)'}
 
-${data.projects.length > 0
-  ? `PROJECTS:
-${data.projects
-  .map(p => `- ${p.name}: ${p.rawDescription?.substring(0, 120) || 'N/A'}`)
-  .join('\n')}`
-  : ''}
+${projectsBlock ? `PROJECTS:\n${projectsBlock}` : ''}
 
 EDUCATION:
-${data.education.length > 0
-  ? data.education
-      .map(edu => `- ${edu.degree}${edu.field ? ` in ${edu.field}` : ''} from ${edu.school}`)
-      .join('\n')
-  : 'Not provided'}
+${educationBlock}
 
-SKILLS: ${data.skills.join(', ')}
+SKILLS: ${data.skills.join(', ') || '(none provided)'}
 
-PARAGRAPH STRUCTURE:
-1. Opening (2–3 sentences): Express genuine interest in the ${data.targetJob.title} role${data.targetJob.company ? ` at ${data.targetJob.company}` : ''}. Briefly state your strongest qualification.
-2. Body (3–5 sentences): ${isStudent
-  ? 'Highlight relevant projects, coursework, or academic achievements. Emphasize transferable skills and eagerness to learn. Connect your background to job requirements.'
-  : 'Highlight your most relevant experience and quantifiable achievements. Connect your track record directly to the job requirements. Show how you solve their specific problems.'}
-3. ${isStudent ? 'Additional body (2–3 sentences): Mention extracurriculars, leadership, or internships that demonstrate soft skills.' : 'Additional body (2–3 sentences): Demonstrate culture fit, leadership, or complementary skills that add value beyond technical requirements.'}
-4. Closing (2–3 sentences): Reiterate enthusiasm. Express interest in discussing the opportunity further. Thank the reader.
+═══════════════════════════════════════════════
+PARAGRAPH STRUCTURE (3–4 paragraphs, 250–400 words total)
+═══════════════════════════════════════════════
+Paragraph 1 — HOOK (2–3 sentences):
+  Open with a specific, concrete achievement or qualification from the candidate data that directly maps to the JD's top requirement. NO "I am writing to apply for…" opening. Name the role${data.targetJob.company ? ` and ${data.targetJob.company}` : ''} in the first or second sentence. Make the reader want to keep reading.
 
-TONE: Professional, confident, genuine. ${isStudent ? 'Show eagerness to learn.' : 'Demonstrate expertise and value.'}
-Naturally incorporate keywords from the job description. Keep it concise — one page maximum.
+Paragraph 2 — EVIDENCE OF FIT (4–6 sentences):
+  ${isStudent
+    ? 'Connect 2–3 concrete project or coursework achievements to the JD\'s technical requirements. Reference specific technologies and methodologies from the JD. Show how academic work prepared you for the role\'s day-one responsibilities.'
+    : 'Reference 2–3 concrete achievements from the work experience above (pulling real details and numbers — never invent). Map each one explicitly to a JD requirement. Use the JD\'s exact keywords for tools/methodologies.'}
+
+${isStudent
+  ? `Paragraph 3 — BROADER VALUE (3–4 sentences): Highlight transferable skills, leadership/extracurriculars, or complementary strengths. Show initiative, learning velocity, and collaboration.`
+  : `Paragraph 3 — BROADER VALUE (3–4 sentences): Highlight leadership, cross-functional collaboration, domain expertise, or culture-fit signals relevant to ${data.targetJob.company || 'the company'} and the role.`}
+
+Paragraph 4 — CLOSE (2–3 sentences):
+  Express specific interest in discussing how your background maps to the team's goals. One sentence thanking the reader. Forward-looking tone — no hedging, no "I look forward to hearing from you" boilerplate-only ending (you may use a fresher phrasing).
+
+═══════════════════════════════════════════════
+HARD CONSTRAINTS
+═══════════════════════════════════════════════
+- Return ONLY the body paragraphs, separated by ONE blank line each.
+- No salutation. No closing. No signature. No date. No contact info.
+- No markdown, no bullets, no headings, no code fences.
+- 250–400 words total.
+- Do NOT fabricate metrics, employers, tools, or credentials.
+- Mirror JD hard-skill keywords verbatim when truthful for this candidate.
+- Avoid clichés: "I am writing to express my interest", "proven track record" (as standalone), "team player", "think outside the box", "hit the ground running".
 `;
   }
 }

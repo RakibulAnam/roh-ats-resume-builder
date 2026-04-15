@@ -55,16 +55,18 @@ export class ResumeService {
   async optimizeResume(data: ResumeData): Promise<OptimizedResumeData> {
     const optimizedData = await this.optimizeUseCase.execute(data);
 
-    // Generate cover letter after resume optimization
+    // Merge optimized content back so the cover letter generator sees the
+    // AI-polished summary and refined bullets (stronger source material than raw user input).
+    const mergedForCoverLetter = this.mergeOptimizedData(data, optimizedData);
+
     try {
-      const coverLetter = await this.coverLetterUseCase.execute(data);
+      const coverLetter = await this.coverLetterUseCase.execute(mergedForCoverLetter);
       return {
         ...optimizedData,
         coverLetter,
       };
     } catch (error) {
       console.error('Cover letter generation failed, continuing without it:', error);
-      // Return optimized data even if cover letter generation fails
       return optimizedData;
     }
   }
@@ -86,6 +88,17 @@ export class ResumeService {
       return await exporter.exportCoverLetterToWord(data);
     }
     throw new Error('Cover letter export not supported');
+  }
+
+  async exportCoverLetterToPDF(data: ResumeData): Promise<void> {
+    if (!data.coverLetter) {
+      throw new Error('Cover letter not available');
+    }
+    const exporter = this.exportUseCase['resumeExporter'] as IResumeExporter;
+    if (exporter.exportCoverLetterToPDF) {
+      return await exporter.exportCoverLetterToPDF(data);
+    }
+    throw new Error('Cover letter PDF export not supported');
   }
 
   mergeOptimizedData(
@@ -208,7 +221,7 @@ export class ResumeService {
       affiliations: affs,
       publications: pubs,
       visibleSections: Array.from(new Set(visibleSections)),
-      template: 'classic',
+      template: 'ats-classic',
     };
 
     // Optimize via AI
@@ -281,7 +294,7 @@ export class ResumeService {
       affiliations: affs,
       publications: pubs,
       visibleSections: Array.from(new Set(visibleSections)),
-      template: 'classic',
+      template: 'ats-classic',
     };
 
     // Optimize via AI

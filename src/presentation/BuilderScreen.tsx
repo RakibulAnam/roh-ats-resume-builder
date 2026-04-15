@@ -202,10 +202,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`projects.${index}.name`] = 'Project Name is required';
             isValid = false;
           }
-          if (!(proj.technologies || '').trim()) {
-            newErrors[`projects.${index}.technologies`] = 'Technologies are required';
-            isValid = false;
-          }
+          // "Tools / Methods / Media" is optional — many non-tech projects
+          // (research studies, legal cases, marketing campaigns, curriculum
+          // design, art portfolios) don't have technologies to list.
           if (!(proj.rawDescription || '').trim()) {
             newErrors[`projects.${index}.rawDescription`] = 'Description is required';
             isValid = false;
@@ -433,9 +432,19 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     await resumeService.exportToWord(data);
   };
 
+  const handleExportPDF = async (data: ResumeData) => {
+    if (!resumeService) throw new Error('Service not initialized');
+    await resumeService.exportToPDF(data);
+  };
+
   const handleExportCoverLetter = async (data: ResumeData) => {
     if (!resumeService) throw new Error('Service not initialized');
     await resumeService.exportCoverLetterToWord(data);
+  };
+
+  const handleExportCoverLetterPDF = async (data: ResumeData) => {
+    if (!resumeService) throw new Error('Service not initialized');
+    await resumeService.exportCoverLetterToPDF(data);
   };
 
   if (step === AppStep.PREVIEW) {
@@ -445,7 +454,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         onUpdate={setResumeData}
         onGoHome={onExit}
         onExportWord={handleExportWord}
+        onExportPDF={handleExportPDF}
         onExportCoverLetter={handleExportCoverLetter}
+        onExportCoverLetterPDF={handleExportCoverLetterPDF}
         readOnly={!!currentResumeId && step === AppStep.PREVIEW}
         isGeneralResume={isGeneralResume}
         canRegenerate={canRegenerate}

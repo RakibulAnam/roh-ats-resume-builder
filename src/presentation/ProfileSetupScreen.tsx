@@ -284,10 +284,9 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                             showError('Please fill in name for all projects');
                             return false;
                         }
-                        if (!proj.technologies || proj.technologies.length === 0 || !(proj.technologies.join('') || '').trim()) {
-                            showError('Please add at least one technology for all projects');
-                            return false;
-                        }
+                        // Tools / Methods / Technologies is intentionally optional —
+                        // many non-tech projects (research, campaigns, curriculum,
+                        // legal cases, art portfolios) have no tools to list.
                         if (!(proj.rawDescription || '').trim()) {
                             showError('Please provide a description for all projects');
                             return false;

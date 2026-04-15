@@ -44,7 +44,10 @@ export interface Project {
   name: string;
   rawDescription: string;
   refinedBullets: string[];
-  technologies: string;
+  // Optional — tools, methods, software, or media used. Not all fields have
+  // "technologies" in the tech sense (e.g. a marketing campaign, a research
+  // study, a curriculum design, a legal case). Leave blank when not applicable.
+  technologies?: string;
   link?: string;
 }
 
@@ -112,15 +115,17 @@ export interface ResumeData {
   customSections?: { title: string; items: string[] }[];
   visibleSections?: string[]; // User selected sections
   template?: ResumeTemplate; // ATS Template selection
-  isATSStrict?: boolean; // Force high-compliance basic layout
 }
 
+// All variants are single-column, real-text, no icons / no tables — i.e.
+// structurally ATS-safe. They differ only in typography, alignment, and
+// density. Legacy IDs from earlier versions are still accepted via
+// `resolveTemplate()` in TemplateRegistry.ts.
 export type ResumeTemplate =
-  | 'classic'
-  | 'executive'
-  | 'minimal'
-  | 'compact'
-  | 'technical';
+  | 'ats-classic'
+  | 'ats-modern'
+  | 'ats-serif'
+  | 'ats-compact';
 
 export interface OptimizedResumeData {
   summary: string;

@@ -43,6 +43,7 @@ export class GeminiResumeOptimizer implements IResumeOptimizer {
         const responseText = this.extractText(result);
         const parsed = this.safeJsonParse(responseText);
 
+        this.normalizeSkills(parsed);
         this.validateResponse(data, parsed);
 
         return parsed;
@@ -67,28 +68,84 @@ export class GeminiResumeOptimizer implements IResumeOptimizer {
 
   private buildSystemInstruction(): string {
     return `
-You are a strict, ATS-focused professional resume writer operating in STRUCTURED JSON MODE.
+You are a senior ATS-optimization resume writer operating in STRUCTURED JSON MODE.
+Your output will be parsed by Applicant Tracking Systems (Workday, Greenhouse, Lever, Taleo, iCIMS).
 
-CRITICAL RULES:
-- Return ONLY valid JSON.
-- No markdown.
-- No explanations.
-- No comments.
-- Must match response schema exactly.
-- Do not skip any input item.
-- Preserve exact IDs.
-- No empty refinedBullets arrays.
-- Do not hallucinate metrics, skills, years, or tools.
-- Be precise, factual, and deterministic.
-- Prefer clarity over creativity.
-- Avoid repetition of starting verbs within the same item.
-- If description is weak, infer realistic responsibilities from role title without fabricating impact.
-- Keep bullets concise (1–2 lines max).
-Before responding, internally verify:
-- JSON is valid
-- All counts match
-- No missing IDs
-- No empty arrays
+═══════════════════════════════════════════════
+OUTPUT FORMAT (ABSOLUTE)
+═══════════════════════════════════════════════
+- Return ONLY valid JSON. No markdown. No code fences. No comments. No prose.
+- Match the response schema EXACTLY.
+- Preserve every input ID verbatim.
+- Every input item MUST appear in the output with a non-empty refinedBullets array.
+
+═══════════════════════════════════════════════
+ATS CORE PRINCIPLES (non-negotiable)
+═══════════════════════════════════════════════
+1. KEYWORD MIRRORING — The job description is your keyword source of truth.
+   - Identify hard skills, tools, frameworks, methodologies, certifications, and domain terms in the JD.
+   - Use those exact terms verbatim (including casing: "JavaScript" not "javascript", "Node.js" not "nodejs").
+   - Prefer the JD's phrasing over synonyms (if JD says "CI/CD pipelines", do not write "automated deployment workflows").
+   - Do NOT keyword-stuff: weave keywords naturally into accurate statements about the candidate's real work.
+
+2. HONESTY — Zero fabrication.
+   - Never invent metrics, percentages, dollar amounts, team sizes, durations, tools, or outcomes.
+   - If the candidate's raw text contains a number (e.g. "led 5 engineers", "reduced latency 40%"), PRESERVE it exactly.
+   - If no metric exists, write a qualitative impact statement — do NOT make one up.
+   - Do not claim skills or experience the candidate did not indicate.
+
+3. BULLET FORMULA — Each bullet follows: [Strong Action Verb] + [Task/Scope] + [Method/Tools, if any] + [Result/Impact].
+   - Start every bullet with a past-tense action verb (present tense for current role).
+   - Never start with "Responsible for", "Worked on", "Helped with", "Duties included", or "I ".
+   - Keep to 1–2 lines (roughly 14–26 words). No run-on sentences.
+   - Quantify when the raw description supports it; otherwise use concrete qualitative impact.
+   - Diversify opening verbs across bullets within the same item — no verb repeated twice in one block.
+   - INDUSTRY-AWARE VERB BANKS — pick verbs that fit the candidate's actual field. Do NOT force tech verbs onto non-tech work.
+     * Tech / engineering: Architected, Built, Developed, Engineered, Implemented, Launched, Shipped, Deployed, Refactored, Automated.
+     * Healthcare / clinical: Treated, Assessed, Triaged, Administered, Coordinated, Educated, Counseled, Documented, Monitored.
+     * Education / teaching: Designed, Taught, Mentored, Assessed, Differentiated, Facilitated, Coached, Tutored, Developed.
+     * Business / sales / marketing: Closed, Negotiated, Generated, Pitched, Forecasted, Launched, Grew, Captured, Acquired, Onboarded.
+     * Finance / accounting: Reconciled, Audited, Forecasted, Modeled, Analyzed, Reported, Reduced (cost), Recovered, Streamlined.
+     * Legal: Drafted, Negotiated, Litigated, Researched, Filed, Advised, Represented, Reviewed.
+     * Creative / design: Designed, Conceptualized, Illustrated, Branded, Storyboarded, Produced, Curated.
+     * Operations / management: Led, Directed, Coordinated, Streamlined, Scaled, Restructured, Oversaw, Implemented.
+     * Research / science: Investigated, Analyzed, Synthesized, Published, Presented, Hypothesized, Modeled.
+     * Universal: Delivered, Drove, Championed, Owned, Improved, Reduced, Increased, Established.
+
+4. SKILLS NORMALIZATION — Output a clean, ATS-parseable skill list.
+   - Dedupe case-insensitively.
+   - Use canonical forms: "JavaScript", "TypeScript", "React", "Node.js", "PostgreSQL", "Kubernetes", "CI/CD", "REST API", "GraphQL".
+   - Order: put JD-matched skills FIRST, then the candidate's remaining core skills.
+   - Do NOT add skills the candidate never referenced. You may promote skills that clearly appear in experience/projects to the skills list.
+   - Keep each entry short (1–3 words). No parentheses, no "X years of Y".
+
+5. SUMMARY FORMAT — 3–4 sentences, no first-person pronouns, ATS-dense.
+   - Sentence 1: Professional identity — [Role title] with [X years / recent graduate in field] specializing in [2–3 JD-aligned focus areas]. Use the candidate's ACTUAL field (nurse, teacher, marketer, engineer, attorney, designer, etc.) — don't force a tech framing.
+   - Sentence 2: Signature strengths / top achievement (use a real metric if present, otherwise qualitative).
+   - Sentence 3: Domain, stack, methodology, or credential fluency that mirrors JD keywords. For non-tech roles, lean on certifications, methodologies, populations served, or industry verticals — not software stacks.
+   - Optional sentence 4: Alignment statement ("Seeking to apply [X] to [target role responsibility]").
+   - For students / entry-level: lead with degree + field + graduation year, then projects/coursework/clinical-rotations/student-teaching/internships, then JD-aligned skills.
+
+6. PROJECTS — Integrate listed tools/methods/technologies into the bullets where plausible.
+   - The "technologies" field is a free-text "tools, methods, or technologies" capture. It may list software (React, Figma), methods (qualitative interviews, IEP planning), media (oil paint, video), or be EMPTY.
+   - If empty, write the bullets WITHOUT inventing tools. Focus on action, scope, and outcome.
+   - If populated, surface those exact terms naturally inside bullets where the work plausibly used them.
+
+7. BULLET COUNT — Adapt to signal density:
+   - Rich raw description (3+ distinct accomplishments) → 4–5 bullets.
+   - Moderate description → 3–4 bullets.
+   - Thin description → 2–3 bullets (quality over padding; never fabricate extra bullets).
+
+═══════════════════════════════════════════════
+PRE-RETURN SELF-CHECK (run mentally before emitting JSON)
+═══════════════════════════════════════════════
+- JSON parses and matches schema.
+- Every input ID is present exactly once.
+- No empty refinedBullets.
+- No fabricated numbers, tools, or credentials.
+- Every bullet starts with an action verb (no "Responsible for", no "Helped").
+- JD's top hard-skill keywords appear across summary / skills / bullets where the candidate's background supports it.
+- No duplicate starting verbs within a single experience/project item.
 `;
   }
 
@@ -196,37 +253,67 @@ Before responding, internally verify:
     }));
 
     return `
-TARGET JOB:
-Title: ${data.targetJob.title}
-Company: ${data.targetJob.company}
-Description: ${data.targetJob.description}
+═══════════════════════════════════════════════
+TARGET JOB (keyword source of truth)
+═══════════════════════════════════════════════
+Title: ${data.targetJob.title || 'N/A'}
+Company: ${data.targetJob.company || 'N/A'}
+Description:
+${data.targetJob.description}
 
-CANDIDATE TYPE: ${isStudent ? 'Student' : 'Experienced Professional'}
-TOTAL EXPERIENCE: ${totalExperience}
+STEP 0 — Mentally extract from the JD (do NOT output this list):
+  • Hard skills & tools (languages, frameworks, platforms, databases).
+  • Methodologies & processes (Agile, CI/CD, TDD, SRE, etc.).
+  • Domain terms (fintech, healthcare, B2B SaaS, etc.).
+  • Seniority / scope signals (ownership, cross-functional, mentorship).
+Use the exact casing and phrasing from the JD when those terms genuinely apply to this candidate.
+
+═══════════════════════════════════════════════
+CANDIDATE CONTEXT
+═══════════════════════════════════════════════
+Type: ${isStudent ? 'Student / Entry-level' : 'Experienced Professional'}
+Total work experience: ${totalExperience}
 
 EXPERIENCE (${cleanExperience.length} items — each MUST produce refinedBullets):
-${JSON.stringify(cleanExperience)}
+${JSON.stringify(cleanExperience, null, 2)}
 
 PROJECTS (${cleanProjects.length} items — each MUST produce refinedBullets):
-${JSON.stringify(cleanProjects)}
+${JSON.stringify(cleanProjects, null, 2)}
 
 EXTRACURRICULARS (${cleanExtracurriculars.length} items — each MUST produce refinedBullets):
-${JSON.stringify(cleanExtracurriculars)}
+${JSON.stringify(cleanExtracurriculars, null, 2)}
 
 EDUCATION:
-${JSON.stringify(data.education)}
+${JSON.stringify(data.education, null, 2)}
 
-SKILLS:
-${data.skills.join(', ')}
+CURRENT SKILLS (may be refined, reordered, deduped — do not fabricate additions):
+${data.skills.join(', ') || '(none provided)'}
 
-TASK:
-- Optimize summary aligned to target job.
-- For each EXPERIENCE entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
-- For each PROJECT entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
-- For each EXTRACURRICULAR entry, refine its "description" field into 3–5 strong action-result bullets. Return as "refinedBullets" array.
-- Every item MUST have a non-empty "refinedBullets" array. Never return an empty array.
-- Preserve IDs exactly.
-- Align honestly with candidate experience.
+═══════════════════════════════════════════════
+YOUR TASK
+═══════════════════════════════════════════════
+1. summary — Produce a 3–4 sentence ATS summary following the SUMMARY FORMAT in your system instructions. Mirror the JD's top 3–5 hard-skill keywords where the candidate's background supports them. No first-person pronouns.
+
+2. skills — Return a clean, deduplicated, normalized list. JD-matched skills first (in JD's casing), then candidate's remaining core skills. Promote skills that clearly appear in experience/projects. Do not invent.
+
+3. experience — For each entry, convert "description" into refinedBullets following the BULLET FORMULA.
+   - Preserve exact numbers, percentages, team sizes, and dollar amounts from the raw description.
+   - Weave in JD keywords only when truthful for this role.
+   - Diversify opening verbs (no verb reused within one role's bullets).
+   - Adapt count to signal density (2–5 bullets). Thin inputs → fewer, stronger bullets — never pad.
+
+4. projects — Same bullet rules as experience. Integrate the listed "technologies" as keywords where the project work plausibly used them.
+
+5. extracurriculars — Same bullet rules. Emphasize transferable skills (leadership, communication, organization) relevant to the JD.
+
+═══════════════════════════════════════════════
+HARD CONSTRAINTS
+═══════════════════════════════════════════════
+- Every input item's refinedBullets MUST be non-empty.
+- Preserve all IDs exactly as given.
+- Do NOT fabricate metrics, tools, credentials, or outcomes.
+- Do NOT use "Responsible for", "Worked on", "Helped with", "Duties included", or first-person pronouns.
+- Do NOT emit any text outside the JSON object.
 `;
   }
 
@@ -281,6 +368,32 @@ TASK:
         throw new Error(`Empty bullets in ${field} ${item.id}`);
       }
     });
+  }
+
+  // ================================
+  // 🧹 SKILLS NORMALIZATION
+  // ================================
+  //
+  // Safety net in case the AI returns duplicate casings ("React"/"react") or
+  // surrounding whitespace. Preserves the first-seen casing (which reflects
+  // the model's JD-ordered priority) while removing later case-only dupes.
+  private normalizeSkills(parsed: OptimizedResumeData): void {
+    if (!parsed?.skills || !Array.isArray(parsed.skills)) return;
+
+    const seen = new Set<string>();
+    const deduped: string[] = [];
+
+    for (const raw of parsed.skills) {
+      if (typeof raw !== 'string') continue;
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(trimmed);
+    }
+
+    parsed.skills = deduped;
   }
 
   // ================================

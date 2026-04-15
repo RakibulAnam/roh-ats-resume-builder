@@ -75,11 +75,11 @@ export const CertificationSection = ({ items, onRefresh }: Props) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>
                             <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Name</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. AWS Certified Solutions Architect" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. PMP, CPA, RN License, Bar Admission, AWS Certified Solutions Architect" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Issuer</label>
-                            <input required className={`w-full p-2 border rounded-lg ${!formData.issuer ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.issuer || ''} onChange={e => setFormData({ ...formData, issuer: e.target.value })} placeholder="e.g. Amazon Web Services" />
+                            <input required className={`w-full p-2 border rounded-lg ${!formData.issuer ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`} value={formData.issuer || ''} onChange={e => setFormData({ ...formData, issuer: e.target.value })} placeholder="e.g. PMI, State Board, AICPA, AWS" />
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Issue Date</label>

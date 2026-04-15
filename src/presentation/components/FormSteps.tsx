@@ -146,14 +146,14 @@ export const TargetJobStep: React.FC<{
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <InputGroup label="Job Title">
           <Input
-            placeholder="e.g. Senior Frontend Engineer"
+            placeholder="e.g. Marketing Manager, Registered Nurse, Financial Analyst"
             value={data.title}
             onChange={e => update({ ...data, title: e.target.value })}
           />
         </InputGroup>
-        <InputGroup label="Company Name">
+        <InputGroup label="Company / Organization">
           <Input
-            placeholder="e.g. Google"
+            placeholder="e.g. Acme Inc., Mayo Clinic, Pearson"
             value={data.company}
             onChange={e => update({ ...data, company: e.target.value })}
           />
@@ -225,7 +225,7 @@ export const PersonalInfoStep: React.FC<{
           placeholder="https://linkedin.com/in/johndoe"
         />
       </InputGroup>
-      <InputGroup label="GitHub URL (Optional)">
+      <InputGroup label="GitHub / Code Portfolio (Optional)">
         <Input
           type="url"
           value={data.github || ''}
@@ -238,7 +238,7 @@ export const PersonalInfoStep: React.FC<{
           type="url"
           value={data.website || ''}
           onChange={e => update({ ...data, website: e.target.value })}
-          placeholder="https://johndoe.com"
+          placeholder="e.g. https://yourname.com or Behance / Dribbble / personal site"
         />
       </InputGroup>
     </div>
@@ -273,7 +273,7 @@ export const ProjectsStep: React.FC<{
     <div className="animate-fade-in space-y-6">
       <SectionTitle
         title="Projects"
-        desc="Showcase your work. Include academic projects, side projects, or open source contributions."
+        desc="Showcase your work. Include capstone work, research studies, freelance or client projects, creative portfolios, campaigns, case studies, side projects, or volunteer initiatives — anything you planned, created, or delivered."
       />
 
       {data.map((project, index) => (
@@ -303,35 +303,38 @@ export const ProjectsStep: React.FC<{
                 error={errors?.[`projects.${index}.name`]}
                 value={project.name}
                 onChange={e => updateProject(project.id, 'name', e.target.value)}
-                placeholder="e.g. E-commerce Platform"
+                placeholder="e.g. Brand Relaunch Campaign, Community Health Study, E-commerce Platform"
               />
             </InputGroup>
 
-            <InputGroup label="Technologies Used (comma separated)" error={errors?.[`projects.${index}.technologies`]}>
+            <InputGroup label="Tools, Methods, or Technologies (Optional, comma separated)">
               <Input
-                error={errors?.[`projects.${index}.technologies`]}
-                value={project.technologies}
+                value={project.technologies || ''}
                 onChange={e => updateProject(project.id, 'technologies', e.target.value)}
-                placeholder="React, Node.js, MongoDB"
+                placeholder="e.g. Figma & Adobe Suite • Qualitative interviews, SPSS • React, Node.js • Classroom observation, IEP planning"
               />
             </InputGroup>
 
-            <InputGroup label="Project Link (Optional)">
+            <InputGroup label="Link (Optional)">
               <Input
                 type="url"
                 value={project.link || ''}
                 onChange={e => updateProject(project.id, 'link', e.target.value)}
-                placeholder="https://github.com/..."
+                placeholder="e.g. https://yourportfolio.com/project, https://github.com/..., published article URL"
               />
             </InputGroup>
 
-            <InputGroup label="Description (Brain dump your contribution, AI will refine)" error={errors?.[`projects.${index}.rawDescription`]}>
+            <InputGroup label="Description (Brain dump your contribution — AI will refine)" error={errors?.[`projects.${index}.rawDescription`]}>
               <TextArea
                 error={errors?.[`projects.${index}.rawDescription`]}
-                rows={3}
+                rows={4}
                 value={project.rawDescription}
                 onChange={e => updateProject(project.id, 'rawDescription', e.target.value)}
-                placeholder="Briefly describe what you built and your role..."
+                placeholder={`Describe what you created, delivered, or contributed to — your role, scope, and outcome. Examples:
+- Led a 6-month rebrand; grew social engagement 40%.
+- Designed K-5 literacy curriculum adopted district-wide.
+- Conducted 20 patient interviews; published findings in department review.
+- Built customer dashboard with React and Node.js reducing support tickets 30%.`}
               />
             </InputGroup>
           </div>
@@ -412,15 +415,15 @@ export const ExperienceStep: React.FC<{
                 error={errors?.[`experience.${index}.role`]}
                 value={exp.role}
                 onChange={e => updateExp(exp.id, 'role', e.target.value)}
-                placeholder="Software Engineer"
+                placeholder="e.g. Registered Nurse, Marketing Manager, Software Engineer"
               />
             </InputGroup>
-            <InputGroup label="Company" error={errors?.[`experience.${index}.company`]}>
+            <InputGroup label="Company / Organization" error={errors?.[`experience.${index}.company`]}>
               <Input
                 error={errors?.[`experience.${index}.company`]}
                 value={exp.company}
                 onChange={e => updateExp(exp.id, 'company', e.target.value)}
-                placeholder="Acme Corp"
+                placeholder="e.g. Mayo Clinic, Acme Corp, Oakwood High School"
               />
             </InputGroup>
 
@@ -475,13 +478,20 @@ export const ExperienceStep: React.FC<{
             </div>
           </div>
 
-          <InputGroup label="What did you achieve? (Brain dump here, AI will refine it)" error={errors?.[`experience.${index}.rawDescription`]}>
+          <InputGroup label="What did you do and achieve? (Brain dump — AI will refine)" error={errors?.[`experience.${index}.rawDescription`]}>
             <TextArea
               error={errors?.[`experience.${index}.rawDescription`]}
-              rows={4}
+              rows={6}
               value={exp.rawDescription}
               onChange={e => updateExp(exp.id, 'rawDescription', e.target.value)}
-              placeholder="- Led a team of 5 developers&#10;- Improved site speed by 50%&#10;- Used React and Node.js"
+              placeholder={`List your main responsibilities, achievements, and outcomes — include real numbers where you have them. The AI will shape them into strong resume bullets.
+
+Examples from different fields:
+- Led a team of 5 and shipped features that cut site load time 50%.
+- Managed a caseload of 20+ patients across 3 units; reduced readmissions 15%.
+- Designed lesson plans for 120 students; raised state assessment scores 12%.
+- Closed $1.2M in new business; grew territory pipeline 35% YoY.
+- Drafted contracts and motions for 30+ cases; reduced turnaround time by half.`}
             />
           </InputGroup>
         </div>
@@ -554,7 +564,7 @@ export const EducationStep: React.FC<{
                 error={errors?.[`education.${index}.school`]}
                 value={edu.school}
                 onChange={e => updateEdu(edu.id, 'school', e.target.value)}
-                placeholder="Stanford University"
+                placeholder="e.g. Stanford University, NYU, State University"
               />
             </InputGroup>
             <InputGroup label="Degree" error={errors?.[`education.${index}.degree`]}>
@@ -562,7 +572,7 @@ export const EducationStep: React.FC<{
                 error={errors?.[`education.${index}.degree`]}
                 value={edu.degree}
                 onChange={e => updateEdu(edu.id, 'degree', e.target.value)}
-                placeholder="Bachelor of Science"
+                placeholder="e.g. Bachelor of Arts, BSN, MBA, High School Diploma"
               />
             </InputGroup>
             <InputGroup label="Field of Study" error={errors?.[`education.${index}.field`]}>
@@ -570,7 +580,7 @@ export const EducationStep: React.FC<{
                 error={errors?.[`education.${index}.field`]}
                 value={edu.field}
                 onChange={e => updateEdu(edu.id, 'field', e.target.value)}
-                placeholder="Computer Science"
+                placeholder="e.g. Nursing, Business, Education, Computer Science, Psychology"
               />
             </InputGroup>
             <div className="grid grid-cols-2 gap-2">
@@ -637,14 +647,14 @@ export const SkillsStep: React.FC<{
     <div className="animate-fade-in">
       <SectionTitle
         title="Skills"
-        desc="List your top technical and soft skills. The AI will categorize and refine these."
+        desc="List hard skills (tools, methods, certifications, languages) and soft skills (leadership, communication). The AI prioritizes skills that match the job description and cleans up duplicates."
       />
 
       <form onSubmit={addSkill} className="flex gap-2 mb-6">
         <Input
           value={currentSkill}
           onChange={e => setCurrentSkill(e.target.value)}
-          placeholder="e.g. JavaScript, Project Management, Communication"
+          placeholder="e.g. Patient Care, Negotiation, Excel, Leadership, Python, Adobe Illustrator"
           className="flex-1"
         />
         <button
@@ -715,10 +725,10 @@ export const ExtracurricularStep: React.FC<{
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputGroup label="Role / Title" error={errors?.[`extracurriculars.${index}.title`]}>
-              <Input error={errors?.[`extracurriculars.${index}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="President" />
+              <Input error={errors?.[`extracurriculars.${index}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="e.g. President, Volunteer Coordinator, Team Captain" />
             </InputGroup>
             <InputGroup label="Organization" error={errors?.[`extracurriculars.${index}.organization`]}>
-              <Input error={errors?.[`extracurriculars.${index}.organization`]} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="Debate Club" />
+              <Input error={errors?.[`extracurriculars.${index}.organization`]} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="e.g. Debate Club, Red Cross, Habitat for Humanity" />
             </InputGroup>
             <InputGroup label="Start Date" error={errors?.[`extracurriculars.${index}.startDate`]}>
               <MonthPicker isError={!!errors?.[`extracurriculars.${index}.startDate`]} value={item.startDate} onChange={val => updateItem(item.id, 'startDate', val)} />
@@ -727,8 +737,8 @@ export const ExtracurricularStep: React.FC<{
               <MonthPicker isError={!!errors?.[`extracurriculars.${index}.endDate`]} value={item.endDate} onChange={val => updateItem(item.id, 'endDate', val)} />
             </InputGroup>
           </div>
-          <InputGroup label="Description (Brain dump your contribution, AI will refine)">
-            <TextArea rows={3} value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="Led weekly meetings..." />
+          <InputGroup label="Description (Brain dump your contribution — AI will refine)">
+            <TextArea rows={3} value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} placeholder="e.g. Led weekly meetings, organized 3 community fundraisers raising $8K, mentored 12 new members." />
           </InputGroup>
         </div>
       ))}
@@ -754,8 +764,8 @@ export const AwardsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button type="button" onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-            <InputGroup label="Award Title" error={errors?.[`awards.${i}.title`]}><Input error={errors?.[`awards.${i}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Dean's List" /></InputGroup>
-            <InputGroup label="Issuer" error={errors?.[`awards.${i}.issuer`]}><Input error={errors?.[`awards.${i}.issuer`]} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="University" /></InputGroup>
+            <InputGroup label="Award Title" error={errors?.[`awards.${i}.title`]}><Input error={errors?.[`awards.${i}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="e.g. Dean's List, Employee of the Year, Teacher of the Year, Rising Star Award" /></InputGroup>
+            <InputGroup label="Issuer" error={errors?.[`awards.${i}.issuer`]}><Input error={errors?.[`awards.${i}.issuer`]} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="e.g. University, Hospital Board, Chamber of Commerce" /></InputGroup>
             <InputGroup label="Date" error={errors?.[`awards.${i}.date`]}><MonthPicker isError={!!errors?.[`awards.${i}.date`]} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
           </div>
           <InputGroup label="Description (Optional)" className="mt-4"><TextArea rows={2} value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} /></InputGroup>
@@ -781,8 +791,8 @@ export const CertificationsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button type="button" onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-            <InputGroup label="Certification Name" error={errors?.[`certifications.${i}.name`]}><Input error={errors?.[`certifications.${i}.name`]} value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="AWS Certified Solutions Architect" /></InputGroup>
-            <InputGroup label="Issuer" error={errors?.[`certifications.${i}.issuer`]}><Input error={errors?.[`certifications.${i}.issuer`]} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="Amazon Web Services" /></InputGroup>
+            <InputGroup label="Certification Name" error={errors?.[`certifications.${i}.name`]}><Input error={errors?.[`certifications.${i}.name`]} value={item.name} onChange={e => updateItem(item.id, 'name', e.target.value)} placeholder="e.g. PMP, CPA, RN License, Bar Admission, AWS Certified Solutions Architect" /></InputGroup>
+            <InputGroup label="Issuer" error={errors?.[`certifications.${i}.issuer`]}><Input error={errors?.[`certifications.${i}.issuer`]} value={item.issuer} onChange={e => updateItem(item.id, 'issuer', e.target.value)} placeholder="e.g. PMI, State Board, AICPA, AWS" /></InputGroup>
             <InputGroup label="Date" error={errors?.[`certifications.${i}.date`]}><MonthPicker isError={!!errors?.[`certifications.${i}.date`]} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
             <InputGroup label="Link (Optional)"><Input type="url" value={item.link || ''} onChange={e => updateItem(item.id, 'link', e.target.value)} placeholder="https://..." /></InputGroup>
           </div>
@@ -808,8 +818,8 @@ export const AffiliationsStep: React.FC<{
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button type="button" onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-            <InputGroup label="Organization" error={errors?.[`affiliations.${i}.organization`]}><Input error={errors?.[`affiliations.${i}.organization`]} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="IEEE" /></InputGroup>
-            <InputGroup label="Role" error={errors?.[`affiliations.${i}.role`]}><Input error={errors?.[`affiliations.${i}.role`]} value={item.role} onChange={e => updateItem(item.id, 'role', e.target.value)} placeholder="Member" /></InputGroup>
+            <InputGroup label="Organization" error={errors?.[`affiliations.${i}.organization`]}><Input error={errors?.[`affiliations.${i}.organization`]} value={item.organization} onChange={e => updateItem(item.id, 'organization', e.target.value)} placeholder="e.g. American Bar Association, ANA, AMA, IEEE, AIGA" /></InputGroup>
+            <InputGroup label="Role" error={errors?.[`affiliations.${i}.role`]}><Input error={errors?.[`affiliations.${i}.role`]} value={item.role} onChange={e => updateItem(item.id, 'role', e.target.value)} placeholder="e.g. Member, Board Member, Chair" /></InputGroup>
             <InputGroup label="Start Date" error={errors?.[`affiliations.${i}.startDate`]}><MonthPicker isError={!!errors?.[`affiliations.${i}.startDate`]} value={item.startDate} onChange={val => updateItem(item.id, 'startDate', val)} /></InputGroup>
             <InputGroup label="End Date" error={errors?.[`affiliations.${i}.endDate`]}><MonthPicker isError={!!errors?.[`affiliations.${i}.endDate`]} value={item.endDate} onChange={val => updateItem(item.id, 'endDate', val)} /></InputGroup>
           </div>
@@ -830,13 +840,13 @@ export const PublicationsStep: React.FC<{
 
   return (
     <div className="animate-fade-in space-y-6">
-      <SectionTitle title="Publications / Presentations" desc="Papers, articles, or conference talks." />
+      <SectionTitle title="Publications / Presentations" desc="Papers, articles, op-eds, case studies, conference talks, or media features." />
       {data.map((item, i) => (
         <div key={item.id} className="p-4 border rounded-lg bg-white shadow-sm relative">
           <button type="button" onClick={() => update(data.filter(x => x.id !== item.id))} className="absolute top-4 right-4 text-red-500 hover:text-red-700 transition-colors"><Trash2 size={18} /></button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-            <InputGroup label="Title" error={errors?.[`publications.${i}.title`]}><Input error={errors?.[`publications.${i}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="Research on AI" /></InputGroup>
-            <InputGroup label="Publisher / Conference" error={errors?.[`publications.${i}.publisher`]}><Input error={errors?.[`publications.${i}.publisher`]} value={item.publisher || ''} onChange={e => updateItem(item.id, 'publisher', e.target.value)} placeholder="Journal of Tech" /></InputGroup>
+            <InputGroup label="Title" error={errors?.[`publications.${i}.title`]}><Input error={errors?.[`publications.${i}.title`]} value={item.title} onChange={e => updateItem(item.id, 'title', e.target.value)} placeholder="e.g. Nursing Care Best Practices; The Future of B2B Marketing; A Study on Neural Networks" /></InputGroup>
+            <InputGroup label="Publisher / Conference" error={errors?.[`publications.${i}.publisher`]}><Input error={errors?.[`publications.${i}.publisher`]} value={item.publisher || ''} onChange={e => updateItem(item.id, 'publisher', e.target.value)} placeholder="e.g. Harvard Business Review, JAMA, Medium, NeurIPS" /></InputGroup>
             <InputGroup label="Date" error={errors?.[`publications.${i}.date`]}><MonthPicker isError={!!errors?.[`publications.${i}.date`]} value={item.date} onChange={val => updateItem(item.id, 'date', val)} /></InputGroup>
             <InputGroup label="Link (Optional)"><Input type="url" value={item.link || ''} onChange={e => updateItem(item.id, 'link', e.target.value)} /></InputGroup>
           </div>

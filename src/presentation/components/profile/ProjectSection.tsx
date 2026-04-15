@@ -74,35 +74,38 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                                     className={`w-full p-2 border rounded-lg ${!formData.name ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                     value={formData.name || ''}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    placeholder="e.g. E-commerce Dashboard"
+                                    placeholder="e.g. Brand Relaunch Campaign, Community Health Study, E-commerce Platform"
                                 />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Link (Optional)</label>
                                 <input
-                                    className="w-full p-2 border rounded-lg"
+                                    className="w-full p-2 border rounded-lg border-charcoal-300"
                                     value={formData.link || ''}
                                     onChange={e => setFormData({ ...formData, link: e.target.value })}
-                                    placeholder="e.g. https://github.com/..."
+                                    placeholder="e.g. https://yourportfolio.com/project, article URL, GitHub link"
                                 />
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Technologies (comma separated)</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Tools, Methods, or Technologies (Optional, comma separated)</label>
                             <input
-                                className={`w-full p-2 border rounded-lg ${!formData.technologies ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
+                                className="w-full p-2 border rounded-lg border-charcoal-300"
                                 value={formData.technologies || ''}
                                 onChange={e => setFormData({ ...formData, technologies: e.target.value })}
-                                placeholder="e.g. React, Node.js, TypeScript, MongoDB"
+                                placeholder="e.g. Figma & Adobe Suite • Qualitative interviews, SPSS • React, Node.js • Classroom observation, IEP planning"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description</label>
+                            <label className="block text-xs font-semibold text-charcoal-500 uppercase mb-1">Description (Brain dump — AI will refine)</label>
                             <textarea
-                                className={`w-full p-2 border rounded-lg h-24 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
+                                className={`w-full p-2 border rounded-lg h-32 text-sm ${!formData.rawDescription ? 'border-red-500 ring-1 ring-red-500' : 'border-charcoal-300'}`}
                                 value={formData.rawDescription || ''}
                                 onChange={e => setFormData({ ...formData, rawDescription: e.target.value })}
-                                placeholder="Describe detailed contributions and outcomes..."
+                                placeholder={`Describe what you created, delivered, or contributed to — your role, scope, and outcome. Examples:
+- Led a 6-month rebrand; grew social engagement 40%.
+- Designed K-5 literacy curriculum adopted district-wide.
+- Built customer dashboard with React and Node.js; reduced support tickets 30%.`}
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -137,11 +140,17 @@ export const ProjectSection = ({ projects, onRefresh }: Props) => {
                             </div>
                         </div>
                         <p className="text-sm text-charcoal-600 mt-1 line-clamp-2">{p.rawDescription}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {p.technologies.split(',').map((t, i) => (
-                                <span key={i} className="text-xs bg-charcoal-100 px-2 py-1 rounded text-charcoal-600">{t.trim()}</span>
-                            ))}
-                        </div>
+                        {p.technologies && p.technologies.trim() && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {p.technologies.split(',').map((t, i) => {
+                                    const trimmed = t.trim();
+                                    if (!trimmed) return null;
+                                    return (
+                                        <span key={i} className="text-xs bg-charcoal-100 px-2 py-1 rounded text-charcoal-600">{trimmed}</span>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

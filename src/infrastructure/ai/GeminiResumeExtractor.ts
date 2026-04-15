@@ -55,7 +55,7 @@ export class GeminiResumeExtractor implements IResumeExtractor {
                         properties: {
                             id: { type: Type.STRING, description: "Generate a unique UUID or random string for this item." },
                             name: { type: Type.STRING },
-                            technologies: { type: Type.STRING, description: "Comma separated list of technologies used." },
+                            technologies: { type: Type.STRING, description: "Comma-separated tools, methods, software, or media used. May be tech ('React, Node.js'), design tools ('Figma, Illustrator'), research methods ('qualitative interviews, SPSS'), media ('oil paint, video'), or empty string if none apply. Do not invent." },
                             rawDescription: { type: Type.STRING, description: "The original description of the project." },
                             link: { type: Type.STRING }
                         },

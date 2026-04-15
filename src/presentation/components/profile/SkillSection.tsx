@@ -67,7 +67,7 @@ export const SkillSection = ({ skills, onRefresh }: Props) => {
                     className="flex-1 p-2 border rounded-lg"
                     value={newSkill}
                     onChange={e => setNewSkill(e.target.value)}
-                    placeholder="Add a skill (e.g. TypeScript, React)"
+                    placeholder="Add a skill (e.g. Patient Care, Negotiation, Leadership, Excel, Python)"
                 />
                 <button type="submit" className="bg-charcoal-900 text-white px-4 rounded-lg hover:bg-black">
                     <Plus size={20} />
