@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ResumeData, AppStep } from '../domain/entities';
+import { ResumeData, AppStep, ToolkitItem } from '../domain/entities';
 import {
   UserTypeStep,
   TargetJobStep,
@@ -108,6 +108,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   const [isGeneralResume, setIsGeneralResume] = useState(false);
   const [canRegenerate, setCanRegenerate] = useState(true);
   const [cooldownEndsAt, setCooldownEndsAt] = useState<Date | null>(null);
+  const [regeneratingItem, setRegeneratingItem] = useState<ToolkitItem | null>(null);
 
   useEffect(() => {
     const checkResumeStatus = async () => {
@@ -145,6 +146,20 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       } catch (error) {
          toast.error(error instanceof Error ? error.message : 'Failed to regenerate resume');
       }
+  };
+
+  const handleRegenerateItem = async (item: ToolkitItem) => {
+    if (!user || !resumeService || !currentResumeId) return;
+    setRegeneratingItem(item);
+    try {
+      const updatedData = await resumeService.regenerateToolkitItem(user.id, currentResumeId, resumeData, item);
+      setResumeData(updatedData);
+      toast.success(`Generated successfully!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Failed to regenerate item`);
+    } finally {
+      setRegeneratingItem(null);
+    }
   };
 
   const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
@@ -462,6 +477,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         canRegenerate={canRegenerate}
         cooldownEndsAt={cooldownEndsAt}
         onRegenerate={handleRegenerateGeneralResume}
+        onRegenerateItem={handleRegenerateItem}
+        regeneratingItem={regeneratingItem}
       />
     );
   }

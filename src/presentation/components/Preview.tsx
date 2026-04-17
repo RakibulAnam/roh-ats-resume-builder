@@ -102,6 +102,8 @@ interface PreviewProps {
   onRegenerate?: () => Promise<void>;
   canRegenerate?: boolean;
   cooldownEndsAt?: Date | null;
+  onRegenerateItem?: (item: ToolkitItem) => Promise<void>;
+  regeneratingItem?: ToolkitItem | null;
 }
 
 export const Preview: React.FC<PreviewProps> = ({
@@ -117,6 +119,8 @@ export const Preview: React.FC<PreviewProps> = ({
   onRegenerate,
   canRegenerate = true,
   cooldownEndsAt,
+  onRegenerateItem,
+  regeneratingItem = null,
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>('resume');
@@ -792,7 +796,9 @@ export const Preview: React.FC<PreviewProps> = ({
                   activeTab === 'resume' ? handleWordExport : handleCoverLetterExport
                 }
                 disabled={
-                  isExporting || (activeTab !== 'resume' && !onExportCoverLetter)
+                  isExporting || 
+                  (activeTab === 'coverLetter' && (!onExportCoverLetter || getItemStatus(data, 'coverLetter', regeneratingItem) !== 'success')) ||
+                  (activeTab !== 'resume' && activeTab !== 'coverLetter')
                 }
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-brand-700 bg-charcoal-50 border border-charcoal-300 rounded-md hover:border-brand-700 shadow-sm transition-colors disabled:opacity-50"
               >
@@ -803,7 +809,7 @@ export const Preview: React.FC<PreviewProps> = ({
               <button
                 type="button"
                 onClick={handlePDFExport}
-                disabled={isPdfGenerating}
+                disabled={isPdfGenerating || (activeTab === 'coverLetter' && getItemStatus(data, 'coverLetter', regeneratingItem) !== 'success')}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-charcoal-50 bg-brand-700 rounded-md hover:bg-brand-800 shadow-sm transition-colors disabled:opacity-50"
               >
                 {isPdfGenerating ? (
@@ -858,16 +864,16 @@ export const Preview: React.FC<PreviewProps> = ({
                   );
                 })}
 
-                {data.coverLetter && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('coverLetter')}
-                    className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${
-                      activeTab === 'coverLetter'
-                        ? 'bg-accent-50 text-brand-700 border border-accent-200'
-                        : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
-                    }`}
-                  >
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('coverLetter')}
+                  className={`relative flex items-center justify-between text-left px-4 py-3 rounded-md transition-colors ${
+                    activeTab === 'coverLetter'
+                      ? 'bg-accent-50 text-brand-700 border border-accent-200'
+                      : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
                     <FileCheck
                       size={18}
                       className={
@@ -877,79 +883,80 @@ export const Preview: React.FC<PreviewProps> = ({
                       }
                     />
                     <span className="text-sm font-semibold">Cover Letter</span>
-                  </button>
-                )}
+                  </div>
+                  <StatusDot status={getItemStatus(data, 'coverLetter', regeneratingItem)} />
+                </button>
               </div>
             </div>
 
             {/* Outreach group */}
-            {(data.toolkit?.outreachEmail || data.toolkit?.linkedInMessage) && (
-              <div>
-                <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
-                  Outreach
-                </h2>
-                <div className="flex flex-row md:flex-col gap-2 min-w-max md:min-w-0">
-                  {data.toolkit.outreachEmail && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('outreachEmail')}
-                      className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${
-                        activeTab === 'outreachEmail'
-                          ? 'bg-accent-50 text-brand-700 border border-accent-200'
-                          : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
-                      }`}
-                    >
-                      <Mail
-                        size={18}
-                        className={
-                          activeTab === 'outreachEmail'
-                            ? 'text-accent-600'
-                            : 'text-brand-400'
-                        }
-                      />
-                      <span className="text-sm font-semibold">Outreach Email</span>
-                    </button>
-                  )}
-                  {data.toolkit.linkedInMessage && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('linkedInMessage')}
-                      className={`relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${
-                        activeTab === 'linkedInMessage'
-                          ? 'bg-accent-50 text-brand-700 border border-accent-200'
-                          : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
-                      }`}
-                    >
-                      <Linkedin
-                        size={18}
-                        className={
-                          activeTab === 'linkedInMessage'
-                            ? 'text-accent-600'
-                            : 'text-brand-400'
-                        }
-                      />
-                      <span className="text-sm font-semibold">LinkedIn Note</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Interview prep */}
-            {data.toolkit?.interviewQuestions && data.toolkit.interviewQuestions.length > 0 && (
-              <div>
-                <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
-                  Interview
-                </h2>
+            <div>
+              <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
+                Outreach
+              </h2>
+              <div className="flex flex-row md:flex-col gap-2 min-w-max md:min-w-0">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('interviewPrep')}
-                  className={`w-full relative flex items-center gap-3 text-left px-4 py-3 rounded-md transition-colors ${
-                    activeTab === 'interviewPrep'
+                  onClick={() => setActiveTab('outreachEmail')}
+                  className={`relative flex items-center justify-between text-left px-4 py-3 rounded-md transition-colors ${
+                    activeTab === 'outreachEmail'
                       ? 'bg-accent-50 text-brand-700 border border-accent-200'
                       : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
                   }`}
                 >
+                  <div className="flex items-center gap-3">
+                    <Mail
+                      size={18}
+                      className={
+                        activeTab === 'outreachEmail'
+                          ? 'text-accent-600'
+                          : 'text-brand-400'
+                      }
+                    />
+                    <span className="text-sm font-semibold">Outreach Email</span>
+                  </div>
+                  <StatusDot status={getItemStatus(data, 'outreachEmail', regeneratingItem)} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('linkedInMessage')}
+                  className={`relative flex items-center justify-between text-left px-4 py-3 rounded-md transition-colors ${
+                    activeTab === 'linkedInMessage'
+                      ? 'bg-accent-50 text-brand-700 border border-accent-200'
+                      : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Linkedin
+                      size={18}
+                      className={
+                        activeTab === 'linkedInMessage'
+                          ? 'text-accent-600'
+                          : 'text-brand-400'
+                      }
+                    />
+                    <span className="text-sm font-semibold">LinkedIn Note</span>
+                  </div>
+                  <StatusDot status={getItemStatus(data, 'linkedInMessage', regeneratingItem)} />
+                </button>
+              </div>
+            </div>
+
+            {/* Interview prep */}
+            <div>
+              <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
+                Interview
+              </h2>
+              <button
+                type="button"
+                onClick={() => setActiveTab('interviewPrep')}
+                className={`w-full relative flex items-center justify-between text-left px-4 py-3 rounded-md transition-colors ${
+                  activeTab === 'interviewPrep'
+                    ? 'bg-accent-50 text-brand-700 border border-accent-200'
+                    : 'text-brand-600 border border-transparent hover:bg-charcoal-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
                   <MessageSquare
                     size={18}
                     className={
@@ -960,13 +967,16 @@ export const Preview: React.FC<PreviewProps> = ({
                   />
                   <span className="text-sm font-semibold">
                     Question Prep
-                    <span className="ml-1.5 text-[11px] font-normal text-brand-500">
-                      · {data.toolkit.interviewQuestions.length}
-                    </span>
+                    {data.toolkit?.interviewQuestions && data.toolkit.interviewQuestions.length > 0 && (
+                      <span className="ml-1.5 text-[11px] font-normal text-brand-500">
+                        · {data.toolkit.interviewQuestions.length}
+                      </span>
+                    )}
                   </span>
-                </button>
-              </div>
-            )}
+                </div>
+                <StatusDot status={getItemStatus(data, 'interviewQuestions', regeneratingItem)} />
+              </button>
+            </div>
 
             <p className="hidden md:block text-[11px] text-brand-500 leading-snug mt-auto pt-4 border-t border-charcoal-200">
               All resume templates are single-column, real-text, and pass ATS keyword extraction.
@@ -983,17 +993,71 @@ export const Preview: React.FC<PreviewProps> = ({
           )}
           {activeTab === 'coverLetter' && (
             <div className="p-4 md:py-12 flex justify-center min-w-max md:min-w-0">
-              {coverLetterContent}
+              {getItemStatus(data, 'coverLetter', regeneratingItem) === 'success' ? (
+                coverLetterContent
+              ) : (
+                <ToolkitStatusCard
+                  icon={FileCheck}
+                  eyebrow="Cover Letter"
+                  title="Tailored cover letter"
+                  description="A custom cover letter based on your experience and the target job description."
+                  status={getItemStatus(data, 'coverLetter', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
+                  errorMessage={data.toolkit?.errors?.coverLetter}
+                  onRetry={() => onRegenerateItem?.('coverLetter')}
+                />
+              )}
             </div>
           )}
-          {activeTab === 'outreachEmail' && data.toolkit?.outreachEmail && (
-            <OutreachEmailViewer email={data.toolkit.outreachEmail} />
+          {activeTab === 'outreachEmail' && (
+            <div className="p-4 md:py-12 flex justify-center min-w-max md:min-w-0 w-full">
+              {getItemStatus(data, 'outreachEmail', regeneratingItem) === 'success' ? (
+                <OutreachEmailViewer email={data.toolkit!.outreachEmail!} />
+              ) : (
+                <ToolkitStatusCard
+                  icon={Mail}
+                  eyebrow="Outreach"
+                  title="Email the hiring manager"
+                  description="A short, specific cold email you can send directly to the person doing the hiring."
+                  status={getItemStatus(data, 'outreachEmail', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
+                  errorMessage={data.toolkit?.errors?.outreachEmail}
+                  onRetry={() => onRegenerateItem?.('outreachEmail')}
+                />
+              )}
+            </div>
           )}
-          {activeTab === 'linkedInMessage' && data.toolkit?.linkedInMessage && (
-            <LinkedInMessageViewer message={data.toolkit.linkedInMessage} />
+          {activeTab === 'linkedInMessage' && (
+            <div className="p-4 md:py-12 flex justify-center min-w-max md:min-w-0 w-full">
+              {getItemStatus(data, 'linkedInMessage', regeneratingItem) === 'success' ? (
+                <LinkedInMessageViewer message={data.toolkit!.linkedInMessage!} />
+              ) : (
+                <ToolkitStatusCard
+                  icon={Linkedin}
+                  eyebrow="Outreach"
+                  title="LinkedIn connection note"
+                  description="A short, tailored note to send with your connection request."
+                  status={getItemStatus(data, 'linkedInMessage', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
+                  errorMessage={data.toolkit?.errors?.linkedInMessage}
+                  onRetry={() => onRegenerateItem?.('linkedInMessage')}
+                />
+              )}
+            </div>
           )}
-          {activeTab === 'interviewPrep' && data.toolkit?.interviewQuestions && (
-            <InterviewPrepViewer questions={data.toolkit.interviewQuestions} />
+          {activeTab === 'interviewPrep' && (
+            <div className="p-4 md:py-12 flex justify-center min-w-max md:min-w-0 w-full">
+              {getItemStatus(data, 'interviewQuestions', regeneratingItem) === 'success' ? (
+                <InterviewPrepViewer questions={data.toolkit!.interviewQuestions!} />
+              ) : (
+                <ToolkitStatusCard
+                  icon={MessageSquare}
+                  eyebrow="Interview prep"
+                  title="Must-know interview questions"
+                  description="The questions you are most likely to be asked for this role."
+                  status={getItemStatus(data, 'interviewQuestions', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
+                  errorMessage={data.toolkit?.errors?.interviewQuestions}
+                  onRetry={() => onRegenerateItem?.('interviewQuestions')}
+                />
+              )}
+            </div>
           )}
         </main>
       </div>

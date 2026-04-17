@@ -150,6 +150,7 @@ JobToolkit {
   outreachEmail?:      { subject: string, body: string }
   linkedInMessage?:    string              // ≤ 280 chars
   interviewQuestions?: InterviewQuestion[]
+  errors?:             Partial<Record<string, string>>
 }
 
 InterviewQuestion {
