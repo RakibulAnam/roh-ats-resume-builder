@@ -283,11 +283,16 @@ create policy "Users can delete own applications" on applications
   for delete using (auth.uid() = user_id);
 
 -- GENERATED RESUMES (Final snapshots)
+-- `data`    — the resume payload (ResumeData minus toolkit)
+-- `toolkit` — AI-generated sibling artifacts (outreach email, LinkedIn note,
+--             interview questions). Kept in its own column so the resume
+--             itself stays clean and the toolkit is independently queryable.
 create table generated_resumes (
   id uuid default uuid_generate_v4() primary key,
   user_id uuid references profiles(id) not null,
   title text,
   data jsonb,
+  toolkit jsonb,
   updated_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );

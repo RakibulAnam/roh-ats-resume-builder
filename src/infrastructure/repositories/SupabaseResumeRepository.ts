@@ -1,5 +1,5 @@
 import { IResumeRepository } from '../../domain/repositories/IResumeRepository';
-import { ResumeData } from '../../domain/entities/Resume';
+import { ResumeData, JobToolkit } from '../../domain/entities/Resume';
 import { supabase } from '../supabase/client';
 
 export class SupabaseResumeRepository implements IResumeRepository {
@@ -24,14 +24,20 @@ export class SupabaseResumeRepository implements IResumeRepository {
         }
     }
 
-    // Supabase for Generated/Finalized Resumes
+    // Supabase for Generated/Finalized Resumes.
+    //
+    // The toolkit (outreach email, LinkedIn note, interview questions) lives in
+    // its own JSONB column so the resume payload stays clean and the toolkit is
+    // queryable/inspectable on its own.
     async saveGeneratedResume(userId: string, data: ResumeData, title: string): Promise<string> {
+        const { toolkit, ...resumePayload } = data;
         const { data: inserted, error } = await supabase
             .from('generated_resumes')
             .insert({
                 user_id: userId,
-                title: title,
-                data: data
+                title,
+                data: resumePayload,
+                toolkit: toolkit ?? null,
             })
             .select('id')
             .single();
@@ -41,12 +47,14 @@ export class SupabaseResumeRepository implements IResumeRepository {
     }
 
     async updateGeneratedResume(id: string, data: ResumeData, title: string): Promise<void> {
+        const { toolkit, ...resumePayload } = data;
         const { error } = await supabase
             .from('generated_resumes')
             .update({
-                title: title,
-                data: data,
-                updated_at: new Date().toISOString()
+                title,
+                data: resumePayload,
+                toolkit: toolkit ?? null,
+                updated_at: new Date().toISOString(),
             })
             .eq('id', id);
 
@@ -74,12 +82,16 @@ export class SupabaseResumeRepository implements IResumeRepository {
     async getGeneratedResume(id: string): Promise<ResumeData | null> {
         const { data, error } = await supabase
             .from('generated_resumes')
-            .select('data')
+            .select('data, toolkit')
             .eq('id', id)
             .single();
 
         if (error) throw error;
-        return data.data as ResumeData;
+        if (!data) return null;
+
+        const payload = (data.data || {}) as ResumeData;
+        const toolkit = (data.toolkit ?? undefined) as JobToolkit | undefined;
+        return { ...payload, toolkit };
     }
 
     async deleteGeneratedResume(id: string): Promise<void> {
@@ -91,7 +103,7 @@ export class SupabaseResumeRepository implements IResumeRepository {
             .single();
 
         if (fetchError) throw fetchError;
-        
+
         if (resumeData?.title === 'General Resume') {
             throw new Error('The General Resume cannot be deleted.');
         }

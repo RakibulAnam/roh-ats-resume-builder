@@ -1,135 +1,75 @@
-# Deploying ATS Resume Builder to Vercel
+# Deploying TOP CANDIDATE to Vercel
 
-This guide provides step-by-step instructions to deploy the **Roh ATS Resume Builder** to production using [Vercel](https://vercel.com).
+Step-by-step guide to get TOP CANDIDATE running on [Vercel](https://vercel.com) with a Supabase backend.
 
 ## Prerequisites
-- **Vercel Account**: [Sign up here](https://vercel.com/signup).
-- **Supabase Account**: [Sign up here](https://supabase.com).
-- **Google AI Studio (Gemini API)**: [Get API Key](https://aistudio.google.com/app/apikey).
-- **GitHub Repository**: Your code should be pushed to a GitHub repository.
+
+- A Git host (GitHub, GitLab, or Bitbucket) with the repo pushed
+- A [Vercel account](https://vercel.com/signup)
+- A [Supabase account](https://supabase.com)
+- A [Google AI Studio API key](https://aistudio.google.com/app/apikey) (Gemini)
 
 ---
 
-## Step 1: Set up Supabase (Backend)
-The application requires a PostgreSQL database and Authentication provided by Supabase.
+## Step 1 — Supabase (backend)
 
-1.  **Create a Project**:
-    - Go to [Supabase Dashboard](https://supabase.com/dashboard) and create a new project.
-    - Note down your **Project URL** and **Anon Key** (API Key).
+1. **Create a project** at [supabase.com/dashboard](https://supabase.com/dashboard). Note the Project URL and the Anon Key (Project Settings → API).
 
-2.  **Authentication**:
-    - Go to **Authentication** > **Providers**.
-    - Ensure **Email/Password** is enabled.
+2. **Enable email/password auth** under Authentication → Providers.
 
-3.  **Database Setup**:
-    - Go to the **SQL Editor** in your Supabase Dashboard.
-    - Open the file `supabase/schema.sql` from this repository.
-    - Copy the entire content of `schema.sql` and paste it into the Supabase SQL Editor.
-    - Click **Run** to create all necessary tables and security policies (RLS).
+3. **Bootstrap the schema**:
+   - Open the SQL Editor in Supabase.
+   - Paste the full contents of `supabase/schema.sql` and run it. This creates every table, RLS policy, the `handle_new_user` trigger, and the `delete_user` RPC.
+
+4. **Apply migrations in order**: every file under `supabase/migrations/` is idempotent — run each one once. At time of writing:
+   - `001_add_toolkit_column.sql` — adds the `toolkit jsonb` column on `generated_resumes` for AI-generated outreach/LinkedIn/interview prep.
+
+   If you just ran `schema.sql` on a fresh project you can skip migrations that are already reflected in the schema — but the migration files are still safe to re-run.
 
 ---
 
-## Step 2: Deploy to Vercel (Frontend)
+## Step 2 — Vercel (frontend)
 
-1.  **Import Project**:
-    - Go to your [Vercel Dashboard](https://vercel.com/dashboard).
-    - Click **"Add New..."** > **"Project"**.
-    - Select your GitHub repository (`roh-ats-resume-builder`).
+### Option A: Git integration (recommended)
 
-2.  **Configure Build Settings**:
-    - **Framework Preset**: Vite (Vercel should detect this automatically).
-    - **Root Directory**: `./` (default).
-    - **Build Command**: `vite build` (default).
-    - **Output Directory**: `dist` (default).
+1. **Import** the repo at [vercel.com/dashboard](https://vercel.com/dashboard) → Add New → Project.
+2. **Framework preset**: Vite (auto-detected). Build command `vite build`, output `dist`.
+3. **Environment variables** — add all three:
 
-3.  **Environment Variables**:
-    - Expand the **"Environment Variables"** section.
-    - Add the following variables (copy values from your `.env` or Supabase/Google dashboards):
+   | Name | Source |
+   |---|---|
+   | `VITE_SUPABASE_URL` | Supabase → Project Settings → API |
+   | `VITE_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+   | `VITE_GEMINI_API_KEY` | Google AI Studio → API keys |
 
-    | Name | Value Source | Description |
-    |------|--------------|-------------|
-    | `VITE_SUPABASE_URL` | Supabase Dashboard | Project URL (under Project Settings > API) |
-    | `VITE_SUPABASE_ANON_KEY` | Supabase Dashboard | Project API Anon Key (under Project Settings > API) |
-    | `VITE_GEMINI_API_KEY` | Google AI Studio | Your Gemini API Key Used for AI optimization |
+4. **Deploy**. Vercel gives you a live URL on completion.
 
-4.  **Deploy**:
-    - Click **"Deploy"**.
-    - Wait for the build to complete.
-    - Vercel will provide a live URL (e.g., `https://your-project.vercel.app`).
+### Option B: Vercel CLI
+
+```bash
+npm i -g vercel
+vercel login
+vercel             # first run creates + links the project
+vercel --prod      # promote to production after smoke test
+```
+
+Add env vars in the dashboard afterwards (or via `vercel env add`).
 
 ---
 
-## Step 3: Verify Deployment
-1.  Open your deployed URL.
-2.  **Sign Up**: Create a new account.
-3.  **Check Database**: Verify in Supabase Table Editor that a new user profile was created in the `profiles` table.
-4.  **Test AI**: Try creating a resume and optimizing it to ensure the Gemini API key is working.
+## Step 3 — Verify
+
+1. Open the deployed URL, sign up, confirm a new row lands in `profiles`.
+2. Build a resume against a real job description. Confirm:
+   - The resume renders and exports
+   - The cover letter tab appears
+   - The **Outreach Email**, **LinkedIn Note**, and **Question Prep** sidebar sections appear
+   - Inspect the row in `generated_resumes`: `data` holds the resume, `toolkit` holds the three new artifacts
 
 ## Troubleshooting
 
-- **"Invalid Date" on Dashboard**: This usually happens if the backend date is not format-agnostic. We fixed this by using ISO strings, but if it persists, check your browser locale.
-- **AI Not Responding**: Check if `VITE_GEMINI_API_KEY` is correctly set in Vercel Environment Variables.
-- **Database Errors**: Ensure you ran the full `schema.sql` script. If RLS policies are missing, you might verify but not see or save data.
-
-This guide explains how to host your **Roh ATS Resume Builder** on [Vercel](https://vercel.com).
-
-## Prerequisites
-- A [GitHub](https://github.com), [GitLab](https://gitlab.com), or [Bitbucket](https://bitbucket.org) account.
-- A [Vercel](https://vercel.com) account.
-
-## Method 1: Git Integration (Recommended)
-
-1. **Push your code to a Git repository.**
-   - If haven't already initialized git:
-     ```bash
-     git init
-     git add .
-     git commit -m "Initial commit"
-     ```
-   - Create a new repository on GitHub/GitLab/Bitbucket and push your code there.
-
-2. **Connect to Vercel.**
-   - Go to your [Vercel Dashboard](https://vercel.com/dashboard).
-   - Click **"Add New..."** > **"Project"**.
-   - Select your Git repository from the list (you may need to install the Vercel app on your Git account first).
-
-3. **Configure Project Settings.**
-   - Vercel will automatically detect that this is a **Vite** project.
-   - **Build Command**: `vite build` (Default is correct)
-   - **Output Directory**: `dist` (Default is correct)
-
-4. **Environment Variables (Important)**
-   - Expand the **"Environment Variables"** section.
-   - Add the following variable (copy from your `.env` or `.env.local`):
-     - Name: `VITE_GEMINI_API_KEY`
-     - Value: `your_actual_api_key_here`
-
-5. **Deploy.**
-   - Click **"Deploy"**.
-   - Wait for the build to complete. Vercel will provide you with a live URL (e.g., `roh-ats-resume-builder.vercel.app`).
-
-## Method 2: Vercel CLI (Quickest for one-off)
-
-1. **Install Vercel CLI** (if not installed):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Login**:
-   ```bash
-   vercel login
-   ```
-
-3. **Deploy**:
-   Run the following command in your project root:
-   ```bash
-   vercel
-   ```
-   - Follow the prompts (Select scope, link to existing project: No, etc.)
-   - When asked "Want to override the settings?", usually saying **No** is fine as it detects Vite.
-   - **Note**: You will still need to add the Environment Variable in the Vercel Dashboard after the first deployment, or configure it via CLI.
-
-## Troubleshooting
-
-- **404 on Refresh**: I have added a `vercel.json` file to the project to handle Single Page Application (SPA) routing, so refreshing pages should work correctly.
-- **API Errors**: Ensure `VITE_GEMINI_API_KEY` is set correctly in the Vercel Project Settings.
+- **404 on refresh** — `vercel.json` handles SPA rewrites; if you forked, make sure the file is present.
+- **"Missing Supabase environment variables" warning** — env vars not wired in Vercel, or the deployment preview is using the wrong environment.
+- **AI not responding** — `VITE_GEMINI_API_KEY` missing or invalid in Vercel env.
+- **Empty toolkit sections in Preview** — the resume was generated **before** the toolkit migration. Generate a new application; old rows legitimately have `toolkit = NULL`.
+- **"relation generated_resumes.toolkit does not exist"** — the migration was not applied. Open the Supabase SQL editor, run `supabase/migrations/001_add_toolkit_column.sql`.

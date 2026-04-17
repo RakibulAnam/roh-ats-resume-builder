@@ -69,18 +69,18 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
             {/* Navbar */}
             <header className="bg-white border-b border-charcoal-200 sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-                        <span className="font-bold text-xl text-charcoal-900 tracking-tight">Roh ATS <span className="text-brand-600">Builder</span></span>
+                    <div className="flex items-baseline gap-1.5 select-none">
+                        <span className="font-display text-lg font-semibold tracking-tight text-brand-700">TOP</span>
+                        <span className="font-display text-lg font-semibold tracking-tight text-accent-500">CANDIDATE</span>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <button type="button" onClick={onEditProfile} className="text-sm font-medium text-charcoal-600 hover:text-brand-600 flex items-center gap-2 transition-colors">
+                        <button type="button" onClick={onEditProfile} className="text-sm font-medium text-brand-600 hover:text-brand-800 flex items-center gap-2 transition-colors">
                             <User size={18} />
                             <span className="hidden sm:inline">My Profile</span>
                         </button>
                         <div className="h-6 w-px bg-charcoal-200"></div>
-                        <button type="button" onClick={signOut} className="text-sm font-medium text-charcoal-500 hover:text-red-600 transition-colors">
+                        <button type="button" onClick={signOut} className="text-sm font-medium text-brand-500 hover:text-red-600 transition-colors">
                             Sign Out
                         </button>
                     </div>

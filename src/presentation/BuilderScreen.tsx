@@ -403,7 +403,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       const mergedData = resumeService.mergeOptimizedData(resumeData, optimizedData);
       setResumeData(mergedData);
       setStep(AppStep.PREVIEW);
-      toast.success('Resume generated successfully!');
+      toast.success('Toolkit ready — resume, cover letter, outreach, and interview prep.');
 
       if (user) {
         try {
@@ -568,17 +568,18 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           {isGenerating && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-charcoal-200 border-t-brand-700 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles size={24} className="text-brand-600 animate-pulse" />
+                  <Sparkles size={24} className="text-accent-500 animate-pulse" />
                 </div>
               </div>
-              <h3 className="mt-6 text-xl font-bold text-charcoal-800">
-                Optimizing Resume…
+              <h3 className="mt-6 font-display text-xl font-semibold text-brand-700">
+                Building your toolkit…
               </h3>
-              <p className="text-charcoal-500 mt-2 text-center max-w-md px-4">
-                Our AI is rewriting your bullets to match the job description
-                and formatting your document. This takes about 10-15 seconds.
+              <p className="text-brand-500 mt-2 text-center max-w-md px-4 leading-relaxed">
+                Tailoring your resume, writing the cover letter, drafting your
+                outreach email and LinkedIn note, and preparing your interview
+                questions. About 20–30 seconds.
               </p>
             </div>
           )}
@@ -619,10 +620,10 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-brand-800 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50 transform active:scale-95"
+                className="flex items-center gap-2 px-8 py-3 bg-brand-700 text-charcoal-50 rounded-lg text-sm font-bold hover:bg-brand-800 transition-colors focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
               >
-                {isGenerating ? 'Generating…' : 'Generate Resume'}{' '}
-                <Sparkles size={18} />
+                {isGenerating ? 'Generating…' : 'Build my toolkit'}{' '}
+                <Sparkles size={18} className="text-accent-400" />
               </button>
             ) : (
               <button

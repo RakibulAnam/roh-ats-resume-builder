@@ -94,6 +94,51 @@ export interface Publication {
   link?: string;
 }
 
+export interface OutreachEmail {
+  subject: string;
+  body: string; // Plain text, paragraph breaks as blank lines.
+}
+
+export type InterviewQuestionCategory =
+  | 'Behavioral'
+  | 'Technical'
+  | 'Role-specific'
+  | 'Values & Culture'
+  | 'Situational';
+
+export interface InterviewQuestion {
+  question: string;
+  category: InterviewQuestionCategory;
+  whyAsked: string;       // What the interviewer is evaluating.
+  answerStrategy: string; // Notes on how to structure a strong answer.
+}
+
+export type ToolkitItem =
+  | 'coverLetter'
+  | 'outreachEmail'
+  | 'linkedInMessage'
+  | 'interviewQuestions';
+
+export type ToolkitErrors = Partial<Record<ToolkitItem, string>>;
+
+/**
+ * AI-generated artifacts that accompany a tailored resume. Persisted in the
+ * dedicated `toolkit` JSONB column on generated_resumes (kept separate from
+ * the resume payload itself). All fields optional — partial generation
+ * (Promise.allSettled) can leave any one unset.
+ *
+ * `errors` records the reason each item failed on its most recent attempt.
+ * The cover letter itself still lives on ResumeData.coverLetter for historic
+ * reasons, but its error status lives here so everything generation-related
+ * is in one place.
+ */
+export interface JobToolkit {
+  outreachEmail?: OutreachEmail;
+  linkedInMessage?: string;        // <= 280 chars.
+  interviewQuestions?: InterviewQuestion[];
+  errors?: ToolkitErrors;
+}
+
 export interface ResumeData {
   userType?: UserType; // User type: experienced or student
   targetJob: TargetJob;
@@ -112,6 +157,7 @@ export interface ResumeData {
   publications?: Publication[];
 
   coverLetter?: string; // AI Generated cover letter
+  toolkit?: JobToolkit; // Additional AI-generated application artifacts.
   customSections?: { title: string; items: string[] }[];
   visibleSections?: string[]; // User selected sections
   template?: ResumeTemplate; // ATS Template selection
@@ -143,5 +189,6 @@ export interface OptimizedResumeData {
     refinedBullets: string[];
   }[];
   coverLetter?: string; // AI Generated cover letter
+  toolkit?: JobToolkit; // Outreach email, LinkedIn note, interview prep.
 }
 

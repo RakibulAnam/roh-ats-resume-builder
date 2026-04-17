@@ -65,15 +65,15 @@ export const LoginScreen = () => {
     };
 
     return (
-        <div className="min-h-screen bg-brand-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+        <div className="min-h-screen bg-charcoal-100 flex items-center justify-center p-4">
+            <div className="bg-charcoal-50 w-full max-w-md rounded-2xl border border-charcoal-200 shadow-2xl shadow-brand-900/5 overflow-hidden">
                 <div className="p-8">
                     {/* Branding */}
                     <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-600 rounded-xl text-white font-bold text-2xl mb-4 shadow-lg shadow-brand-200">
-                            R
+                        <div className="inline-flex items-baseline gap-1.5 select-none mb-4">
+                            <span className="font-display text-2xl font-semibold tracking-tight text-brand-700">TOP</span>
+                            <span className="font-display text-2xl font-semibold tracking-tight text-accent-500">CANDIDATE</span>
                         </div>
-                        <h2 className="text-2xl font-bold text-charcoal-900">Roh ATS <span className="text-brand-600">Builder</span></h2>
                     </div>
 
                     <div className="text-center mb-8">
