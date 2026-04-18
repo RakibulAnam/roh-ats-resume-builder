@@ -65,7 +65,7 @@ No monorepo, no workspaces. Single Vite app.
 | Landing page | `src/presentation/LandingScreen.tsx` | shipped — rebranded, no gradients, Saffron/Ink palette |
 | Auth (email + password) | `src/presentation/LoginScreen.tsx`, `src/infrastructure/auth/AuthContext.tsx` | shipped (Supabase Auth) |
 | Profile setup (master profile) | `src/presentation/ProfileSetupScreen.tsx` | shipped — one-time profile capture used to seed future resumes |
-| Dashboard (list of generated resumes) | `src/presentation/DashboardScreen.tsx` | shipped |
+| Dashboard (hero + toolkit grid + consultant marketplace placeholder) | `src/presentation/DashboardScreen.tsx` | shipped |
 | Resume builder (multi-step form) | `src/presentation/BuilderScreen.tsx` | shipped |
 | Resume preview + templates | `src/presentation/components/Preview.tsx`, `src/presentation/templates/TemplateRegistry.ts` | shipped (4 ATS-safe templates) |
 | Cover letter generation + viewer | `src/infrastructure/ai/GeminiCoverLetterGenerator.ts`, viewer inside `Preview.tsx` | shipped |
@@ -173,7 +173,7 @@ OptimizedResumeData {                    // what GeminiResumeOptimizer returns
 ```
 
 **AppStep enum** (`src/domain/entities/AppStep.ts`) drives the builder's multi-step form.
-**AppScreen enum** (`src/domain/enums.ts`) drives top-level screen routing.
+**Top-level screen routing** is driven by `useBrowserNav` (`src/presentation/hooks/useBrowserNav.ts`) — each transition pushes a `NavState` entry onto `window.history`, and the hook listens for `popstate` so browser back/forward buttons restore the previous screen. Use `navigate({ screen: 'LANDING' | 'LOGIN' | 'DASHBOARD' | 'PROFILE' | 'PROFILE_SETUP' | 'BUILDER' })` for every transition. Use `{ replace: true }` on auth-driven redirects (sign-in / sign-out / profile-setup → dashboard) so the back button doesn't bounce the user back through the auth flow.
 
 ---
 
@@ -237,7 +237,7 @@ src/application/services/ResumeService.ts   Orchestrator — call this from pres
 
 src/domain/entities/Resume.ts           Core types
 src/domain/entities/AppStep.ts          Builder step enum
-src/domain/enums.ts                     AppScreen enum
+src/presentation/hooks/useBrowserNav.ts  Top-level screen routing + browser history (push/pop)
 src/domain/usecases/                    Use case classes + domain-layer interfaces (8 total)
 src/domain/repositories/                Repo interfaces (IProfile, IResume, IApplication)
 

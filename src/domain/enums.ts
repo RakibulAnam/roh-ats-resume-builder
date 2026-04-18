@@ -1,6 +1,0 @@
-export enum AppScreen {
-    DASHBOARD = 'DASHBOARD',
-    BUILDER = 'BUILDER',
-    PROFILE = 'PROFILE',
-    PROFILE_SETUP = 'PROFILE_SETUP'
-}
