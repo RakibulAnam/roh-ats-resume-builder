@@ -95,10 +95,12 @@ Four layers, dependencies flow inward.
                               ▼
  ┌───────────────────── Domain (pure) ───────────────────────┐
  │  Entities:  ResumeData · OptimizedResumeData · JobToolkit │
- │             OutreachEmail · InterviewQuestion · ...       │
+ │             GeneratedToolkit · OutreachEmail ·            │
+ │             InterviewQuestion · ...                       │
  │  Use cases: Optimize · Export · CoverLetter               │
  │             OutreachEmail · LinkedInMessage               │
- │             InterviewQuestions · ExtractResume            │
+ │             InterviewQuestions · Toolkit (combined) ·     │
+ │             ExtractResume                                 │
  │  Repos:     IProfileRepository · IResumeRepository        │
  │             IApplicationRepository                        │
  └────────────────────────────▲──────────────────────────────┘
@@ -107,7 +109,8 @@ Four layers, dependencies flow inward.
  │  AI:       Gemini{ResumeOptimizer, CoverLetterGenerator,  │
  │            ResumeExtractor, OutreachEmailGenerator,       │
  │            LinkedInMessageGenerator,                      │
- │            InterviewQuestionsGenerator}                   │
+ │            InterviewQuestionsGenerator,                   │
+ │            ToolkitGenerator (combined — hot path)}        │
  │  Export:   CompositeResumeExporter (Word + PDF)           │
  │  Auth:     AuthContext (Supabase Auth)                    │
  │  Persist:  Supabase{Profile,Resume,Application}Repository │
@@ -121,7 +124,9 @@ Four layers, dependencies flow inward.
 - **Infrastructure** implements domain interfaces. Can import SDKs (Supabase, Gemini).
 - **Presentation** depends on application + domain. Can read infrastructure via `dependencies.ts` but should prefer going through `ResumeService`.
 
-**Adding a new AI generator:** add an interface + use case in `domain/usecases/`, a Gemini implementation in `infrastructure/ai/`, wire it into `dependencies.ts`, inject into `ResumeService`, and call it from `optimizeResume()` (use `Promise.allSettled` so a failure does not block the rest).
+**AI call budget:** initial generation runs exactly TWO concurrent Gemini calls — optimizer + combined toolkit (`GeminiToolkitGenerator`). Free-tier RPM is 5; historical 1-optimizer-plus-4-toolkit fan-out hit quota. Per-item regeneration still hits the single-artifact generators (one call per retry).
+
+**Adding a new AI generator:** add an interface + use case in `domain/usecases/`, a Gemini implementation in `infrastructure/ai/`, wire it into `dependencies.ts`, inject into `ResumeService`. For single-item ancillary output, call it from `regenerateToolkitItem()` — NOT from `optimizeResume()`, which is restricted to the 2-call hot path. If you need to expand the initial toolkit, extend `GeminiToolkitGenerator`'s schema/prompt instead of adding a parallel call.
 
 ---
 
@@ -188,15 +193,14 @@ OptimizedResumeData {                    // what GeminiResumeOptimizer returns
    ── EXTRACURRICULARS ── AWARDS ── CERTIFICATIONS ── AFFILIATIONS ── PUBLICATIONS
 
  Final step → handleGenerate() → resumeService.optimizeResume(data):
-   1. optimizeUseCase.execute(data)                          — tailors resume
-   2. mergeOptimizedData(data, optimized)                    — polished source for downstream
-   3. Promise.allSettled([
-        coverLetterUseCase.execute(merged),
-        outreachEmailUseCase.execute(merged),
-        linkedInMessageUseCase.execute(merged),
-        interviewQuestionsUseCase.execute(merged),
-      ])                                                     — partial results tolerated
-   4. Return OptimizedResumeData with { coverLetter, toolkit }
+   1. Promise.allSettled([
+        optimizeUseCase.execute(data),                       — tailors resume
+        toolkitUseCase.execute(data),                        — one call for CL + outreach + LinkedIn + Qs
+      ])                                                     — 2 Gemini calls total (RPM budget)
+   2. Optimizer failure → throws (core artifact).
+      Toolkit failure → records same friendly error under all 4 toolkit keys so the user can retry
+      any one individually (per-item retry uses the single-artifact generators).
+   3. Return OptimizedResumeData with { coverLetter, toolkit }
 
  BuilderScreen merges the optimized data, autosaves to Supabase (generated_resumes), routes to PREVIEW step.
 
@@ -279,7 +283,8 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 - Model: `gemini-2.5-flash`
 - SDK: `@google/genai`
 - All generators share the pattern: system instruction + user prompt + (optional) `responseSchema` for JSON output
-- `GeminiResumeOptimizer` has retry/timeout; others fail fast and are wrapped in `Promise.allSettled` at the service layer so one bad call does not sink the rest
+- Free-tier RPM is the binding constraint. Initial generation = **2 calls only** (optimizer + combined `GeminiToolkitGenerator`). Do not re-fan the toolkit into N parallel calls.
+- `GeminiResumeOptimizer` has internal retry/timeout. The toolkit generator gets one extra `withRetry` shot from the service layer. Both are wrapped in `Promise.allSettled` so an optimizer failure vs toolkit failure are handled independently.
 
 ### Supabase
 

@@ -5,6 +5,7 @@ import { GeminiResumeExtractor } from '../ai/GeminiResumeExtractor';
 import { GeminiOutreachEmailGenerator } from '../ai/GeminiOutreachEmailGenerator';
 import { GeminiLinkedInMessageGenerator } from '../ai/GeminiLinkedInMessageGenerator';
 import { GeminiInterviewQuestionsGenerator } from '../ai/GeminiInterviewQuestionsGenerator';
+import { GeminiToolkitGenerator } from '../ai/GeminiToolkitGenerator';
 import { ResumeService } from '../../application/services/ResumeService';
 import { SupabaseResumeRepository } from '../repositories/SupabaseResumeRepository';
 import { SupabaseProfileRepository } from '../repositories/SupabaseProfileRepository';
@@ -21,6 +22,7 @@ const coverLetterGenerator = new GeminiCoverLetterGenerator(apiKey);
 const outreachEmailGenerator = new GeminiOutreachEmailGenerator(apiKey);
 const linkedInMessageGenerator = new GeminiLinkedInMessageGenerator(apiKey);
 const interviewQuestionsGenerator = new GeminiInterviewQuestionsGenerator(apiKey);
+const toolkitGenerator = new GeminiToolkitGenerator(apiKey);
 const resumeRepository = new SupabaseResumeRepository();
 
 export const resumeExtractor = new GeminiResumeExtractor(apiKey);
@@ -37,6 +39,7 @@ export const createResumeService = () => {
     outreachEmailGenerator,
     linkedInMessageGenerator,
     interviewQuestionsGenerator,
+    toolkitGenerator,
     resumeRepository,
     profileRepository
   );

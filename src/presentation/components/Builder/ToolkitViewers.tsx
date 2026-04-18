@@ -2,7 +2,7 @@
 // Siblings to Preview.tsx. Each viewer is a pure display + copy-to-clipboard
 // widget for one toolkit artifact.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
   Copy,
@@ -36,6 +36,9 @@ interface ToolkitStatusCardProps {
   status: Exclude<ToolkitItemStatus, 'success'>;
   errorMessage?: string;
   onRetry?: () => void;
+  // True while any toolkit item is being regenerated — we disable retry
+  // buttons on other items to avoid stacking up concurrent AI calls.
+  busy?: boolean;
 }
 
 export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
@@ -46,7 +49,18 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
   status,
   errorMessage,
   onRetry,
-}) => (
+  busy = false,
+}) => {
+  // Surface the real error only in the developer console — users see the
+  // friendly copy below. Keeps the devtools trail usable without leaking
+  // "quota exceeded" / stack traces into the product UI.
+  useEffect(() => {
+    if (status === 'failed' && errorMessage) {
+      console.debug(`[${eyebrow}] generation error:`, errorMessage);
+    }
+  }, [status, errorMessage, eyebrow]);
+
+  return (
   <div className="w-full max-w-3xl mx-auto p-6 md:p-10">
     <div className="flex items-start gap-4 mb-8">
       <div className="w-11 h-11 rounded-xl bg-brand-700 text-charcoal-50 flex items-center justify-center shrink-0">
@@ -76,38 +90,30 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
     )}
 
     {status === 'failed' && (
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-        <div className="flex items-start gap-3 mb-4">
-          <AlertTriangle size={20} className="text-red-600 shrink-0 mt-0.5" />
+      <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl p-6">
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-9 h-9 rounded-lg bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
+            <AlertTriangle size={18} />
+          </div>
           <div>
-            <p className="font-display text-base font-semibold text-red-900 mb-1">
-              Generation failed
+            <p className="font-display text-base font-semibold text-brand-700 mb-1">
+              We couldn't finish this one
             </p>
-            <p className="text-sm text-red-800 leading-relaxed">
-              The AI couldn't produce this artifact on the last attempt. Retry usually fixes transient issues (rate limits, timeouts, network blips). If it keeps failing, check your Gemini API key and quota.
+            <p className="text-sm text-brand-500 leading-relaxed">
+              This usually clears up on its own — high demand on our end, or a brief hiccup between us and the model. Give it another try.
             </p>
           </div>
         </div>
-
-        {errorMessage && (
-          <div className="bg-red-100 border border-red-200 rounded-lg px-4 py-3 mb-5">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-red-900 font-semibold mb-1.5">
-              Error details
-            </p>
-            <pre className="text-xs text-red-900 whitespace-pre-wrap font-mono leading-relaxed">
-              {errorMessage}
-            </pre>
-          </div>
-        )}
 
         {onRetry && (
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors"
+            disabled={busy}
+            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw size={14} />
-            Retry generation
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {busy ? 'Another item is regenerating…' : 'Try again'}
           </button>
         )}
       </div>
@@ -122,16 +128,18 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
           <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors"
+            disabled={busy}
+            className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Sparkles size={14} className="text-accent-400" />
-            Generate now
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-accent-400" />}
+            {busy ? 'Another item is regenerating…' : 'Generate now'}
           </button>
         )}
       </div>
     )}
   </div>
-);
+  );
+};
 
 // ─────────────────────────────────────────────────────────────
 // Shared primitives

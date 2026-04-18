@@ -139,6 +139,20 @@ export interface JobToolkit {
   errors?: ToolkitErrors;
 }
 
+/**
+ * Shape returned by the combined toolkit generator — cover letter + outreach
+ * email + LinkedIn note + interview questions produced in a single AI call
+ * to stay under Gemini's free-tier RPM budget. All fields are required; if
+ * any come back empty the generator throws and the service records the error
+ * for every toolkit item at once.
+ */
+export interface GeneratedToolkit {
+  coverLetter: string;
+  outreachEmail: OutreachEmail;
+  linkedInMessage: string;
+  interviewQuestions: InterviewQuestion[];
+}
+
 export interface ResumeData {
   userType?: UserType; // User type: experienced or student
   targetJob: TargetJob;

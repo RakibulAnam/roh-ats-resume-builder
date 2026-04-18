@@ -1004,6 +1004,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   status={getItemStatus(data, 'coverLetter', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.coverLetter}
                   onRetry={() => onRegenerateItem?.('coverLetter')}
+                  busy={!!regeneratingItem && regeneratingItem !== 'coverLetter'}
                 />
               )}
             </div>
@@ -1021,6 +1022,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   status={getItemStatus(data, 'outreachEmail', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.outreachEmail}
                   onRetry={() => onRegenerateItem?.('outreachEmail')}
+                  busy={!!regeneratingItem && regeneratingItem !== 'outreachEmail'}
                 />
               )}
             </div>
@@ -1038,6 +1040,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   status={getItemStatus(data, 'linkedInMessage', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.linkedInMessage}
                   onRetry={() => onRegenerateItem?.('linkedInMessage')}
+                  busy={!!regeneratingItem && regeneratingItem !== 'linkedInMessage'}
                 />
               )}
             </div>
@@ -1055,6 +1058,7 @@ export const Preview: React.FC<PreviewProps> = ({
                   status={getItemStatus(data, 'interviewQuestions', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.interviewQuestions}
                   onRetry={() => onRegenerateItem?.('interviewQuestions')}
+                  busy={!!regeneratingItem && regeneratingItem !== 'interviewQuestions'}
                 />
               )}
             </div>

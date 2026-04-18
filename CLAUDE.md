@@ -13,7 +13,7 @@
 
 4. **Respect Clean Architecture layering.** Domain depends on nothing. Infrastructure implements domain interfaces. Presentation goes through `ResumeService`, never direct-imports a Gemini class. If you think you need to break this, stop and ask.
 
-5. **New AI generator? Use the established recipe.** Domain interface → use case → Gemini impl (`infrastructure/ai/`) → wire in `dependencies.ts` → inject into `ResumeService` → invoke inside `optimizeResume()` under `Promise.allSettled`. See any of the existing six generators for the pattern.
+5. **New AI generator? Use the established recipe, and respect the 2-call hot path.** Domain interface → use case → Gemini impl (`infrastructure/ai/`) → wire in `dependencies.ts` → inject into `ResumeService`. Initial generation is capped at **two concurrent Gemini calls** (optimizer + combined `GeminiToolkitGenerator`) because free-tier RPM is the binding constraint. Do not re-fan toolkit-like artifacts into parallel calls from `optimizeResume()` — extend the combined generator's schema/prompt instead. Per-item retry flows (`regenerateToolkitItem`) may call single-artifact generators.
 
 6. **Database changes ship with a migration file.** Add `supabase/migrations/<nnn>_<name>.sql` (idempotent — use `if not exists`). Also reflect the change in `supabase/schema.sql`. Tell the user to run it in the Supabase SQL editor.
 
