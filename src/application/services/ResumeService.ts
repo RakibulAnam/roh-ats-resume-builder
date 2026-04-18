@@ -1,9 +1,13 @@
 // Application Service - Orchestrates use cases
 
-import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume';
+import { ResumeData, OptimizedResumeData, JobToolkit, ToolkitItem, ToolkitErrors } from '../../domain/entities/Resume';
 import { OptimizeResumeUseCase, IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase';
 import { ExportResumeUseCase, IResumeExporter } from '../../domain/usecases/ExportResumeUseCase';
 import { GenerateCoverLetterUseCase, ICoverLetterGenerator } from '../../domain/usecases/GenerateCoverLetterUseCase';
+import { GenerateOutreachEmailUseCase, IOutreachEmailGenerator } from '../../domain/usecases/GenerateOutreachEmailUseCase';
+import { GenerateLinkedInMessageUseCase, ILinkedInMessageGenerator } from '../../domain/usecases/GenerateLinkedInMessageUseCase';
+import { GenerateInterviewQuestionsUseCase, IInterviewQuestionsGenerator } from '../../domain/usecases/GenerateInterviewQuestionsUseCase';
+import { GenerateToolkitUseCase, IToolkitGenerator } from '../../domain/usecases/GenerateToolkitUseCase';
 import { IResumeRepository } from '../../domain/repositories/IResumeRepository';
 import { IProfileRepository } from '../../domain/repositories/IProfileRepository';
 
@@ -11,17 +15,29 @@ export class ResumeService {
   private optimizeUseCase: OptimizeResumeUseCase;
   private exportUseCase: ExportResumeUseCase;
   private coverLetterUseCase: GenerateCoverLetterUseCase;
+  private outreachEmailUseCase: GenerateOutreachEmailUseCase;
+  private linkedInMessageUseCase: GenerateLinkedInMessageUseCase;
+  private interviewQuestionsUseCase: GenerateInterviewQuestionsUseCase;
+  private toolkitUseCase: GenerateToolkitUseCase;
 
   constructor(
     resumeOptimizer: IResumeOptimizer,
     resumeExporter: IResumeExporter,
     coverLetterGenerator: ICoverLetterGenerator,
+    outreachEmailGenerator: IOutreachEmailGenerator,
+    linkedInMessageGenerator: ILinkedInMessageGenerator,
+    interviewQuestionsGenerator: IInterviewQuestionsGenerator,
+    toolkitGenerator: IToolkitGenerator,
     private repository: IResumeRepository,
     private profileRepository?: IProfileRepository
   ) {
     this.optimizeUseCase = new OptimizeResumeUseCase(resumeOptimizer);
     this.exportUseCase = new ExportResumeUseCase(resumeExporter);
     this.coverLetterUseCase = new GenerateCoverLetterUseCase(coverLetterGenerator);
+    this.outreachEmailUseCase = new GenerateOutreachEmailUseCase(outreachEmailGenerator);
+    this.linkedInMessageUseCase = new GenerateLinkedInMessageUseCase(linkedInMessageGenerator);
+    this.interviewQuestionsUseCase = new GenerateInterviewQuestionsUseCase(interviewQuestionsGenerator);
+    this.toolkitUseCase = new GenerateToolkitUseCase(toolkitGenerator);
   }
 
   saveDraft(data: ResumeData): void {
@@ -53,21 +69,150 @@ export class ResumeService {
   }
 
   async optimizeResume(data: ResumeData): Promise<OptimizedResumeData> {
-    const optimizedData = await this.optimizeUseCase.execute(data);
+    // Two concurrent Gemini calls instead of five — the optimizer refines the
+    // resume itself while the combined toolkit generator produces cover
+    // letter + outreach email + LinkedIn note + interview questions in one
+    // shot. Keeping them independent means the user still gets a tailored
+    // resume even if the toolkit call fails (and vice versa), and they share
+    // the same raw input, so the toolkit doesn't need the refined bullets.
+    const [optimizeResult, toolkitResult] = await Promise.allSettled([
+      this.optimizeUseCase.execute(data),
+      this.withRetry(() => this.toolkitUseCase.execute(data)),
+    ]);
 
-    // Merge optimized content back so the cover letter generator sees the
-    // AI-polished summary and refined bullets (stronger source material than raw user input).
-    const mergedForCoverLetter = this.mergeOptimizedData(data, optimizedData);
+    // Optimizer is the core artifact — if it failed, the whole flow failed
+    // and we surface the error to the caller the same way as before.
+    if (optimizeResult.status === 'rejected') {
+      throw optimizeResult.reason instanceof Error
+        ? optimizeResult.reason
+        : new Error(this.errorMessage(optimizeResult.reason));
+    }
+
+    const optimizedData = optimizeResult.value;
+    const toolkit: JobToolkit = {};
+    let coverLetter: string | undefined;
+
+    if (toolkitResult.status === 'fulfilled' && toolkitResult.value) {
+      coverLetter = toolkitResult.value.coverLetter;
+      toolkit.outreachEmail = toolkitResult.value.outreachEmail;
+      toolkit.linkedInMessage = toolkitResult.value.linkedInMessage;
+      toolkit.interviewQuestions = toolkitResult.value.interviewQuestions;
+    } else {
+      // One failure = all four items failed, since they came from the same
+      // call. Record the same error under each key so the UI can render
+      // "failed" cards for each and the user can retry any one of them
+      // individually (a single-item retry hits a single-item generator, so
+      // a rate-limit blip on the combined call doesn't force a full re-run).
+      const reason =
+        toolkitResult.status === 'rejected' ? toolkitResult.reason : 'Generator returned no data';
+      const friendlyMessage = this.errorMessage(reason);
+      console.error('Toolkit generation failed:', reason);
+      toolkit.errors = {
+        coverLetter: friendlyMessage,
+        outreachEmail: friendlyMessage,
+        linkedInMessage: friendlyMessage,
+        interviewQuestions: friendlyMessage,
+      };
+    }
+
+    return {
+      ...optimizedData,
+      coverLetter,
+      // Always return a toolkit object once generation has been attempted, so
+      // failures are visible in the UI rather than silently collapsing into
+      // "nothing generated".
+      toolkit,
+    };
+  }
+
+  /**
+   * Regenerate a single toolkit item for an already-optimized resume. Returns
+   * an updated ResumeData with the new value on success, or with an error
+   * message recorded on failure. When a resumeId is supplied, the change is
+   * also persisted via the repository so subsequent reloads see it.
+   *
+   * Never throws for AI failures — the failure is captured on `toolkit.errors`
+   * so the UI can render the "failed" state. Throws only for persistence
+   * failures, which callers may surface as a toast.
+   */
+  async regenerateToolkitItem(
+    userId: string | null,
+    resumeId: string | null,
+    data: ResumeData,
+    item: ToolkitItem,
+  ): Promise<ResumeData> {
+    const nextToolkit: JobToolkit = { ...(data.toolkit ?? {}) };
+    const nextErrors: ToolkitErrors = { ...(nextToolkit.errors ?? {}) };
+    const next: ResumeData = { ...data, toolkit: nextToolkit };
 
     try {
-      const coverLetter = await this.coverLetterUseCase.execute(mergedForCoverLetter);
-      return {
-        ...optimizedData,
-        coverLetter,
-      };
-    } catch (error) {
-      console.error('Cover letter generation failed, continuing without it:', error);
-      return optimizedData;
+      if (item === 'coverLetter') {
+        const v = await this.withRetry(() => this.coverLetterUseCase.execute(data));
+        if (!v) throw new Error('Generator returned an empty cover letter');
+        next.coverLetter = v;
+      } else if (item === 'outreachEmail') {
+        const v = await this.withRetry(() => this.outreachEmailUseCase.execute(data));
+        if (!v?.subject || !v?.body) throw new Error('Generator returned an empty outreach email');
+        nextToolkit.outreachEmail = v;
+      } else if (item === 'linkedInMessage') {
+        const v = await this.withRetry(() => this.linkedInMessageUseCase.execute(data));
+        if (!v) throw new Error('Generator returned an empty LinkedIn note');
+        nextToolkit.linkedInMessage = v;
+      } else if (item === 'interviewQuestions') {
+        const v = await this.withRetry(() => this.interviewQuestionsUseCase.execute(data));
+        if (!v?.length) throw new Error('Generator returned no interview questions');
+        nextToolkit.interviewQuestions = v;
+      }
+      delete nextErrors[item];
+    } catch (err) {
+      nextErrors[item] = this.errorMessage(err);
+      console.error(`Regeneration of ${item} failed:`, err);
+    }
+
+    nextToolkit.errors = Object.keys(nextErrors).length > 0 ? nextErrors : undefined;
+
+    if (userId && resumeId) {
+      try {
+        const title = next.targetJob?.title
+          ? `${next.targetJob.title} Resume`
+          : `Resume - ${new Date().toLocaleDateString()}`;
+        await this.repository.updateGeneratedResume(resumeId, next, title);
+      } catch (persistErr) {
+        console.error('Persisting regenerated toolkit item failed:', persistErr);
+        throw persistErr instanceof Error
+          ? persistErr
+          : new Error('Failed to save the regenerated item');
+      }
+    }
+
+    return next;
+  }
+
+  // Retry transient failures (rate limits, timeouts, network blips). One extra
+  // attempt with a short backoff is enough in practice — persistent errors
+  // surface via `toolkit.errors` for the user to retry from the Preview.
+  private async withRetry<T>(fn: () => Promise<T>, attempts = 1, delayMs = 1200): Promise<T> {
+    let lastErr: unknown;
+    for (let i = 0; i <= attempts; i++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastErr = err;
+        if (i < attempts) {
+          await new Promise((r) => setTimeout(r, delayMs * Math.pow(2, i)));
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  private errorMessage(err: unknown): string {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return 'Unknown error';
     }
   }
 
@@ -110,6 +255,7 @@ export class ResumeService {
       summary: optimizedData.summary || originalData.summary,
       skills: optimizedData.skills || originalData.skills,
       coverLetter: optimizedData.coverLetter || originalData.coverLetter,
+      toolkit: optimizedData.toolkit || originalData.toolkit,
       experience: originalData.experience.length > 0
         ? originalData.experience.map(exp => {
           const refinedExp = optimizedData.experience?.find(e => e.id === exp.id);

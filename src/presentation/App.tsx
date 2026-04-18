@@ -7,14 +7,14 @@ import { createResumeService, profileRepository } from '../infrastructure/config
 import { AuthProvider, useAuth } from '../infrastructure/auth/AuthContext';
 import { LoginScreen } from './LoginScreen';
 import { LandingScreen } from './LandingScreen';
-import { FileText, Loader2, ChevronRight } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import { Navbar } from './components/Layout/Navbar';
 import { DashboardScreen } from './DashboardScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { ProfileSetupScreen } from './ProfileSetupScreen';
 import { ResumeSourceDialog } from './components/ResumeSourceDialog';
-import { AppScreen } from '../domain/enums';
+import { useBrowserNav, NavScreen } from './hooks/useBrowserNav';
 
 const INITIAL_DATA: ResumeData = {
   userType: undefined,
@@ -37,19 +37,23 @@ const DEFAULT_SECTIONS = [
   'extracurriculars', 'awards', 'certifications', 'affiliations', 'publications'
 ];
 
+const UNAUTHED_SCREENS: NavScreen[] = ['LANDING', 'LOGIN'];
+const AUTHED_SCREENS: NavScreen[] = ['DASHBOARD', 'PROFILE', 'PROFILE_SETUP', 'BUILDER'];
+
 const AppContent = () => {
   const { user, loading } = useAuth();
-  const [showLogin, setShowLogin] = useState(false);
-  const [currentScreen, setCurrentScreen] = useState<AppScreen | null>(null);
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [showSourceDialog, setShowSourceDialog] = useState(false);
 
   const [resumeService, setResumeService] = useState<ResumeService | null>(null);
-  
+
   // Builder Hand-off State
   const [builderData, setBuilderData] = useState<ResumeData>(INITIAL_DATA);
   const [builderStep, setBuilderStep] = useState<AppStep>(AppStep.USER_TYPE);
   const [currentResumeId, setCurrentResumeId] = useState<string | null>(null);
+
+  const { navState, navigate } = useBrowserNav({ screen: 'LANDING' });
+  const screen = navState.screen;
 
   useEffect(() => {
     try {
@@ -96,32 +100,40 @@ const AppContent = () => {
     const checkProfileCompleteness = async () => {
       if (!userId) {
         setCheckingProfile(false);
-        setCurrentScreen(null);
+        // If we were on an authenticated screen (e.g. after sign-out), fall
+        // back to landing without polluting history — replace the current
+        // entry so the back button doesn't re-enter the authed state.
+        if (AUTHED_SCREENS.includes(screen)) {
+          navigate({ screen: 'LANDING' }, { replace: true });
+        }
         return;
       }
 
       setCheckingProfile(true);
       try {
         const isComplete = await profileRepository.isProfileComplete(userId);
-        if (isComplete) {
-          setCurrentScreen(AppScreen.DASHBOARD);
-        } else {
-          setCurrentScreen(AppScreen.PROFILE_SETUP);
+        const target: NavScreen = isComplete ? 'DASHBOARD' : 'PROFILE_SETUP';
+        // Replace on sign-in so back doesn't bounce through login.
+        if (UNAUTHED_SCREENS.includes(screen)) {
+          navigate({ screen: target }, { replace: true });
         }
       } catch (error) {
         console.error('Error checking profile:', error);
-        setCurrentScreen(AppScreen.PROFILE_SETUP);
+        if (UNAUTHED_SCREENS.includes(screen)) {
+          navigate({ screen: 'PROFILE_SETUP' }, { replace: true });
+        }
       } finally {
         setCheckingProfile(false);
       }
     };
 
     checkProfileCompleteness();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
+      <div className="min-h-screen flex items-center justify-center bg-charcoal-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
           <p className="text-charcoal-500">Loading…</p>
@@ -131,15 +143,19 @@ const AppContent = () => {
   }
 
   if (!user) {
-    if (showLogin) {
+    if (screen === 'LOGIN') {
       return <LoginScreen />;
     }
-    return <LandingScreen onGetStarted={() => setShowLogin(true)} />;
+    return (
+      <LandingScreen
+        onGetStarted={() => navigate({ screen: 'LOGIN' })}
+      />
+    );
   }
 
   if (checkingProfile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
+      <div className="min-h-screen flex items-center justify-center bg-charcoal-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
           <p className="text-charcoal-500">Loading Profile…</p>
@@ -168,7 +184,7 @@ const AppContent = () => {
       const initialVisible: string[] = ['skills', 'education', 'projects'];
       if (uType === 'experienced') initialVisible.push('experience');
       if (uType === 'student') initialVisible.push('extracurriculars');
-      
+
       if (extras.length > 0) initialVisible.push('extracurriculars');
       if (awds.length > 0) initialVisible.push('awards');
       if (certs.length > 0) initialVisible.push('certifications');
@@ -192,7 +208,7 @@ const AppContent = () => {
         publications: pubs,
         visibleSections: uniqueVisible
       });
-      
+
       if (uType) {
         setBuilderStep(AppStep.SECTIONS);
       } else {
@@ -207,7 +223,8 @@ const AppContent = () => {
   const handleChooseProfile = async () => {
     setShowSourceDialog(false);
     await prefillFromProfile();
-    setCurrentScreen(AppScreen.BUILDER);
+    setCurrentResumeId(null);
+    navigate({ screen: 'BUILDER' });
   };
 
   const handleChooseFresh = () => {
@@ -217,7 +234,8 @@ const AppContent = () => {
       visibleSections: DEFAULT_SECTIONS
     });
     setBuilderStep(AppStep.USER_TYPE);
-    setCurrentScreen(AppScreen.BUILDER);
+    setCurrentResumeId(null);
+    navigate({ screen: 'BUILDER' });
   };
 
   const handleOpenResume = async (id: string) => {
@@ -228,7 +246,7 @@ const AppContent = () => {
         setBuilderData(data);
         setCurrentResumeId(id);
         setBuilderStep(AppStep.PREVIEW);
-        setCurrentScreen(AppScreen.BUILDER);
+        navigate({ screen: 'BUILDER' });
       }
     } catch (error) {
       console.error('Failed to load resume', error);
@@ -236,42 +254,20 @@ const AppContent = () => {
     }
   };
 
-  if (currentScreen === AppScreen.PROFILE_SETUP) {
+  if (screen === 'PROFILE_SETUP') {
     return (
       <ProfileSetupScreen
         resumeService={resumeService}
-        onComplete={() => setCurrentScreen(AppScreen.DASHBOARD)}
+        onComplete={() => navigate({ screen: 'DASHBOARD' }, { replace: true })}
       />
     );
   }
 
-  if (currentScreen === AppScreen.DASHBOARD) {
-    return (
-      <>
-        <DashboardScreen
-          onCreateNew={() => setShowSourceDialog(true)}
-          onEditProfile={() => setCurrentScreen(AppScreen.PROFILE)}
-          onOpenApplication={(id) => {
-            // Implementation pending per existing codebase
-            setCurrentScreen(AppScreen.BUILDER);
-          }}
-          onOpenResume={handleOpenResume}
-        />
-        <ResumeSourceDialog
-          isOpen={showSourceDialog}
-          onClose={() => setShowSourceDialog(false)}
-          onChooseProfile={handleChooseProfile}
-          onChooseFresh={handleChooseFresh}
-        />
-      </>
-    );
-  }
-
-  if (currentScreen === AppScreen.PROFILE) {
+  if (screen === 'PROFILE') {
     return (
       <div className="min-h-screen bg-charcoal-50">
         <Navbar
-          onDashboardClick={() => setCurrentScreen(AppScreen.DASHBOARD)}
+          onDashboardClick={() => navigate({ screen: 'DASHBOARD' })}
           showExitBuilder={false}
         />
         <ProfileScreen />
@@ -279,25 +275,36 @@ const AppContent = () => {
     );
   }
 
-  if (currentScreen === AppScreen.BUILDER) {
+  if (screen === 'BUILDER') {
     return (
-      <BuilderScreen 
+      <BuilderScreen
         initialData={builderData}
         initialStep={builderStep}
         currentResumeId={currentResumeId}
         resumeService={resumeService}
-        onExit={() => setCurrentScreen(AppScreen.DASHBOARD)}
+        onExit={() => navigate({ screen: 'DASHBOARD' })}
       />
     );
   }
 
-  // Fallback / Landing (Only reachable if screen is somehow forced null after login)
+  // Default: DASHBOARD (authenticated fallback)
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 via-white to-brand-50">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="animate-spin text-brand-600" size={40} />
-      </div>
-    </div>
+    <>
+      <DashboardScreen
+        onCreateNew={() => setShowSourceDialog(true)}
+        onEditProfile={() => navigate({ screen: 'PROFILE' })}
+        onOpenApplication={() => {
+          navigate({ screen: 'BUILDER' });
+        }}
+        onOpenResume={handleOpenResume}
+      />
+      <ResumeSourceDialog
+        isOpen={showSourceDialog}
+        onClose={() => setShowSourceDialog(false)}
+        onChooseProfile={handleChooseProfile}
+        onChooseFresh={handleChooseFresh}
+      />
+    </>
   );
 };
 
@@ -309,4 +316,3 @@ export default function App() {
     </AuthProvider>
   );
 }
-

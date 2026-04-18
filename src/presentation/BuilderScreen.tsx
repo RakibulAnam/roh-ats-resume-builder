@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { ResumeData, AppStep } from '../domain/entities';
+import { ResumeData, AppStep, ToolkitItem } from '../domain/entities';
 import {
   UserTypeStep,
   TargetJobStep,
@@ -101,20 +101,29 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   const [resumeData, setResumeData] = useState<ResumeData>(initialData);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  
+
   // Validation errors map field paths (e.g. "personalInfo.fullName") to error messages
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Mirror the prop so we can capture the row id right after the initial
+  // auto-save. Without this, regeneration buttons click-bail (no id) until
+  // the user round-trips through the dashboard to load the resume again.
+  const [activeResumeId, setActiveResumeId] = useState<string | null>(currentResumeId);
+  useEffect(() => {
+    setActiveResumeId(currentResumeId);
+  }, [currentResumeId]);
 
   const [isGeneralResume, setIsGeneralResume] = useState(false);
   const [canRegenerate, setCanRegenerate] = useState(true);
   const [cooldownEndsAt, setCooldownEndsAt] = useState<Date | null>(null);
+  const [regeneratingItem, setRegeneratingItem] = useState<ToolkitItem | null>(null);
 
   useEffect(() => {
     const checkResumeStatus = async () => {
-      if (!user || !resumeService || !currentResumeId) return;
+      if (!user || !resumeService || !activeResumeId) return;
       const resumes = await resumeService.getGeneratedResumes(user.id);
-      const current = resumes.find(r => r.id === currentResumeId);
-      
+      const current = resumes.find(r => r.id === activeResumeId);
+
       const isGeneral = current?.title === ResumeService.GENERAL_RESUME_TITLE;
       setIsGeneralResume(isGeneral);
 
@@ -127,15 +136,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       }
     };
     checkResumeStatus();
-  }, [user, resumeService, currentResumeId]);
+  }, [user, resumeService, activeResumeId]);
 
   const handleRegenerateGeneralResume = async () => {
-      if (!user || !resumeService || !currentResumeId) return;
+      if (!user || !resumeService || !activeResumeId) return;
       try {
-        const newData = await resumeService.regenerateGeneralResume(user.id, currentResumeId);
+        const newData = await resumeService.regenerateGeneralResume(user.id, activeResumeId);
         setResumeData(newData);
         toast.success('General Resume regenerated successfully!');
-        
+
         // update cooldown logic
         const info = await resumeService.getGeneralResumeInfo(user.id);
         if (info) {
@@ -143,8 +152,61 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           setCooldownEndsAt(info.cooldownEndsAt);
         }
       } catch (error) {
-         toast.error(error instanceof Error ? error.message : 'Failed to regenerate resume');
+        console.error('General resume regeneration failed:', error);
+        // The 24-hour cooldown message IS user-actionable and worth showing
+        // verbatim; everything else (quota, network, validation) should stay
+        // behind a friendly fallback so we don't leak model-provider language.
+        const msg = error instanceof Error ? error.message : '';
+        const isCooldown = msg.includes('24 hours');
+        toast.error(
+          isCooldown
+            ? msg
+            : "We couldn't regenerate your General Resume. Please try again in a moment."
+        );
       }
+  };
+
+  const ITEM_LABELS: Record<ToolkitItem, string> = {
+    coverLetter: 'Cover letter',
+    outreachEmail: 'Outreach email',
+    linkedInMessage: 'LinkedIn note',
+    interviewQuestions: 'Interview questions',
+  };
+
+  const handleRegenerateItem = async (item: ToolkitItem) => {
+    if (!resumeService) {
+      toast.error('Service not initialized. Please refresh the page.');
+      return;
+    }
+    // Concurrent regen would race on local state and double-bill the API; let
+    // the current attempt finish before starting another.
+    if (regeneratingItem) return;
+
+    setRegeneratingItem(item);
+    try {
+      const updatedData = await resumeService.regenerateToolkitItem(
+        user?.id ?? null,
+        activeResumeId,
+        resumeData,
+        item,
+      );
+      setResumeData(updatedData);
+      const itemError = updatedData.toolkit?.errors?.[item];
+      if (itemError) {
+        // Keep the user-facing message generic — the real error is logged to
+        // the devtools console by the service / ToolkitStatusCard.
+        toast.error(`${ITEM_LABELS[item]} didn't come through. Give it another try in a moment.`);
+      } else {
+        toast.success(`${ITEM_LABELS[item]} generated.`);
+      }
+    } catch (error) {
+      // Only persistence errors bubble up here — AI failures are recorded on
+      // toolkit.errors and returned without throwing.
+      console.error('Regeneration persist failed:', error);
+      toast.error('Couldn\'t save that change. Please try again.');
+    } finally {
+      setRegeneratingItem(null);
+    }
   };
 
   const validateStep = (currentStepId: AppStep, showToast = true): boolean => {
@@ -403,25 +465,39 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       const mergedData = resumeService.mergeOptimizedData(resumeData, optimizedData);
       setResumeData(mergedData);
       setStep(AppStep.PREVIEW);
-      toast.success('Resume generated successfully!');
+
+      // With the combined toolkit call, success is all-or-nothing on the
+      // initial generation — either every toolkit item is present or every
+      // one is in the failed state. The warning-card retry path lives on
+      // each tab, so we just tell the user where to look.
+      const toolkitFailed = Object.keys(mergedData.toolkit?.errors ?? {}).length > 0;
+      if (!toolkitFailed) {
+        toast.success('Toolkit ready — resume, cover letter, outreach, and interview prep.');
+      } else {
+        toast.warning('Resume ready. The outreach kit didn\'t finish this round — try any tab from the sidebar to regenerate it.');
+      }
 
       if (user) {
         try {
           const title = mergedData.targetJob?.title
             ? `${mergedData.targetJob.title} Resume`
             : `Resume - ${new Date().toLocaleDateString()}`;
-          await resumeService.saveGeneratedResume(user.id, mergedData, title);
+          // Capture the id so Regenerate buttons on toolkit cards can persist
+          // without the user first having to round-trip through the dashboard.
+          if (activeResumeId) {
+            await resumeService.updateGeneratedResume(activeResumeId, mergedData, title);
+          } else {
+            const newId = await resumeService.saveGeneratedResume(user.id, mergedData, title);
+            setActiveResumeId(newId);
+          }
         } catch (saveErr) {
           console.error('Auto-save failed', saveErr);
+          toast.error('Could not save your resume. You can keep working, but changes will be local only.');
         }
       }
     } catch (err) {
-      console.error(err);
-      const errorMessage =
-        err instanceof Error
-          ? err.message
-          : 'Failed to generate resume. Please check your internet connection or API key and try again.';
-      toast.error(errorMessage);
+      console.error('Resume generation failed:', err);
+      toast.error("We couldn't build your toolkit just now. Please try again in a moment.");
     } finally {
       setIsGenerating(false);
     }
@@ -462,6 +538,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         canRegenerate={canRegenerate}
         cooldownEndsAt={cooldownEndsAt}
         onRegenerate={handleRegenerateGeneralResume}
+        onRegenerateItem={handleRegenerateItem}
+        regeneratingItem={regeneratingItem}
       />
     );
   }
@@ -568,17 +646,18 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           {isGenerating && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-xl">
               <div className="relative">
-                <div className="w-16 h-16 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-charcoal-200 border-t-brand-700 rounded-full animate-spin"></div>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Sparkles size={24} className="text-brand-600 animate-pulse" />
+                  <Sparkles size={24} className="text-accent-500 animate-pulse" />
                 </div>
               </div>
-              <h3 className="mt-6 text-xl font-bold text-charcoal-800">
-                Optimizing Resume…
+              <h3 className="mt-6 font-display text-xl font-semibold text-brand-700">
+                Building your toolkit…
               </h3>
-              <p className="text-charcoal-500 mt-2 text-center max-w-md px-4">
-                Our AI is rewriting your bullets to match the job description
-                and formatting your document. This takes about 10-15 seconds.
+              <p className="text-brand-500 mt-2 text-center max-w-md px-4 leading-relaxed">
+                Tailoring your resume, writing the cover letter, drafting your
+                outreach email and LinkedIn note, and preparing your interview
+                questions. About 20–30 seconds.
               </p>
             </div>
           )}
@@ -619,10 +698,10 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 type="button"
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-brand-600 to-brand-700 text-white rounded-lg text-sm font-bold hover:shadow-lg hover:to-brand-800 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:saturate-50 transform active:scale-95"
+                className="flex items-center gap-2 px-8 py-3 bg-brand-700 text-charcoal-50 rounded-lg text-sm font-bold hover:bg-brand-800 transition-colors focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
               >
-                {isGenerating ? 'Generating…' : 'Generate Resume'}{' '}
-                <Sparkles size={18} />
+                {isGenerating ? 'Generating…' : 'Build my toolkit'}{' '}
+                <Sparkles size={18} className="text-accent-400" />
               </button>
             ) : (
               <button

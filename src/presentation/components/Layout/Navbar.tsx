@@ -16,16 +16,12 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-16">
                     {/* Logo Section */}
-                    <div className="flex items-center cursor-pointer" onClick={onDashboardClick}>
-                        <div className="flex-shrink-0 flex items-center gap-2">
-                            <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                                R
-                            </div>
-                            <span className="font-bold text-xl text-charcoal-900 tracking-tight">
-                                Roh ATS <span className="text-brand-600">Builder</span>
-                            </span>
+                    <button type="button" className="flex items-center" onClick={onDashboardClick}>
+                        <div className="flex items-baseline gap-1.5 select-none">
+                            <span className="font-display text-lg font-semibold tracking-tight text-brand-700">TOP</span>
+                            <span className="font-display text-lg font-semibold tracking-tight text-accent-500">CANDIDATE</span>
                         </div>
-                    </div>
+                    </button>
 
                     {/* Center Section - Optional (could be used for simple nav links later) */}
                     <div className="hidden md:flex items-center flex-1 justify-center px-8">
@@ -43,11 +39,11 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
 
                     {/* Right Section - User Menu */}
                     <div className="hidden md:flex items-center gap-4">
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-charcoal-50 border border-charcoal-100">
-                            <div className="w-6 h-6 bg-brand-100 rounded-full flex items-center justify-center">
-                                <User size={14} className="text-brand-600" />
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-charcoal-50 border border-charcoal-200">
+                            <div className="w-6 h-6 bg-accent-50 rounded-full flex items-center justify-center">
+                                <User size={14} className="text-accent-600" />
                             </div>
-                            <span className="text-sm font-medium text-charcoal-700 max-w-[150px] truncate">
+                            <span className="text-sm font-medium text-brand-600 max-w-[150px] truncate">
                                 {user?.user_metadata?.full_name || user?.email}
                             </span>
                         </div>
