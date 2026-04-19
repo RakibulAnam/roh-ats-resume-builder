@@ -592,6 +592,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
               data={resumeData.projects}
               errors={errors}
               update={d => setResumeData(prev => ({ ...prev, projects: d }))}
+              userType={resumeData.userType}
             />
           )}
           {step === AppStep.EDUCATION && (
@@ -605,6 +606,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             <SkillsStep
               data={resumeData.skills}
               update={d => setResumeData(prev => ({ ...prev, skills: d }))}
+              userType={resumeData.userType}
             />
           )}
           {step === AppStep.EXTRACURRICULARS && (

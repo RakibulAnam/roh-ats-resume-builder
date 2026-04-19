@@ -318,6 +318,20 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 - Rounded cards: `rounded-2xl` (24px) for content, `rounded-full` for pill buttons
 - Section eyebrows: `text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold`
 - Dividers inside grouped cards: 1px `bg-charcoal-200` between cells (using the `gap-px` + bg-container trick)
+- **Form wizards** (`ProfileSetupScreen`, `BuilderScreen`) use a sticky left
+  phase rail on `lg+` (numbered phase groups: "About you" → "Your work" →
+  "Your credentials"), collapsing to a progress bar on mobile. Active step
+  marker is saffron, completed is ink, untouched is charcoal.
+- **Form primitives** (defined in `components/FormSteps.tsx`, shared across
+  profile setup and builder) — use these rather than reinventing:
+  - `TipCard` — collapsible "How to write this" panel (saffron-tinted) for
+    writing-heavy fields. Default closed. Rules + optional examples.
+  - `QualityMeter` — pure heuristic (length + action verb + metric regex) under
+    "brain dump" textareas. Three-bar saffron indicator + short hint. No AI call.
+  - `CollapsibleItem` — list-item cards (experience / projects / education /
+    awards etc.) auto-collapse to a one-line summary once their key fields are
+    filled. Click the header to re-expand.
+  - `SectionHeader` — eyebrow + display title + subtitle for every step.
 
 ---
 
