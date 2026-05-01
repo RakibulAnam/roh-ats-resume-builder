@@ -1,4 +1,9 @@
-// Profile Setup Screen - Multi-step wizard for new users to complete their profile
+// Complete-your-profile wizard. One-time capture of the master profile that
+// seeds every future tailored resume.
+//
+// Layout: sticky left rail (phase groups) + right content card. Rail collapses
+// to a slim progress bar on mobile. Palette follows AGENTS.md §10 — Editorial
+// Ink + Saffron, no gradients.
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../infrastructure/auth/AuthContext';
@@ -11,7 +16,14 @@ import {
     ExperienceStep,
     ProjectsStep,
     SkillsStep,
-    EducationStep
+    EducationStep,
+    ExtracurricularStep,
+    AwardsStep,
+    CertificationsStep,
+    AffiliationsStep,
+    PublicationsStep,
+    LanguagesStep,
+    ReferencesStep,
 } from './components/FormSteps';
 import {
     PersonalInfo,
@@ -22,34 +34,24 @@ import {
     Award,
     Certification,
     Affiliation,
-    Publication
+    Publication,
+    Education,
+    Language,
+    Reference,
 } from '../domain/entities/Resume';
 import {
     ChevronLeft,
     ChevronRight,
-    CheckCircle2,
+    Check,
     Loader2,
-    User,
-    Briefcase,
-    GraduationCap,
-    FolderGit2,
-    Sparkles,
-    Calendar,
-    Award as AwardIcon,
-    BookOpen,
-    Users,
     LogOut,
-    FileText
+    Sparkles,
+    AlertCircle,
+    FileText,
 } from 'lucide-react';
-import {
-    ExtracurricularStep,
-    AwardsStep,
-    CertificationsStep,
-    AffiliationsStep,
-    PublicationsStep
-} from './components/FormSteps';
 import { ResumeUploadStep } from './components/profile/ResumeUploadStep';
 import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
+import { isGibberish } from '../application/validation/gibberishDetector';
 
 interface Props {
     onComplete: () => void;
@@ -60,27 +62,40 @@ enum SetupStep {
     IMPORT_RESUME = -1,
     USER_TYPE = 0,
     PERSONAL_INFO = 1,
-    EXPERIENCE_OR_PROJECTS = 2,
-    SKILLS = 3,
-    EXTRACURRICULARS = 4,
-    AWARDS = 5,
-    CERTIFICATIONS = 6,
-    AFFILIATIONS = 7,
-    PUBLICATIONS = 8,
+    EDUCATION = 2,
+    EXPERIENCE_OR_PROJECTS = 3,
+    SKILLS = 4,
+    EXTRACURRICULARS = 5,
+    AWARDS = 6,
+    CERTIFICATIONS = 7,
+    AFFILIATIONS = 8,
+    PUBLICATIONS = 9,
+    LANGUAGES = 10,
+    REFERENCES = 11,
 }
 
-const STEP_LABELS = {
-    [SetupStep.IMPORT_RESUME]: 'Import',
-    [SetupStep.USER_TYPE]: 'User Type',
-    [SetupStep.PERSONAL_INFO]: 'Personal Info',
-    [SetupStep.EXPERIENCE_OR_PROJECTS]: 'Experience/Projects', // Dynamic
-    [SetupStep.SKILLS]: 'Skills',
-    [SetupStep.EXTRACURRICULARS]: 'Activities',
-    [SetupStep.AWARDS]: 'Awards',
-    [SetupStep.CERTIFICATIONS]: 'Certifications',
-    [SetupStep.AFFILIATIONS]: 'Affiliations',
-    [SetupStep.PUBLICATIONS]: 'Publications',
+const STEP_COPY: Record<SetupStep, { label: string; phase: string }> = {
+    [SetupStep.IMPORT_RESUME]: { label: 'Import', phase: 'Quick start' },
+    [SetupStep.USER_TYPE]: { label: 'Your path', phase: 'About you' },
+    [SetupStep.PERSONAL_INFO]: { label: 'Contact details', phase: 'About you' },
+    [SetupStep.EDUCATION]: { label: 'Education', phase: 'About you' },
+    [SetupStep.EXPERIENCE_OR_PROJECTS]: { label: 'Experience', phase: 'Your work' },
+    [SetupStep.SKILLS]: { label: 'Skills', phase: 'Your work' },
+    [SetupStep.EXTRACURRICULARS]: { label: 'Activities', phase: 'Your credentials' },
+    [SetupStep.AWARDS]: { label: 'Awards', phase: 'Your credentials' },
+    [SetupStep.CERTIFICATIONS]: { label: 'Certifications', phase: 'Your credentials' },
+    [SetupStep.AFFILIATIONS]: { label: 'Affiliations', phase: 'Your credentials' },
+    [SetupStep.PUBLICATIONS]: { label: 'Publications', phase: 'Your credentials' },
+    [SetupStep.LANGUAGES]: { label: 'Languages', phase: 'Your credentials' },
+    [SetupStep.REFERENCES]: { label: 'References', phase: 'Your credentials' },
 };
+
+const Wordmark = () => (
+    <div className="flex items-baseline gap-1.5 select-none">
+        <span className="font-display text-lg font-semibold tracking-tight text-brand-700">TOP</span>
+        <span className="font-display text-lg font-semibold tracking-tight text-accent-500">CANDIDATE</span>
+    </div>
+);
 
 export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService }) => {
     const { user, signOut } = useAuth();
@@ -88,12 +103,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
-    // General resume generation states
     const [isGeneratingResume, setIsGeneratingResume] = useState(false);
     const [generationFailed, setGenerationFailed] = useState(false);
     const [generationError, setGenerationError] = useState<string | null>(null);
 
-    // Form data
     const [userType, setUserType] = useState<UserType | undefined>(undefined);
     const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
         fullName: '',
@@ -103,41 +116,48 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     });
     const [experiences, setExperiences] = useState<WorkExperience[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
-
+    const [education, setEducation] = useState<Education[]>([]);
     const [skills, setSkills] = useState<string[]>([]);
     const [extracurriculars, setExtracurriculars] = useState<Extracurricular[]>([]);
     const [awards, setAwards] = useState<Award[]>([]);
     const [certifications, setCertifications] = useState<Certification[]>([]);
     const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
     const [publications, setPublications] = useState<Publication[]>([]);
+    const [languages, setLanguages] = useState<Language[]>([]);
+    const [references, setReferences] = useState<Reference[]>([]);
 
-    // Load existing data on mount
     useEffect(() => {
         if (user?.id) {
             loadExistingData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     const loadExistingData = async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const [profile, exps, projs, skls, uType, extras, awds, certs, affs, pubs] = await Promise.all([
-                profileRepository.getProfile(user.id),
-                profileRepository.getExperiences(user.id),
-                profileRepository.getProjects(user.id),
-                profileRepository.getSkills(user.id),
-                profileRepository.getUserType(user.id),
-                profileRepository.getExtracurriculars(user.id),
-                profileRepository.getAwards(user.id),
-                profileRepository.getCertifications(user.id),
-                profileRepository.getAffiliations(user.id),
-                profileRepository.getPublications(user.id),
-            ]);
+            const [profile, exps, projs, edus, skls, uType, extras, awds, certs, affs, pubs, langs, refs] =
+                await Promise.all([
+                    profileRepository.getProfile(user.id),
+                    profileRepository.getExperiences(user.id),
+                    profileRepository.getProjects(user.id),
+                    profileRepository.getEducations(user.id),
+                    profileRepository.getSkills(user.id),
+                    profileRepository.getUserType(user.id),
+                    profileRepository.getExtracurriculars(user.id),
+                    profileRepository.getAwards(user.id),
+                    profileRepository.getCertifications(user.id),
+                    profileRepository.getAffiliations(user.id),
+                    profileRepository.getPublications(user.id),
+                    profileRepository.getLanguages(user.id),
+                    profileRepository.getReferences(user.id),
+                ]);
 
             if (profile) setPersonalInfo(profile);
             if (exps.length > 0) setExperiences(exps);
             if (projs.length > 0) setProjects(projs);
+            if (edus.length > 0) setEducation(edus);
             if (skls.length > 0) setSkills(skls);
             if (uType) setUserType(uType);
             if (extras.length > 0) setExtracurriculars(extras);
@@ -145,57 +165,31 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             if (certs.length > 0) setCertifications(certs);
             if (affs.length > 0) setAffiliations(affs);
             if (pubs.length > 0) setPublications(pubs);
+            if (langs.length > 0) setLanguages(langs);
+            if (refs.length > 0) setReferences(refs);
 
-            // Determine appropriate step to restore
+            // Resume at the first step that still lacks data.
             let nextStep = SetupStep.IMPORT_RESUME;
-
             if (uType) {
-                // Determine visible steps logic inline (since state not updated yet)
-                const allSteps = [
-                    SetupStep.IMPORT_RESUME,
-                    SetupStep.USER_TYPE,
-                    SetupStep.PERSONAL_INFO,
-                    SetupStep.EXPERIENCE_OR_PROJECTS,
-                    SetupStep.SKILLS
-                ];
-                if (uType === 'student') {
-                    allSteps.push(SetupStep.EXTRACURRICULARS, SetupStep.AWARDS);
-                } else {
-                    allSteps.push(SetupStep.CERTIFICATIONS, SetupStep.AFFILIATIONS, SetupStep.PUBLICATIONS);
-                }
-
-                if (profile?.fullName && profile?.email) {
-                    nextStep = SetupStep.EXPERIENCE_OR_PROJECTS;
-
-                    const hasExperience = uType === 'experienced' && exps.length > 0;
-                    const hasProjects = uType === 'student' && projs.length > 0;
-
-                    if (hasExperience || hasProjects) {
-                        nextStep = SetupStep.SKILLS;
-
-                        if (skls.length > 0) {
-                            // Move to next sections based on user type
-                            if (uType === 'student') {
-                                nextStep = SetupStep.EXTRACURRICULARS;
-                                if (extras.length > 0) nextStep = SetupStep.AWARDS;
-                                if (extras.length > 0 && awds.length > 0) nextStep = SetupStep.AWARDS; // Stay on last step if all done? Or just stay on last one.
-                            } else {
-                                nextStep = SetupStep.CERTIFICATIONS;
-                                if (certs.length > 0) nextStep = SetupStep.AFFILIATIONS;
-                                if (certs.length > 0 && affs.length > 0) nextStep = SetupStep.PUBLICATIONS;
-                            }
-                        }
-                    } else {
-                        // Stay on Experience/Projects
-                        nextStep = SetupStep.EXPERIENCE_OR_PROJECTS;
-                    }
-                } else {
+                if (!(profile?.fullName && profile?.email)) {
                     nextStep = SetupStep.PERSONAL_INFO;
+                } else if (edus.length === 0) {
+                    nextStep = SetupStep.EDUCATION;
+                } else if (
+                    (uType === 'experienced' && exps.length === 0) ||
+                    (uType === 'student' && projs.length === 0)
+                ) {
+                    nextStep = SetupStep.EXPERIENCE_OR_PROJECTS;
+                } else if (skls.length === 0) {
+                    nextStep = SetupStep.SKILLS;
+                } else {
+                    // Resume at the first credentials step for their path.
+                    nextStep = uType === 'student'
+                        ? SetupStep.EXTRACURRICULARS
+                        : SetupStep.CERTIFICATIONS;
                 }
             }
-
             setCurrentStep(nextStep);
-
         } catch (error) {
             console.error('Error loading profile data:', error);
         } finally {
@@ -203,26 +197,49 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         }
     };
 
-    const getStepLabel = (step: SetupStep): string => {
-        if (step === SetupStep.EXPERIENCE_OR_PROJECTS) {
-            return userType === 'student' ? 'Projects' : 'Experience';
+    const getVisibleSteps = (): SetupStep[] => {
+        const base = [
+            SetupStep.IMPORT_RESUME,
+            SetupStep.USER_TYPE,
+            SetupStep.PERSONAL_INFO,
+            SetupStep.EDUCATION,
+            SetupStep.EXPERIENCE_OR_PROJECTS,
+            SetupStep.SKILLS,
+        ];
+        if (userType === 'student') {
+            return [...base, SetupStep.EXTRACURRICULARS, SetupStep.AWARDS, SetupStep.LANGUAGES, SetupStep.REFERENCES];
         }
-        return STEP_LABELS[step];
+        if (userType === 'experienced') {
+            return [
+                ...base,
+                SetupStep.CERTIFICATIONS,
+                SetupStep.AFFILIATIONS,
+                SetupStep.PUBLICATIONS,
+                SetupStep.LANGUAGES,
+                SetupStep.REFERENCES,
+            ];
+        }
+        return base;
     };
 
-    const getStepIcon = (step: SetupStep) => {
+    const stepHasContent = (step: SetupStep): boolean => {
         switch (step) {
-            case SetupStep.IMPORT_RESUME: return <FileText size={18} />;
-            case SetupStep.USER_TYPE: return <User size={18} />;
-            case SetupStep.PERSONAL_INFO: return <User size={18} />;
+            case SetupStep.IMPORT_RESUME: return true; // never blocks
+            case SetupStep.USER_TYPE: return !!userType;
+            case SetupStep.PERSONAL_INFO:
+                return !!(personalInfo.fullName || '').trim() && !!(personalInfo.email || '').trim();
+            case SetupStep.EDUCATION: return education.length > 0;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
-                return userType === 'student' ? <FolderGit2 size={18} /> : <Briefcase size={18} />;
-            case SetupStep.SKILLS: return <Sparkles size={18} />;
-            case SetupStep.EXTRACURRICULARS: return <Users size={18} />;
-            case SetupStep.AWARDS: return <AwardIcon size={18} />;
-            case SetupStep.CERTIFICATIONS: return <AwardIcon size={18} />;
-            case SetupStep.AFFILIATIONS: return <Users size={18} />;
-            case SetupStep.PUBLICATIONS: return <BookOpen size={18} />;
+                return userType === 'student' ? projects.length > 0 : experiences.length > 0;
+            case SetupStep.SKILLS: return skills.length > 0;
+            case SetupStep.EXTRACURRICULARS: return extracurriculars.length > 0;
+            case SetupStep.AWARDS: return awards.length > 0;
+            case SetupStep.CERTIFICATIONS: return certifications.length > 0;
+            case SetupStep.AFFILIATIONS: return affiliations.length > 0;
+            case SetupStep.PUBLICATIONS: return publications.length > 0;
+            case SetupStep.LANGUAGES: return languages.length > 0;
+            case SetupStep.REFERENCES: return references.length > 0;
+            default: return false;
         }
     };
 
@@ -231,142 +248,126 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             if (showToast) toast.error(msg);
         };
 
+        // Refuses to advance past free-form text fields that look like
+        // keyboard mashing. Skips proper-noun fields (company, school,
+        // organization, person names) where a dictionary check would
+        // false-positive. Returns true if any field tripped — caller bails
+        // immediately with a toast naming what to fix.
+        const flagGibberish = (label: string, text: string | undefined): boolean => {
+            if (text && text.trim().length > 0 && isGibberish(text)) {
+                showError(`${label} looks like random characters. Please write real content.`);
+                return true;
+            }
+            return false;
+        };
+
         switch (currentStep) {
             case SetupStep.IMPORT_RESUME:
                 return true;
-
             case SetupStep.USER_TYPE:
-                if (!userType) {
-                    showError('Please select your user type');
-                    return false;
-                }
+                if (!userType) { showError('Pick the path that fits you best to continue.'); return false; }
                 return true;
-
             case SetupStep.PERSONAL_INFO:
-                if (!(personalInfo.fullName || '').trim()) {
-                    showError('Please enter your full name');
-                    return false;
-                }
-                if (!(personalInfo.email || '').trim()) {
-                    showError('Please enter your email');
-                    return false;
+                if (!(personalInfo.fullName || '').trim()) { showError('We need your full name.'); return false; }
+                if (!(personalInfo.email || '').trim()) { showError('We need an email recruiters can reach you at.'); return false; }
+                return true;
+            case SetupStep.EDUCATION:
+                if (education.length === 0) { showError('Add at least one school.'); return false; }
+                for (const edu of education) {
+                    if (!(edu.school || '').trim() || !(edu.degree || '').trim() || !(edu.field || '').trim()) {
+                        showError('Fill in school, degree, and field for every entry.'); return false;
+                    }
+                    if (!(edu.startDate || '').trim() || !(edu.endDate || '').trim()) {
+                        showError('Add start and end years for every school.'); return false;
+                    }
+                    if (flagGibberish('Field of study', edu.field)) return false;
                 }
                 return true;
-
             case SetupStep.EXPERIENCE_OR_PROJECTS:
                 if (userType === 'experienced' && experiences.length === 0) {
-                    showError('Please add at least one work experience');
-                    return false;
+                    showError('Add at least one position — even an internship counts.'); return false;
                 }
                 if (userType === 'student' && projects.length === 0) {
-                    showError('Please add at least one project');
-                    return false;
+                    showError('Add at least one project — capstones, coursework, and clubs all count.'); return false;
                 }
-
                 if (userType === 'experienced') {
                     for (const exp of experiences) {
                         if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
-                            showError('Please fill in company and role for all experiences');
-                            return false;
+                            showError('Each position needs a role and a company.'); return false;
                         }
                         if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
-                            showError('Please provide start and end dates for all experiences');
-                            return false;
+                            showError('Each position needs start and end dates (or "I currently work here").'); return false;
                         }
                         if (!(exp.rawDescription || '').trim()) {
-                            showError('Please provide a description for all experiences');
-                            return false;
+                            showError('Each position needs a brain-dump of what you did.'); return false;
                         }
+                        if (flagGibberish('Job title', exp.role)) return false;
+                        if (flagGibberish('What you did', exp.rawDescription)) return false;
                     }
                 } else {
                     for (const proj of projects) {
-                        if (!(proj.name || '').trim()) {
-                            showError('Please fill in name for all projects');
-                            return false;
-                        }
-                        // Tools / Methods / Technologies is intentionally optional —
-                        // many non-tech projects (research, campaigns, curriculum,
-                        // legal cases, art portfolios) have no tools to list.
+                        if (!(proj.name || '').trim()) { showError('Every project needs a name.'); return false; }
                         if (!(proj.rawDescription || '').trim()) {
-                            showError('Please provide a description for all projects');
-                            return false;
+                            showError('Every project needs a description — one short paragraph is plenty.'); return false;
                         }
+                        if (flagGibberish('Project name', proj.name)) return false;
+                        if (flagGibberish('Project description', proj.rawDescription)) return false;
                     }
                 }
                 return true;
-
             case SetupStep.SKILLS:
-                if (skills.length === 0) {
-                    showError('Please add at least one skill');
-                    return false;
-                }
+                if (skills.length === 0) { showError('Add at least one skill — they drive ATS keyword matches.'); return false; }
                 return true;
-
             case SetupStep.EXTRACURRICULARS:
                 for (const item of extracurriculars) {
                     if (!(item.title || '').trim() || !(item.organization || '').trim()) {
-                        showError('Please fill in role and organization for all activities');
-                        return false;
+                        showError('Each activity needs a role and an organization.'); return false;
                     }
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-                        showError('Please provide start and end dates for all activities');
-                        return false;
+                        showError('Each activity needs start and end dates.'); return false;
                     }
+                    if (flagGibberish('Activity title', item.title)) return false;
+                    if (flagGibberish('Activity description', item.description)) return false;
                 }
                 return true;
-
             case SetupStep.AWARDS:
                 for (const item of awards) {
                     if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
-                        showError('Please fill in title and issuer for all awards');
-                        return false;
+                        showError('Each award needs a title and issuer.'); return false;
                     }
-                    if (!(item.date || '').trim()) {
-                        showError('Please provide a date for all awards');
-                        return false;
-                    }
+                    if (!(item.date || '').trim()) { showError('Each award needs a date.'); return false; }
+                    if (flagGibberish('Award title', item.title)) return false;
+                    if (flagGibberish('Award description', item.description)) return false;
                 }
                 return true;
-
             case SetupStep.CERTIFICATIONS:
                 for (const item of certifications) {
                     if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
-                        showError('Please fill in name and issuer for all certifications');
-                        return false;
+                        showError('Each certification needs a name and issuer.'); return false;
                     }
-                    if (!(item.date || '').trim()) {
-                        showError('Please provide a date for all certifications');
-                        return false;
-                    }
+                    if (!(item.date || '').trim()) { showError('Each certification needs a date.'); return false; }
                 }
                 return true;
-
             case SetupStep.AFFILIATIONS:
                 for (const item of affiliations) {
                     if (!(item.organization || '').trim() || !(item.role || '').trim()) {
-                        showError('Please fill in organization and role for all affiliations');
-                        return false;
+                        showError('Each affiliation needs a role and organization.'); return false;
                     }
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-                        showError('Please provide start and end dates for all affiliations');
-                        return false;
+                        showError('Each affiliation needs start and end dates.'); return false;
                     }
+                    if (flagGibberish('Affiliation role', item.role)) return false;
                 }
                 return true;
-
             case SetupStep.PUBLICATIONS:
                 for (const item of publications) {
                     if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
-                        showError('Please fill in title and publisher for all publications');
-                        return false;
+                        showError('Each publication needs a title and publisher.'); return false;
                     }
-                    if (!(item.date || '').trim()) {
-                        showError('Please provide a date for all publications');
-                        return false;
-                    }
+                    if (!(item.date || '').trim()) { showError('Each publication needs a date.'); return false; }
+                    if (flagGibberish('Publication title', item.title)) return false;
                 }
                 return true;
-
             default:
                 return true;
         }
@@ -378,27 +379,21 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         try {
             switch (currentStep) {
                 case SetupStep.USER_TYPE:
-                    if (userType) {
-                        await profileRepository.saveUserType(user.id, userType);
-                    }
+                    if (userType) await profileRepository.saveUserType(user.id, userType);
                     break;
-
                 case SetupStep.PERSONAL_INFO:
                     await profileRepository.saveProfile(user.id, personalInfo);
                     break;
-
+                case SetupStep.EDUCATION:
+                    for (const edu of education) await profileRepository.saveEducation(user.id, edu);
+                    break;
                 case SetupStep.EXPERIENCE_OR_PROJECTS:
                     if (userType === 'experienced') {
-                        for (const exp of experiences) {
-                            await profileRepository.saveExperience(user.id, exp);
-                        }
+                        for (const exp of experiences) await profileRepository.saveExperience(user.id, exp);
                     } else {
-                        for (const proj of projects) {
-                            await profileRepository.saveProject(user.id, proj);
-                        }
+                        for (const proj of projects) await profileRepository.saveProject(user.id, proj);
                     }
                     break;
-
                 case SetupStep.SKILLS:
                     await profileRepository.saveSkills(user.id, skills);
                     break;
@@ -417,23 +412,26 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                 case SetupStep.PUBLICATIONS:
                     for (const item of publications) await profileRepository.savePublication(user.id, item);
                     break;
+                case SetupStep.LANGUAGES:
+                    for (const item of languages) await profileRepository.saveLanguage(user.id, item);
+                    break;
+                case SetupStep.REFERENCES:
+                    for (const item of references) await profileRepository.saveReference(user.id, item);
+                    break;
             }
             return true;
         } catch (error) {
             console.error('Error saving step:', error);
-            toast.error('Failed to save. Please try again.');
+            toast.error('We couldn\'t save that. Please try again.');
             return false;
         } finally {
             setSaving(false);
         }
     };
 
-
-
     const handleExtracted = (data: ExtractedProfileData) => {
         if (data.userType) setUserType(data.userType);
         if (data.personalInfo) {
-            // Fill in missing properties manually to satisfy TypeScript if data.personalInfo is Partial
             setPersonalInfo(prev => ({
                 fullName: data.personalInfo?.fullName || prev.fullName,
                 email: data.personalInfo?.email || prev.email,
@@ -444,103 +442,92 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                 website: data.personalInfo?.website || prev.website,
             }));
         }
-        if (data.experience && data.experience.length > 0) setExperiences(data.experience);
-        if (data.projects && data.projects.length > 0) setProjects(data.projects);
-        if (data.skills && data.skills.length > 0) setSkills(data.skills);
-        if (data.extracurriculars && data.extracurriculars.length > 0) setExtracurriculars(data.extracurriculars);
-        if (data.awards && data.awards.length > 0) setAwards(data.awards);
-        if (data.certifications && data.certifications.length > 0) setCertifications(data.certifications);
-        if (data.affiliations && data.affiliations.length > 0) setAffiliations(data.affiliations);
-        if (data.publications && data.publications.length > 0) setPublications(data.publications);
+        if (data.experience?.length) setExperiences(data.experience);
+        if (data.projects?.length) setProjects(data.projects);
+        if (data.skills?.length) setSkills(data.skills);
+        if (data.extracurriculars?.length) setExtracurriculars(data.extracurriculars);
+        if (data.awards?.length) setAwards(data.awards);
+        if (data.certifications?.length) setCertifications(data.certifications);
+        if (data.affiliations?.length) setAffiliations(data.affiliations);
+        if (data.publications?.length) setPublications(data.publications);
 
-        // Move to the next step
         setCurrentStep(SetupStep.USER_TYPE);
     };
 
-    const handleSkipImport = () => {
-        setCurrentStep(SetupStep.USER_TYPE);
-    };
+    const handleSkipImport = () => setCurrentStep(SetupStep.USER_TYPE);
 
     const renderCurrentStep = () => {
         switch (currentStep) {
             case SetupStep.IMPORT_RESUME:
                 return <ResumeUploadStep onExtracted={handleExtracted} onSkip={handleSkipImport} />;
-
             case SetupStep.USER_TYPE:
                 return <UserTypeStep userType={userType} update={setUserType} />;
-
             case SetupStep.PERSONAL_INFO:
                 return <PersonalInfoStep data={personalInfo} update={setPersonalInfo} />;
-
+            case SetupStep.EDUCATION:
+                return <EducationStep data={education} update={setEducation} />;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
                 if (userType === 'student') {
-                    return <ProjectsStep data={projects} update={setProjects} />;
+                    return <ProjectsStep data={projects} update={setProjects} userType={userType} />;
                 }
                 return <ExperienceStep data={experiences} update={setExperiences} />;
-
             case SetupStep.SKILLS:
-                return <SkillsStep data={skills} update={setSkills} />;
-
+                return <SkillsStep data={skills} update={setSkills} userType={userType} />;
             case SetupStep.EXTRACURRICULARS:
                 return <ExtracurricularStep data={extracurriculars} update={setExtracurriculars} />;
-
             case SetupStep.AWARDS:
                 return <AwardsStep data={awards} update={setAwards} />;
-
             case SetupStep.CERTIFICATIONS:
                 return <CertificationsStep data={certifications} update={setCertifications} />;
-
             case SetupStep.AFFILIATIONS:
                 return <AffiliationsStep data={affiliations} update={setAffiliations} />;
-
             case SetupStep.PUBLICATIONS:
                 return <PublicationsStep data={publications} update={setPublications} />;
-
+            case SetupStep.LANGUAGES:
+                return <LanguagesStep data={languages} update={setLanguages} />;
+            case SetupStep.REFERENCES:
+                return <ReferencesStep data={references} update={setReferences} />;
             default:
                 return null;
         }
     };
 
-    const getVisibleSteps = () => {
-        const allSteps = [
-            SetupStep.IMPORT_RESUME,
-            SetupStep.USER_TYPE,
-            SetupStep.PERSONAL_INFO,
-            SetupStep.EXPERIENCE_OR_PROJECTS,
-            SetupStep.SKILLS
-        ];
-
-        if (userType === 'student') {
-            allSteps.push(SetupStep.EXTRACURRICULARS, SetupStep.AWARDS);
-        } else if (userType === 'experienced') {
-            allSteps.push(SetupStep.CERTIFICATIONS, SetupStep.AFFILIATIONS, SetupStep.PUBLICATIONS);
-        }
-        return allSteps;
-    };
-
-    // Replace currentStep navigation logic
     const visibleSteps = getVisibleSteps();
     const currentStepIndex = visibleSteps.indexOf(currentStep);
-
-    // Total steps for progress
     const totalSteps = visibleSteps.length;
-    const progress = ((currentStepIndex + 1) / totalSteps) * 100;
+    // Progress excludes the optional IMPORT_RESUME phase-zero so users don't
+    // feel stuck at 0% when they've just landed.
+    const progressSteps = visibleSteps.filter(s => s !== SetupStep.IMPORT_RESUME);
+    const progressIndex = currentStep === SetupStep.IMPORT_RESUME
+        ? 0
+        : progressSteps.indexOf(currentStep) + 1;
+    const progressPercent = progressSteps.length > 0
+        ? (progressIndex / progressSteps.length) * 100
+        : 0;
 
-    // Override handlers 
+    // Phase rail structure
+    const phaseGroups: { title: string; steps: SetupStep[] }[] = [];
+    for (const step of visibleSteps) {
+        const phase = STEP_COPY[step].phase;
+        const last = phaseGroups[phaseGroups.length - 1];
+        if (!last || last.title !== phase) {
+            phaseGroups.push({ title: phase, steps: [step] });
+        } else {
+            last.steps.push(step);
+        }
+    }
+
     const handleGenerateGeneralResume = async () => {
         if (!user || !resumeService) {
-            // No service available, just complete
             onComplete();
             return;
         }
-
         setIsGeneratingResume(true);
         setGenerationFailed(false);
         setGenerationError(null);
-
         try {
             await resumeService.generateGeneralResume(user.id);
-            toast.success('Your General Resume has been created!');
+            toast.success('Your General Resume is ready.');
             onComplete();
         } catch (error) {
             console.error('General resume generation failed:', error);
@@ -552,27 +539,26 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     };
 
     const handleSkipGeneration = () => {
-        toast.info('You can generate your General Resume later from the Profile section.');
+        toast.info("You can generate your General Resume later from the dashboard.");
         onComplete();
     };
 
     const handleNext = async () => {
         if (!validateCurrentStep()) return;
-
         const saved = await saveCurrentStep();
         if (!saved) return;
 
         if (currentStepIndex < visibleSteps.length - 1) {
             setCurrentStep(visibleSteps[currentStepIndex + 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
-            // Last step — mark profile complete, then generate general resume
             try {
-                await profileRepository.markProfileComplete(user.id);
-                toast.success('Profile setup complete!');
+                if (user) await profileRepository.markProfileComplete(user.id);
+                toast.success("Profile done — let's build your first resume.");
                 await handleGenerateGeneralResume();
             } catch (error) {
                 console.error('Error completing profile:', error);
-                toast.error('Failed to complete setup. Please try again.');
+                toast.error("We couldn't finish setup. Please try again.");
             }
         }
     };
@@ -580,193 +566,305 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     const handleBack = () => {
         if (currentStepIndex > 0) {
             setCurrentStep(visibleSteps[currentStepIndex - 1]);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
     };
 
-    // Show generating resume screen
+    const jumpTo = (target: SetupStep) => {
+        // Only allow jumping to a step you've already reached or the current one.
+        const targetIndex = visibleSteps.indexOf(target);
+        if (targetIndex >= 0 && targetIndex <= currentStepIndex) {
+            setCurrentStep(target);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    // -------------------- Loading state --------------------
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-charcoal-50 flex items-center justify-center">
+                <Loader2 className="animate-spin text-brand-700" size={32} />
+            </div>
+        );
+    }
+
+    // -------------------- Generating General Resume --------------------
     if (isGeneratingResume) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-6 text-center px-4">
-                    <div className="relative">
-                        <div className="w-20 h-20 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin"></div>
+            <div className="min-h-screen bg-charcoal-50 flex items-center justify-center px-4">
+                <div className="max-w-md text-center">
+                    <div className="relative mx-auto w-20 h-20 mb-8">
+                        <div className="absolute inset-0 border-4 border-charcoal-200 border-t-brand-700 rounded-full animate-spin" />
                         <div className="absolute inset-0 flex items-center justify-center">
-                            <Sparkles size={28} className="text-brand-600 animate-pulse" />
+                            <Sparkles size={24} className="text-accent-500 animate-pulse" />
                         </div>
                     </div>
-                    <h2 className="text-2xl font-bold text-charcoal-900">Generating Your General Resume</h2>
-                    <p className="text-charcoal-500 max-w-md">
-                        Our AI is crafting a professional resume from your profile data. This takes about 15–20 seconds.
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold mb-3">
+                        Your first resume
+                    </p>
+                    <h2 className="font-display text-3xl font-semibold text-brand-700 leading-tight mb-3">
+                        Building your General Resume
+                    </h2>
+                    <p className="text-brand-500 leading-relaxed">
+                        Our AI is drafting a professional, ATS-friendly resume from everything
+                        you just shared. About 15–20 seconds.
                     </p>
                 </div>
             </div>
         );
     }
 
-    // Show generation failed screen with retry
+    // -------------------- Generation failed --------------------
     if (generationFailed) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
-                <div className="bg-white rounded-2xl shadow-lg border border-charcoal-200 p-8 max-w-md w-full mx-4 text-center">
-                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Sparkles size={28} className="text-red-500" />
+            <div className="min-h-screen bg-charcoal-50 flex items-center justify-center px-4">
+                <div className="bg-white border border-charcoal-200 rounded-2xl p-8 max-w-md w-full text-center shadow-sm">
+                    <div className="w-14 h-14 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto mb-5">
+                        <AlertCircle size={22} className="text-red-600" />
                     </div>
-                    <h2 className="text-xl font-bold text-charcoal-900 mb-2">Resume Generation Failed</h2>
-                    <p className="text-charcoal-500 mb-2">
-                        We couldn't generate your General Resume at this time.
+                    <h2 className="font-display text-2xl font-semibold text-brand-700 mb-2">
+                        Resume generation hit a snag
+                    </h2>
+                    <p className="text-brand-500 mb-2 leading-relaxed">
+                        We couldn't build your General Resume this time. Your profile is saved —
+                        you can try again or skip and come back later.
                     </p>
                     {generationError && (
-                        <p className="text-sm text-red-500 mb-6 bg-red-50 rounded-lg p-3">
+                        <p className="text-sm text-red-700 mb-5 bg-red-50 rounded-lg p-3 text-left border border-red-100">
                             {generationError}
                         </p>
                     )}
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 mt-4">
                         <button
                             type="button"
                             onClick={handleGenerateGeneralResume}
-                            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors shadow-sm"
+                            className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-brand-700 text-charcoal-50 rounded-full font-semibold hover:bg-brand-800 transition-colors"
                         >
-                            <Sparkles size={18} />
-                            Try Again
+                            <Sparkles size={16} className="text-accent-400" />
+                            Try again
                         </button>
                         <button
                             type="button"
                             onClick={handleSkipGeneration}
-                            className="w-full px-6 py-3 text-charcoal-600 hover:text-charcoal-900 font-medium hover:bg-charcoal-50 rounded-lg transition-colors"
+                            className="w-full px-5 py-3 text-brand-600 hover:text-brand-700 font-semibold hover:bg-charcoal-100 rounded-full transition-colors text-sm"
                         >
-                            Skip for Now
+                            Skip for now
                         </button>
-                        <p className="text-xs text-charcoal-400 mt-1">
-                            You can generate your General Resume later from the Profile section.
-                        </p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex items-center justify-center">
-                <Loader2 className="animate-spin text-brand-600" size={40} />
-            </div>
-        );
-    }
-
-
+    // -------------------- Main wizard --------------------
+    const isFirstStep = currentStep === SetupStep.IMPORT_RESUME;
+    const isLastStep = currentStepIndex === visibleSteps.length - 1;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-brand-50 flex flex-col">
-            {/* Header */}
-            <header className="bg-white/80 backdrop-blur-sm border-b border-charcoal-200 sticky top-0 z-40">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center text-white font-bold">R</div>
-                        <span className="font-bold text-xl text-charcoal-900 tracking-tight">Complete Your Profile</span>
+        <div className="min-h-screen bg-charcoal-50 flex flex-col">
+            {/* Top bar */}
+            <header className="bg-white border-b border-charcoal-200 sticky top-0 z-40">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-5 min-w-0">
+                        <Wordmark />
+                        <span className="hidden sm:block h-5 w-px bg-charcoal-300" />
+                        <span className="hidden sm:block text-sm font-medium text-brand-600 truncate">
+                            Complete your profile
+                        </span>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-sm text-charcoal-500 hidden sm:block">
-                            Step {currentStepIndex + 1} of {totalSteps}
-                        </div>
+
+                    <div className="flex items-center gap-3">
+                        {!isFirstStep && (
+                            <div className="hidden sm:block text-xs text-charcoal-500 font-medium tabular-nums">
+                                Step {progressIndex} of {progressSteps.length}
+                            </div>
+                        )}
                         <button
                             type="button"
                             onClick={() => signOut()}
                             className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
-                            title="Sign Out"
+                            title="Sign out"
                         >
-                            <LogOut size={20} />
+                            <LogOut size={18} />
                         </button>
                     </div>
                 </div>
+
+                {/* Mobile progress bar */}
+                {!isFirstStep && (
+                    <div className="lg:hidden px-4 py-3 border-t border-charcoal-100">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-[11px] uppercase tracking-[0.18em] text-accent-600 font-semibold">
+                                {STEP_COPY[currentStep].phase}
+                            </span>
+                            <span className="text-xs font-medium text-charcoal-500 tabular-nums">
+                                {progressIndex} / {progressSteps.length}
+                            </span>
+                        </div>
+                        <div className="w-full h-1 bg-charcoal-200 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-accent-500 transition-[width] duration-300 ease-out"
+                                style={{ width: `${progressPercent}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
             </header>
 
-            {/* Progress Bar */}
-            <div className="w-full h-1 bg-charcoal-200">
-                <div
-                    className="h-full bg-brand-600 transition-[width] duration-300 ease-out"
-                    style={{ width: `${progress}%` }}
-                />
-            </div>
+            {/* Main grid */}
+            <div className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+                <div className="grid lg:grid-cols-12 gap-6 lg:gap-10">
+                    {/* Left rail — desktop only */}
+                    <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
+                        <div className="sticky top-24">
+                            <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold mb-2">
+                                Your profile
+                            </p>
+                            <h1 className="font-display text-2xl font-semibold text-brand-700 leading-tight mb-6">
+                                Set once, reuse everywhere
+                            </h1>
+                            <p className="text-sm text-brand-500 leading-relaxed mb-8">
+                                This becomes the master source every future tailored resume, cover letter,
+                                and outreach email is generated from. Take your time — it only happens once.
+                            </p>
 
-            {/* Step Indicators */}
-            <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
-                <div className="overflow-x-auto py-4 scrollbar-hide">
-                    <div className="flex items-center min-w-full sm:justify-between px-1">
-                        {visibleSteps.map((step, idx) => (
-                            <React.Fragment key={step}>
-                                <div className="flex flex-col items-center flex-shrink-0 z-10">
-                                    <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-[background-color,border-color,transform] duration-300 border-2 ${currentStep === step
-                                        ? 'bg-brand-600 text-white border-brand-600 shadow-lg scale-110'
-                                        : visibleSteps.indexOf(currentStep) > idx
-                                            ? 'bg-green-500 text-white border-green-500'
-                                            : 'bg-white text-charcoal-300 border-charcoal-200'
-                                        }`}>
-                                        {visibleSteps.indexOf(currentStep) > idx ? (
-                                            <CheckCircle2 size={24} />
-                                        ) : (
-                                            getStepIcon(step)
-                                        )}
-                                    </div>
-                                    <span className={`text-xs font-medium mt-3 whitespace-nowrap px-2 transition-colors duration-300 ${currentStep === step
-                                        ? 'text-brand-700 font-bold'
-                                        : visibleSteps.indexOf(currentStep) > idx
-                                            ? 'text-green-600'
-                                            : 'text-charcoal-400'
-                                        }`}>
-                                        {getStepLabel(step)}
-                                    </span>
+                            <nav className="space-y-6">
+                                {phaseGroups.map((group, gIdx) => {
+                                    const groupFurthestIndex = Math.max(
+                                        ...group.steps.map(s => visibleSteps.indexOf(s)),
+                                    );
+                                    const groupStarted = currentStepIndex >= visibleSteps.indexOf(group.steps[0]);
+                                    const groupDone = currentStepIndex > groupFurthestIndex &&
+                                        group.steps.every(s => stepHasContent(s));
+
+                                    return (
+                                        <div key={group.title}>
+                                            <div className="flex items-center gap-2.5 mb-3">
+                                                <span
+                                                    className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
+                                                        groupDone
+                                                            ? 'bg-brand-700 text-accent-300'
+                                                            : groupStarted
+                                                                ? 'bg-accent-500 text-brand-800'
+                                                                : 'bg-charcoal-200 text-charcoal-500'
+                                                    }`}
+                                                >
+                                                    {groupDone ? <Check size={12} strokeWidth={3} /> : gIdx + 1}
+                                                </span>
+                                                <span className={`text-[11px] uppercase tracking-[0.22em] font-semibold ${
+                                                    groupStarted ? 'text-brand-700' : 'text-charcoal-500'
+                                                }`}>
+                                                    {group.title}
+                                                </span>
+                                            </div>
+                                            <ul className="ml-3 pl-5 border-l border-charcoal-200 space-y-1.5">
+                                                {group.steps.map(step => {
+                                                    const idx = visibleSteps.indexOf(step);
+                                                    const isCurrent = step === currentStep;
+                                                    const isPast = idx < currentStepIndex;
+                                                    const clickable = idx <= currentStepIndex;
+                                                    const done = isPast && stepHasContent(step);
+                                                    return (
+                                                        <li key={step}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => clickable && jumpTo(step)}
+                                                                disabled={!clickable}
+                                                                className={`group flex items-center gap-2 text-sm w-full text-left py-1 -ml-[23px] pl-[18px] relative ${
+                                                                    isCurrent
+                                                                        ? 'text-brand-700 font-semibold'
+                                                                        : clickable
+                                                                            ? 'text-brand-500 hover:text-brand-700'
+                                                                            : 'text-charcoal-400 cursor-not-allowed'
+                                                                }`}
+                                                            >
+                                                                <span
+                                                                    className={`absolute left-[-5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 transition-colors ${
+                                                                        isCurrent
+                                                                            ? 'border-accent-500 bg-accent-500'
+                                                                            : done
+                                                                                ? 'border-brand-700 bg-brand-700'
+                                                                                : 'border-charcoal-300 bg-charcoal-50'
+                                                                    }`}
+                                                                />
+                                                                <span className="truncate">{STEP_COPY[step].label}</span>
+                                                            </button>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    );
+                                })}
+                            </nav>
+
+                            <div className="mt-10 rounded-2xl bg-brand-700 text-charcoal-100 p-5">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FileText size={14} className="text-accent-400" />
+                                    <p className="text-[11px] uppercase tracking-[0.2em] text-accent-400 font-semibold">
+                                        Already have a resume?
+                                    </p>
                                 </div>
-                                {idx < visibleSteps.length - 1 && (
-                                    <div className={`h-0.5 w-16 sm:w-full min-w-[3rem] -mt-8 mx-2 transition-colors duration-500 ${visibleSteps.indexOf(currentStep) > idx ? 'bg-green-500' : 'bg-charcoal-200'
-                                        }`} />
-                                )}
-                            </React.Fragment>
-                        ))}
-                    </div>
+                                <p className="text-sm text-charcoal-200 leading-relaxed mb-3">
+                                    Upload your existing PDF and we'll prefill everything below. You can
+                                    edit anything after.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => setCurrentStep(SetupStep.IMPORT_RESUME)}
+                                    className="text-sm text-accent-300 hover:text-accent-200 font-semibold inline-flex items-center gap-1 transition-colors"
+                                >
+                                    Import resume
+                                    <ChevronRight size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* Right content */}
+                    <main className="lg:col-span-8 xl:col-span-9 pb-24">
+                        <div className="bg-white border border-charcoal-200 rounded-2xl shadow-sm p-6 sm:p-8 lg:p-10">
+                            {renderCurrentStep()}
+                        </div>
+                    </main>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 pb-32">
-                <div className="bg-white rounded-2xl shadow-sm border border-charcoal-200 p-6 sm:p-8">
-                    {renderCurrentStep()}
-                </div>
-            </main>
-
-            {/* Fixed Bottom Navigation */}
-            {currentStep !== SetupStep.IMPORT_RESUME && (
-                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 py-4 px-4">
-                    <div className="max-w-4xl mx-auto flex justify-between items-center">
+            {/* Sticky bottom navigation — hidden on the import step, where
+                ResumeUploadStep has its own primary/secondary actions. */}
+            {!isFirstStep && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-charcoal-200 z-30">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
                         <button
                             type="button"
                             onClick={handleBack}
                             disabled={currentStepIndex === 0 || saving}
-                            className="flex items-center gap-2 px-4 py-2 text-charcoal-600 hover:text-charcoal-900 font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-brand-600 hover:text-brand-700 hover:bg-charcoal-100 rounded-full disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                         >
-                            <ChevronLeft size={20} />
+                            <ChevronLeft size={16} />
                             Back
                         </button>
 
                         <button
                             type="button"
                             onClick={handleNext}
-                            disabled={saving || !validateCurrentStep(false)}
-                            className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 disabled:bg-charcoal-400 disabled:text-charcoal-100 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            disabled={saving}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 bg-brand-700 text-charcoal-50 rounded-full font-semibold text-sm hover:bg-brand-800 disabled:bg-charcoal-400 disabled:cursor-not-allowed transition-colors"
                         >
                             {saving ? (
                                 <>
-                                    <Loader2 className="animate-spin" size={18} />
-                                    Saving...
+                                    <Loader2 className="animate-spin" size={16} />
+                                    Saving
                                 </>
-                            ) : currentStepIndex === visibleSteps.length - 1 ? (
+                            ) : isLastStep ? (
                                 <>
-                                    Complete Setup
-                                    <CheckCircle2 size={18} />
+                                    Finish & build resume
+                                    <Sparkles size={16} className="text-accent-400" />
                                 </>
                             ) : (
                                 <>
-                                    Next
-                                    <ChevronRight size={18} />
+                                    Continue
+                                    <ChevronRight size={16} />
                                 </>
                             )}
                         </button>

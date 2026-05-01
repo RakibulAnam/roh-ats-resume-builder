@@ -14,6 +14,8 @@ export enum AppStep {
   CERTIFICATIONS = 10,
   AFFILIATIONS = 11,
   PUBLICATIONS = 12,
+  LANGUAGES = 15,
+  REFERENCES = 16,
   SECTIONS = 13, // Choose which sections to include
   PREVIEW = 14,
 }

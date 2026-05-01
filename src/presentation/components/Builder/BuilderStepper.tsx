@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { AppStep } from '../../../domain/entities';
 
 interface StepInfo {
@@ -13,72 +13,62 @@ interface BuilderStepperProps {
 }
 
 export const BuilderStepper = ({ steps, currentStep }: BuilderStepperProps) => {
+    const currentStepIndex = steps.findIndex(s => s.id === currentStep);
+    const progress = steps.length > 0 ? ((currentStepIndex + 1) / steps.length) * 100 : 0;
+
     return (
-        <div className="bg-white border-b border-charcoal-200 shadow-sm py-4">
-            <div className="max-w-5xl mx-auto px-4">
-                {/* Desktop Stepper */}
-                <div className="hidden md:flex items-center justify-between">
-                    <div className="flex-1 flex items-center justify-between relative">
-                        {/* Progress Bar Background Line */}
-                        <div className="absolute top-5 left-0 w-full h-0.5 bg-charcoal-200 -z-10" />
-
-                        {steps.map((s, idx) => {
-                            const isActive = s.id === currentStep;
-                            const isCompleted = s.id < currentStep;
-
-                            return (
-                                <div key={s.id} className="flex flex-col items-center relative z-10">
-                                    {/* Circle */}
-                                    <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-[background-color,border-color,color,transform] duration-300 border-2 ${isActive
-                                                ? 'bg-brand-600 border-brand-600 text-white shadow-lg scale-110'
-                                                : isCompleted
-                                                    ? 'bg-white border-green-500 text-green-500'
-                                                    : 'bg-white border-charcoal-300 text-charcoal-400'
-                                            }`}
-                                    >
-                                        {isCompleted ? <CheckCircle2 size={20} /> : idx + 1}
-                                    </div>
-
-                                    {/* Label */}
-                                    <div className={`mt-2 text-xs font-semibold uppercase tracking-wider ${isActive ? 'text-brand-600' : isCompleted ? 'text-green-600' : 'text-charcoal-400'
-                                        }`}>
-                                        {s.title}
-                                    </div>
+        <div className="bg-white border-b border-charcoal-200">
+            <div className="max-w-5xl mx-auto px-4 py-4">
+                {/* Desktop */}
+                <div className="hidden md:flex items-center justify-between relative">
+                    <div className="absolute top-[14px] left-0 w-full h-px bg-charcoal-200" aria-hidden />
+                    {steps.map((s, idx) => {
+                        const isActive = s.id === currentStep;
+                        const isCompleted = idx < currentStepIndex;
+                        return (
+                            <div key={s.id} className="flex flex-col items-center relative z-10 bg-white px-2">
+                                <div
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors duration-200 border ${
+                                        isActive
+                                            ? 'bg-accent-500 border-accent-500 text-brand-800 ring-4 ring-accent-100'
+                                            : isCompleted
+                                                ? 'bg-brand-700 border-brand-700 text-accent-300'
+                                                : 'bg-white border-charcoal-300 text-charcoal-500'
+                                    }`}
+                                >
+                                    {isCompleted ? <Check size={13} strokeWidth={3} /> : idx + 1}
                                 </div>
-                            );
-                        })}
-                    </div>
+                                <div
+                                    className={`mt-2 text-[10px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap ${
+                                        isActive
+                                            ? 'text-brand-700'
+                                            : isCompleted
+                                                ? 'text-brand-500'
+                                                : 'text-charcoal-400'
+                                    }`}
+                                >
+                                    {s.title}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
-                {/* Mobile Stepper */}
+                {/* Mobile */}
                 <div className="md:hidden">
                     <div className="flex items-center justify-between mb-2">
-                        {(() => {
-                            const currentStepIndex = steps.findIndex(s => s.id === currentStep);
-                            return (
-                                <>
-                                    <span className="text-xs font-semibold text-charcoal-500 uppercase tracking-wider">
-                                        Step {currentStepIndex + 1} of {steps.length}
-                                    </span>
-                                    <span className="text-sm font-bold text-brand-600">
-                                        {steps[currentStepIndex]?.title}
-                                    </span>
-                                </>
-                            );
-                        })()}
+                        <span className="text-[10px] font-semibold text-charcoal-500 uppercase tracking-[0.2em]">
+                            Step {currentStepIndex + 1} of {steps.length}
+                        </span>
+                        <span className="text-sm font-semibold text-brand-700">
+                            {steps[currentStepIndex]?.title}
+                        </span>
                     </div>
-                    <div className="w-full h-2 bg-charcoal-100 rounded-full overflow-hidden">
-                        {(() => {
-                            const currentStepIndex = steps.findIndex(s => s.id === currentStep);
-                            const progress = ((currentStepIndex + 1) / steps.length) * 100;
-                            return (
-                                <div
-                                    className="h-full bg-brand-600 transition-[width] duration-500 ease-out rounded-full"
-                                    style={{ width: `${progress}%` }}
-                                />
-                            );
-                        })()}
+                    <div className="w-full h-1 bg-charcoal-200 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-accent-500 transition-[width] duration-300 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
                     </div>
                 </div>
             </div>

@@ -252,6 +252,75 @@ create policy "Users can update own publications" on publications
 create policy "Users can delete own publications" on publications
   for delete using (auth.uid() = user_id);
 
+-- LANGUAGES (Bengali / English / Hindi etc., with proficiency level)
+create table languages (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references profiles(id) not null,
+  name text,
+  proficiency text check (proficiency in ('Native', 'Fluent', 'Professional', 'Conversational', 'Basic')),
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table languages enable row level security;
+
+create policy "Users can view own languages" on languages
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert own languages" on languages
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own languages" on languages
+  for update using (auth.uid() = user_id);
+
+create policy "Users can delete own languages" on languages
+  for delete using (auth.uid() = user_id);
+
+-- REFERENCES (named referees with phone/email — common in BD CVs)
+-- Table name `references_list` because `references` is a Postgres reserved keyword.
+create table references_list (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references profiles(id) not null,
+  name text,
+  position text,
+  organization text,
+  email text,
+  phone text,
+  relationship text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table references_list enable row level security;
+
+create policy "Users can view own references" on references_list
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert own references" on references_list
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can update own references" on references_list
+  for update using (auth.uid() = user_id);
+
+create policy "Users can delete own references" on references_list
+  for delete using (auth.uid() = user_id);
+
+-- AI CALL LOG (per-user rate limiting / audit trail for /api/* endpoints)
+create table ai_call_log (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references profiles(id) not null,
+  kind text not null check (kind in ('optimize', 'toolkit_item', 'extract_resume')),
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+create index ai_call_log_user_created_idx on ai_call_log(user_id, created_at desc);
+
+alter table ai_call_log enable row level security;
+
+create policy "Users can view own ai_call_log" on ai_call_log
+  for select using (auth.uid() = user_id);
+
+create policy "Users can insert own ai_call_log" on ai_call_log
+  for insert with check (auth.uid() = user_id);
+
 -- APPLICATIONS (for tracking job applications)
 create table applications (
   id uuid default uuid_generate_v4() primary key,

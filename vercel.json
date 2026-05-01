@@ -1,8 +1,11 @@
 {
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/index.html"
-        }
-    ]
+  "framework": "vite",
+  "buildCommand": "vite build",
+  "devCommand": "vite --port $PORT",
+  "outputDirectory": "dist",
+  "functions": {
+    "api/**/*.ts": {
+      "maxDuration": 60
+    }
+  }
 }

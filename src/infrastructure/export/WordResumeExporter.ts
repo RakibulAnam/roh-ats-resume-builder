@@ -498,6 +498,66 @@ export class WordResumeExporter implements IResumeExporter {
       );
     }
 
+    if (
+      isVisible('languages') &&
+      data.languages &&
+      data.languages.length > 0
+    ) {
+      sections.push(this.createSectionHeading('Languages', t));
+      const langLine = data.languages
+        .filter((l) => l.name)
+        .map((l) => `${l.name} (${l.proficiency})`)
+        .join(', ');
+      sections.push(
+        new Paragraph({
+          children: [new TextRun({ text: langLine, size: pt(t.sizeBody) })],
+          spacing: { after: twips(t.itemGap) },
+        })
+      );
+    }
+
+    if (
+      isVisible('references') &&
+      data.references &&
+      data.references.length > 0
+    ) {
+      sections.push(this.createSectionHeading('References', t));
+      for (const ref of data.references) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: ref.name || '', bold: true, size: pt(t.sizeBody) }),
+            ],
+            spacing: { before: twips(t.bulletGap) },
+          })
+        );
+        const posOrg = [ref.position, ref.organization].filter(Boolean).join(', ');
+        if (posOrg) {
+          sections.push(
+            new Paragraph({
+              children: [new TextRun({ text: posOrg, size: pt(t.sizeBody) })],
+            })
+          );
+        }
+        const contact = [ref.email, ref.phone].filter(Boolean).join(' · ');
+        if (contact) {
+          sections.push(
+            new Paragraph({
+              children: [new TextRun({ text: contact, size: pt(t.sizeBody) })],
+            })
+          );
+        }
+        if (ref.relationship) {
+          sections.push(
+            new Paragraph({
+              children: [new TextRun({ text: ref.relationship, size: pt(t.sizeBody) })],
+              spacing: { after: twips(t.bulletGap) },
+            })
+          );
+        }
+      }
+    }
+
     return sections;
   }
 

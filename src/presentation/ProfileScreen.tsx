@@ -4,7 +4,7 @@ import { profileRepository, createResumeService } from '../infrastructure/config
 import {
     PersonalInfo, WorkExperience, Education, Project,
     Extracurricular, Award, Certification, Affiliation, Publication,
-    UserType
+    Language, Reference, UserType
 } from '../domain/entities/Resume';
 import { toast } from 'sonner';
 import { Loader2, Save, Trash2, AlertTriangle, Sparkles } from 'lucide-react';
@@ -17,6 +17,8 @@ import { AwardSection } from './components/profile/AwardSection';
 import { CertificationSection } from './components/profile/CertificationSection';
 import { AffiliationSection } from './components/profile/AffiliationSection';
 import { PublicationSection } from './components/profile/PublicationSection';
+import { LanguageSection } from './components/profile/LanguageSection';
+import { ReferenceSection } from './components/profile/ReferenceSection';
 
 const Tabs = [
     'Personal',
@@ -28,7 +30,9 @@ const Tabs = [
     'Awards',
     'Certifications',
     'Affiliations',
-    'Publications'
+    'Publications',
+    'Languages',
+    'References',
 ];
 
 export const ProfileScreen = () => {
@@ -53,6 +57,8 @@ export const ProfileScreen = () => {
     const [certifications, setCertifications] = useState<Certification[]>([]);
     const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
     const [publications, setPublications] = useState<Publication[]>([]);
+    const [languages, setLanguages] = useState<Language[]>([]);
+    const [references, setReferences] = useState<Reference[]>([]);
 
     // General resume states
     const [hasGeneralResume, setHasGeneralResume] = useState(true); // default true to hide banner until checked
@@ -73,7 +79,7 @@ export const ProfileScreen = () => {
         try {
             if (!user) return;
 
-            const [pInfo, uType, exps, edus, projs, skls, extras, awds, certs, affs, pubs] = await Promise.all([
+            const [pInfo, uType, exps, edus, projs, skls, extras, awds, certs, affs, pubs, langs, refs] = await Promise.all([
                 profileRepository.getProfile(user.id),
                 profileRepository.getUserType(user.id),
                 profileRepository.getExperiences(user.id),
@@ -85,6 +91,8 @@ export const ProfileScreen = () => {
                 profileRepository.getCertifications(user.id),
                 profileRepository.getAffiliations(user.id),
                 profileRepository.getPublications(user.id),
+                profileRepository.getLanguages(user.id),
+                profileRepository.getReferences(user.id),
             ]);
 
             if (pInfo) setPersonalInfo(pInfo);
@@ -98,6 +106,8 @@ export const ProfileScreen = () => {
             setCertifications(certs);
             setAffiliations(affs);
             setPublications(pubs);
+            setLanguages(langs);
+            setReferences(refs);
 
         } catch (error) {
             console.error(error);
@@ -372,6 +382,8 @@ export const ProfileScreen = () => {
                 {activeTab === 'Certifications' && <CertificationSection items={certifications} onRefresh={loadProfileData} />}
                 {activeTab === 'Affiliations' && <AffiliationSection items={affiliations} onRefresh={loadProfileData} />}
                 {activeTab === 'Publications' && <PublicationSection items={publications} onRefresh={loadProfileData} />}
+                {activeTab === 'Languages' && <LanguageSection items={languages} onRefresh={loadProfileData} />}
+                {activeTab === 'References' && <ReferenceSection items={references} onRefresh={loadProfileData} />}
             </div>
         </div>
     );

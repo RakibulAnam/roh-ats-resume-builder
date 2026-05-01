@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../infrastructure/supabase/client';
 import { toast } from 'sonner';
 import { Mail, Lock, Loader2, ArrowRight, AlertCircle, XCircle } from 'lucide-react';
+import { validateEmail } from '../application/validation/emailValidator';
 
 export const LoginScreen = () => {
     const [isLogin, setIsLogin] = useState(true);
@@ -12,24 +13,39 @@ export const LoginScreen = () => {
 
     // UX States
     const [passwordError, setPasswordError] = useState('');
+    const [emailError, setEmailError] = useState('');
     const [authError, setAuthError] = useState<string | null>(null);
 
     const clearErrors = () => {
         setAuthError(null);
         if (passwordError) setPasswordError('');
+        if (emailError) setEmailError('');
     };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         clearErrors();
 
-        // Client-side Validation
         if (password.length < 6) {
             setPasswordError('Password must be at least 6 characters long');
             return;
         }
 
         setLoading(true);
+
+        // Client-side Validation
+        // Email gate runs only on signup — login should accept whatever the
+        // user originally registered with, even if our rules later tightened.
+        // The disposable-domain list is lazy-loaded, so this awaits a fetch
+        // on the first check; that's why we toggle `loading` first.
+        if (!isLogin) {
+            const result = await validateEmail(email);
+            if (!result.valid) {
+                setEmailError(result.reason);
+                setLoading(false);
+                return;
+            }
+        }
 
         try {
             if (isLogin) {
@@ -136,8 +152,8 @@ export const LoginScreen = () => {
                                         setEmail(e.target.value);
                                         clearErrors();
                                     }}
-                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-colors ${authError
-                                            ? 'border-red-300 focus-visible:ring-red-200 focus-visible:ring-2'
+                                    className={`w-full px-4 py-2 pl-10 border rounded-lg outline-none transition-colors ${emailError || authError
+                                            ? 'border-red-500 focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:border-red-500'
                                             : 'border-charcoal-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500'
                                         }`}
                                     placeholder="you@example.com"
@@ -146,6 +162,12 @@ export const LoginScreen = () => {
                                     <Mail size={18} />
                                 </div>
                             </div>
+                            {emailError && (
+                                <p className="mt-1 text-sm text-red-500 font-medium flex items-center gap-1 animate-pulse">
+                                    <AlertCircle size={14} />
+                                    {emailError}
+                                </p>
+                            )}
                         </div>
 
                         <div>

@@ -85,24 +85,28 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
     };
 
     return (
-        <div className="max-w-xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <FileText className="text-brand-600" size={24} />
-                </div>
-                <h2 className="text-2xl font-bold text-charcoal-900">Import Your Resume</h2>
-                <p className="text-charcoal-500">
-                    Upload your existing resume to automatically fill out your profile using AI. You can review and edit everything in the next steps.
+        <div className="max-w-xl mx-auto space-y-7">
+            <div className="text-center">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold mb-3">
+                    Quick start · optional
+                </p>
+                <h2 className="font-display text-3xl font-semibold text-brand-700 leading-tight mb-3">
+                    Got a resume already? Import it.
+                </h2>
+                <p className="text-brand-500 leading-relaxed">
+                    Drop your existing PDF and we'll prefill your profile. You can review and
+                    edit every field in the next steps — nothing goes live automatically.
                 </p>
             </div>
 
             <div
-                className={`relative border-2 border-dashed rounded-2xl p-8 transition-colors duration-300 ${isDragging
-                        ? 'border-brand-500 bg-brand-50'
+                className={`relative border-2 border-dashed rounded-2xl p-8 transition-colors duration-200 ${
+                    isDragging
+                        ? 'border-accent-400 bg-accent-50/60'
                         : isProcessing
                             ? 'border-charcoal-200 bg-charcoal-50'
-                            : 'border-charcoal-300 hover:border-brand-400 hover:bg-charcoal-50'
-                    }`}
+                            : 'border-charcoal-300 bg-white hover:border-accent-300 hover:bg-accent-50/30'
+                }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -119,54 +123,59 @@ export const ResumeUploadStep: React.FC<Props> = ({ onExtracted, onSkip }) => {
                 <div className="flex flex-col items-center justify-center text-center space-y-4">
                     {isProcessing ? (
                         <>
-                            <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mb-2">
-                                <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+                            <div className="w-14 h-14 bg-charcoal-100 rounded-full flex items-center justify-center">
+                                <Loader2 className="w-6 h-6 text-brand-700 animate-spin" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-charcoal-900">Analyzing Document</h3>
-                                <p className="text-sm text-charcoal-500 mt-1">Our AI is extracting your profile data...</p>
+                                <h3 className="text-base font-semibold text-brand-700">Analyzing your resume</h3>
+                                <p className="text-sm text-charcoal-500 mt-1">
+                                    Extracting your work history, skills, and education.
+                                </p>
                             </div>
                         </>
                     ) : (
                         <>
-                            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center mb-2 group-hover:bg-brand-100 transition-colors">
-                                <Upload className="w-8 h-8 text-brand-500" />
+                            <div className="w-14 h-14 bg-accent-50 border border-accent-100 rounded-full flex items-center justify-center">
+                                <Upload className="w-6 h-6 text-accent-600" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-semibold text-charcoal-900">Click to upload or drag and drop</h3>
-                                <p className="text-sm text-charcoal-500 mt-1">PDF files only (max 5MB)</p>
+                                <h3 className="text-base font-semibold text-brand-700">Drop your PDF here</h3>
+                                <p className="text-sm text-charcoal-500 mt-1">or click to browse · max 5 MB</p>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
-                                className="mt-4 px-6 py-2 bg-white border border-charcoal-300 rounded-lg text-sm font-medium text-charcoal-700 hover:bg-charcoal-50 transition-colors shadow-sm"
+                                className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-brand-700 text-charcoal-50 rounded-full text-sm font-semibold hover:bg-brand-800 transition-colors"
                             >
-                                Select File
+                                <FileText size={14} />
+                                Choose file
                             </button>
                         </>
                     )}
                 </div>
             </div>
 
-            <div className="flex items-center justify-center gap-4 text-sm text-charcoal-500">
-                <div className="h-px bg-charcoal-200 flex-1"></div>
-                <span>OR</span>
-                <div className="h-px bg-charcoal-200 flex-1"></div>
+            <div className="flex items-center justify-center gap-4 text-xs uppercase tracking-[0.2em] text-charcoal-500 font-semibold">
+                <div className="h-px bg-charcoal-200 flex-1" />
+                <span>or</span>
+                <div className="h-px bg-charcoal-200 flex-1" />
             </div>
 
             <button
                 type="button"
                 onClick={onSkip}
                 disabled={isProcessing}
-                className="w-full py-3 px-4 border-2 border-charcoal-200 text-charcoal-700 bg-white rounded-xl font-medium hover:border-charcoal-300 hover:bg-charcoal-50 transition-colors disabled:opacity-50"
+                className="w-full py-3 px-4 border border-charcoal-300 text-brand-700 bg-white rounded-full font-semibold text-sm hover:border-brand-700 hover:bg-charcoal-50 transition-colors disabled:opacity-50"
             >
-                Fill Profile Manually
+                Start from scratch
             </button>
 
-            <div className="bg-blue-50 p-4 rounded-xl flex items-start gap-3 mt-6">
-                <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={18} />
-                <p className="text-sm text-blue-800 leading-relaxed">
-                    <strong>Privacy Note:</strong> Your resume is processed securely in your browser to extract text, and only the text is sent to our AI provider. The file itself is not stored.
+            <div className="bg-charcoal-100 border border-charcoal-200 p-4 rounded-xl flex items-start gap-3">
+                <AlertCircle className="text-brand-500 shrink-0 mt-0.5" size={16} />
+                <p className="text-xs text-brand-600 leading-relaxed">
+                    <span className="font-semibold">Privacy:</span> your file is read in the
+                    browser and only the extracted text is sent to our AI provider. The PDF
+                    itself is not stored anywhere.
                 </p>
             </div>
         </div>

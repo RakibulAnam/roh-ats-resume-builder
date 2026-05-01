@@ -14,14 +14,18 @@ import {
   CertificationsStep,
   AffiliationsStep,
   PublicationsStep,
+  LanguagesStep,
+  ReferencesStep,
   SectionSelectionStep,
 } from './components/FormSteps';
 import { Preview } from './components/Preview';
 import { ResumeService } from '../application/services/ResumeService';
+import { isGibberish } from '../application/validation/gibberishDetector';
 import { useAuth } from '../infrastructure/auth/AuthContext';
 import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Navbar } from './components/Layout/Navbar';
 import { BuilderStepper } from './components/Builder/BuilderStepper';
+import { profileRepository } from '../infrastructure/config/dependencies';
 
 const STEPS_INFO = [
   { id: AppStep.USER_TYPE, title: 'User Type' },
@@ -37,11 +41,14 @@ const STEPS_INFO = [
   { id: AppStep.CERTIFICATIONS, title: 'Certifications' },
   { id: AppStep.AFFILIATIONS, title: 'Affiliations' },
   { id: AppStep.PUBLICATIONS, title: 'Publications' },
+  { id: AppStep.LANGUAGES, title: 'Languages' },
+  { id: AppStep.REFERENCES, title: 'References' },
 ];
 
 const DEFAULT_SECTIONS = [
   'experience', 'education', 'projects', 'skills',
-  'extracurriculars', 'awards', 'certifications', 'affiliations', 'publications'
+  'extracurriculars', 'awards', 'certifications', 'affiliations', 'publications',
+  'languages', 'references',
 ];
 
 export const getVisibleSteps = (userType?: 'experienced' | 'student', visibleSections?: string[]) => {
@@ -58,6 +65,8 @@ export const getVisibleSteps = (userType?: 'experienced' | 'student', visibleSec
     'certifications': AppStep.CERTIFICATIONS,
     'affiliations': AppStep.AFFILIATIONS,
     'publications': AppStep.PUBLICATIONS,
+    'languages': AppStep.LANGUAGES,
+    'references': AppStep.REFERENCES,
   };
 
   return STEPS_INFO.filter(s => {
@@ -118,6 +127,24 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   const [cooldownEndsAt, setCooldownEndsAt] = useState<Date | null>(null);
   const [regeneratingItem, setRegeneratingItem] = useState<ToolkitItem | null>(null);
 
+  // Skills the user accumulated during profile setup. Used by SkillsStep to
+  // surface JD-relevant suggestions (via fuse.js) before falling back to the
+  // common dictionary.
+  const [profileSkills, setProfileSkills] = useState<string[]>([]);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    profileRepository
+      .getSkills(user.id)
+      .then(skills => {
+        if (!cancelled) setProfileSkills(skills ?? []);
+      })
+      .catch(err => console.warn('Could not load profile skills', err));
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   useEffect(() => {
     const checkResumeStatus = async () => {
       if (!user || !resumeService || !activeResumeId) return;
@@ -158,8 +185,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         // behind a friendly fallback so we don't leak model-provider language.
         const msg = error instanceof Error ? error.message : '';
         const isCooldown = msg.includes('24 hours');
+        const isGibberish = error instanceof Error && error.name === 'GibberishContentError';
         toast.error(
-          isCooldown
+          isCooldown || isGibberish
             ? msg
             : "We couldn't regenerate your General Resume. Please try again in a moment."
         );
@@ -213,7 +241,37 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     const newErrors: Record<string, string> = {};
     let isValid = true;
 
+    // Gibberish guard — refuses to advance past free-form text fields that
+    // look like keyboard mashing. Skips proper-noun fields (company, school,
+    // person names) where a dictionary check would false-positive. Errors
+    // here surface inline on the field, matching how required-field errors
+    // already render.
+    const GIBBERISH_MSG = 'This looks like random characters. Please write real content.';
+    const flagIfGibberish = (key: string, text: string | undefined) => {
+      if (text && text.trim().length > 0 && isGibberish(text)) {
+        newErrors[key] = GIBBERISH_MSG;
+        isValid = false;
+      }
+    };
+
     switch (currentStepId) {
+      case AppStep.TARGET_JOB:
+        if (!(resumeData.targetJob?.title || '').trim()) {
+          newErrors['targetJob.title'] = 'Job title is required';
+          isValid = false;
+        }
+        if (!(resumeData.targetJob?.company || '').trim()) {
+          newErrors['targetJob.company'] = 'Company is required';
+          isValid = false;
+        }
+        if (!(resumeData.targetJob?.description || '').trim()) {
+          newErrors['targetJob.description'] = 'Job description is required';
+          isValid = false;
+        }
+        flagIfGibberish('targetJob.title', resumeData.targetJob?.title);
+        flagIfGibberish('targetJob.description', resumeData.targetJob?.description);
+        break;
+
       case AppStep.PERSONAL_INFO:
         if (!(resumeData.personalInfo.fullName || '').trim()) {
           newErrors['personalInfo.fullName'] = 'Please enter your full name';
@@ -251,6 +309,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`experience.${index}.rawDescription`] = 'Description is required';
             isValid = false;
           }
+          flagIfGibberish(`experience.${index}.role`, exp.role);
+          flagIfGibberish(`experience.${index}.rawDescription`, exp.rawDescription);
         });
         break;
 
@@ -271,6 +331,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`projects.${index}.rawDescription`] = 'Description is required';
             isValid = false;
           }
+          flagIfGibberish(`projects.${index}.name`, proj.name);
+          flagIfGibberish(`projects.${index}.rawDescription`, proj.rawDescription);
         });
         break;
 
@@ -296,6 +358,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`education.${index}.endDate`] = 'End Year is required';
             isValid = false;
           }
+          flagIfGibberish(`education.${index}.field`, edu.field);
         });
         break;
 
@@ -324,6 +387,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`extracurriculars.${index}.endDate`] = 'End Date is required';
             isValid = false;
           }
+          flagIfGibberish(`extracurriculars.${index}.title`, item.title);
+          flagIfGibberish(`extracurriculars.${index}.description`, item.description);
         });
         break;
 
@@ -341,6 +406,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`awards.${index}.date`] = 'Date is required';
             isValid = false;
           }
+          flagIfGibberish(`awards.${index}.title`, item.title);
+          flagIfGibberish(`awards.${index}.description`, item.description);
         });
         break;
 
@@ -379,6 +446,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`affiliations.${index}.endDate`] = 'End Date is required';
             isValid = false;
           }
+          flagIfGibberish(`affiliations.${index}.role`, item.role);
         });
         break;
 
@@ -396,6 +464,43 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             newErrors[`publications.${index}.date`] = 'Date is required';
             isValid = false;
           }
+          flagIfGibberish(`publications.${index}.title`, item.title);
+        });
+        break;
+
+      case AppStep.LANGUAGES:
+        resumeData.languages?.forEach((item, index) => {
+          if (!(item.name || '').trim()) {
+            newErrors[`languages.${index}.name`] = 'Language is required';
+            isValid = false;
+          }
+        });
+        break;
+
+      case AppStep.REFERENCES:
+        resumeData.references?.forEach((item, index) => {
+          if (!(item.name || '').trim()) {
+            newErrors[`references.${index}.name`] = 'Name is required';
+            isValid = false;
+          }
+          if (!(item.position || '').trim()) {
+            newErrors[`references.${index}.position`] = 'Position is required';
+            isValid = false;
+          }
+          if (!(item.organization || '').trim()) {
+            newErrors[`references.${index}.organization`] = 'Organization is required';
+            isValid = false;
+          }
+          if (!(item.email || '').trim()) {
+            newErrors[`references.${index}.email`] = 'Email is required';
+            isValid = false;
+          }
+          if (!(item.phone || '').trim()) {
+            newErrors[`references.${index}.phone`] = 'Phone is required';
+            isValid = false;
+          }
+          flagIfGibberish(`references.${index}.position`, item.position);
+          flagIfGibberish(`references.${index}.relationship`, item.relationship);
         });
         break;
 
@@ -405,11 +510,16 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
     setErrors(newErrors);
     
-    // Only show generic toast if there's no specific field error preventing the toast
-    if (!isValid && showToast && Object.keys(newErrors).length > 0 && currentStepId === AppStep.PERSONAL_INFO) {
-      toast.error('Please fix the highlighted fields.');
-    } else if (!isValid && showToast && currentStepId !== AppStep.PERSONAL_INFO) {
-      toast.error('Please fill in all required fields properly.');
+    // Field-level errors (red borders + inline messages) carry the detail —
+    // the toast just nudges the user to look up. The fallback toast covers
+    // steps that fail without setting any inline error (e.g. "add at least
+    // one work experience").
+    if (!isValid && showToast) {
+      if (Object.keys(newErrors).length > 0) {
+        toast.error('Please fix the highlighted fields.');
+      } else {
+        toast.error('Please fill in all required fields properly.');
+      }
     }
     
     return isValid;
@@ -497,7 +607,13 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       }
     } catch (err) {
       console.error('Resume generation failed:', err);
-      toast.error("We couldn't build your toolkit just now. Please try again in a moment.");
+      // GibberishContentError carries a user-actionable message naming the
+      // offending field — surface it verbatim so the user knows where to fix.
+      if (err instanceof Error && err.name === 'GibberishContentError') {
+        toast.error(err.message);
+      } else {
+        toast.error("We couldn't build your toolkit just now. Please try again in a moment.");
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -548,7 +664,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   const isLastStep = visibleSteps.length > 0 && visibleSteps[visibleSteps.length - 1].id === step;
 
   return (
-    <div className="min-h-screen bg-charcoal-50 flex flex-col">
+    <div className="min-h-screen bg-paper flex flex-col">
       <Navbar onDashboardClick={onExit} showExitBuilder={true} />
       <BuilderStepper steps={visibleSteps} currentStep={step} />
 
@@ -570,6 +686,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           {step === AppStep.TARGET_JOB && (
             <TargetJobStep
               data={resumeData.targetJob}
+              errors={errors}
               update={d => setResumeData(prev => ({ ...prev, targetJob: d }))}
             />
           )}
@@ -592,6 +709,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
               data={resumeData.projects}
               errors={errors}
               update={d => setResumeData(prev => ({ ...prev, projects: d }))}
+              userType={resumeData.userType}
             />
           )}
           {step === AppStep.EDUCATION && (
@@ -605,6 +723,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
             <SkillsStep
               data={resumeData.skills}
               update={d => setResumeData(prev => ({ ...prev, skills: d }))}
+              userType={resumeData.userType}
+              jdText={resumeData.targetJob?.description}
+              profilePool={profileSkills}
             />
           )}
           {step === AppStep.EXTRACURRICULARS && (
@@ -640,6 +761,20 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
               data={resumeData.publications || []}
               errors={errors}
               update={d => setResumeData(prev => ({ ...prev, publications: d }))}
+            />
+          )}
+          {step === AppStep.LANGUAGES && (
+            <LanguagesStep
+              data={resumeData.languages || []}
+              errors={errors}
+              update={d => setResumeData(prev => ({ ...prev, languages: d }))}
+            />
+          )}
+          {step === AppStep.REFERENCES && (
+            <ReferencesStep
+              data={resumeData.references || []}
+              errors={errors}
+              update={d => setResumeData(prev => ({ ...prev, references: d }))}
             />
           )}
 

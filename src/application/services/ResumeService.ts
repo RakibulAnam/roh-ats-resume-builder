@@ -10,6 +10,7 @@ import { GenerateInterviewQuestionsUseCase, IInterviewQuestionsGenerator } from 
 import { GenerateToolkitUseCase, IToolkitGenerator } from '../../domain/usecases/GenerateToolkitUseCase';
 import { IResumeRepository } from '../../domain/repositories/IResumeRepository';
 import { IProfileRepository } from '../../domain/repositories/IProfileRepository';
+import { assertNotGibberish, FieldCheck } from '../validation/gibberishDetector';
 
 export class ResumeService {
   private optimizeUseCase: OptimizeResumeUseCase;
@@ -69,6 +70,13 @@ export class ResumeService {
   }
 
   async optimizeResume(data: ResumeData): Promise<OptimizedResumeData> {
+    // Pre-flight gate: refuse to spend tokens on keyboard mashing. Throws a
+    // GibberishContentError listing the offending fields so the UI can show a
+    // meaningful message. We only check the long, free-form fields the user
+    // typed themselves — short structured fields (names, dates, locations)
+    // are too noisy to score and not where waste comes from.
+    this.assertContentIsReal(data);
+
     // Two concurrent Gemini calls instead of five — the optimizer refines the
     // resume itself while the combined toolkit generator produces cover
     // letter + outreach email + LinkedIn note + interview questions in one
@@ -206,6 +214,31 @@ export class ResumeService {
     throw lastErr;
   }
 
+  // Build the field list for the gibberish gate. Pulls out the long
+  // free-form fields where users brain-dump (and where keyboard mashing
+  // would burn the most tokens). Friendly labels are used so the surfaced
+  // error message reads naturally in the UI.
+  private assertContentIsReal(data: ResumeData): void {
+    const checks: FieldCheck[] = [
+      { field: 'Job title', text: data.targetJob?.title },
+      { field: 'Job description', text: data.targetJob?.description },
+      { field: 'Summary', text: data.summary },
+    ];
+    (data.experience || []).forEach((exp, i) => {
+      const label = exp.role || exp.company || `Experience ${i + 1}`;
+      checks.push({ field: `${label} — what you did`, text: exp.rawDescription });
+    });
+    (data.projects || []).forEach((proj, i) => {
+      const label = proj.name || `Project ${i + 1}`;
+      checks.push({ field: `${label} — description`, text: proj.rawDescription });
+    });
+    (data.extracurriculars || []).forEach((extra, i) => {
+      const label = extra.title || extra.organization || `Activity ${i + 1}`;
+      checks.push({ field: `${label} — description`, text: extra.description });
+    });
+    assertNotGibberish(checks);
+  }
+
   private errorMessage(err: unknown): string {
     if (err instanceof Error) return err.message;
     if (typeof err === 'string') return err;
@@ -323,7 +356,7 @@ export class ResumeService {
     }
 
     // Load all profile data
-    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs] = await Promise.all([
+    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs, langs, refs] = await Promise.all([
       this.profileRepository.getProfile(userId),
       this.profileRepository.getUserType(userId),
       this.profileRepository.getExperiences(userId),
@@ -335,6 +368,8 @@ export class ResumeService {
       this.profileRepository.getCertifications(userId),
       this.profileRepository.getAffiliations(userId),
       this.profileRepository.getPublications(userId),
+      this.profileRepository.getLanguages(userId),
+      this.profileRepository.getReferences(userId),
     ]);
 
     // Determine visible sections based on user type and available data
@@ -346,6 +381,8 @@ export class ResumeService {
     if (certs.length > 0) visibleSections.push('certifications');
     if (affs.length > 0) visibleSections.push('affiliations');
     if (pubs.length > 0) visibleSections.push('publications');
+    if (langs.length > 0) visibleSections.push('languages');
+    if (refs.length > 0) visibleSections.push('references');
 
     // Assemble ResumeData with a generic target job
     const resumeData: ResumeData = {
@@ -366,6 +403,8 @@ export class ResumeService {
       certifications: certs,
       affiliations: affs,
       publications: pubs,
+      languages: langs,
+      references: refs,
       visibleSections: Array.from(new Set(visibleSections)),
       template: 'ats-classic',
     };
@@ -396,7 +435,7 @@ export class ResumeService {
     }
 
     // Load fresh profile data
-    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs] = await Promise.all([
+    const [profile, uType, exps, projs, skls, edus, extras, awds, certs, affs, pubs, langs, refs] = await Promise.all([
       this.profileRepository.getProfile(userId),
       this.profileRepository.getUserType(userId),
       this.profileRepository.getExperiences(userId),
@@ -408,6 +447,8 @@ export class ResumeService {
       this.profileRepository.getCertifications(userId),
       this.profileRepository.getAffiliations(userId),
       this.profileRepository.getPublications(userId),
+      this.profileRepository.getLanguages(userId),
+      this.profileRepository.getReferences(userId),
     ]);
 
     // Determine visible sections
@@ -419,6 +460,8 @@ export class ResumeService {
     if (certs.length > 0) visibleSections.push('certifications');
     if (affs.length > 0) visibleSections.push('affiliations');
     if (pubs.length > 0) visibleSections.push('publications');
+    if (langs.length > 0) visibleSections.push('languages');
+    if (refs.length > 0) visibleSections.push('references');
 
     // Assemble fresh ResumeData
     const resumeData: ResumeData = {
@@ -439,6 +482,8 @@ export class ResumeService {
       certifications: certs,
       affiliations: affs,
       publications: pubs,
+      languages: langs,
+      references: refs,
       visibleSections: Array.from(new Set(visibleSections)),
       template: 'ats-classic',
     };

@@ -1,0 +1,245 @@
+[
+  {
+    "id": "backend",
+    "out": {
+      "summary": "Senior Software Engineer with 6 years 2 months of experience specializing in backend development, distributed systems, and CI/CD. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go, handling 12 million requests per day. Proficient in Go, Node.js, PostgreSQL, Redis, and Kubernetes, with experience in designing REST and GraphQL APIs. Strong background in software development with a degree in Computer Science from the University of Texas at Austin.",
+      "skills": [
+        "Go",
+        "PostgreSQL",
+        "Redis",
+        "Kubernetes",
+        "GitHub Actions",
+        "CI/CD",
+        "Grafana",
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Next.js",
+        "Node.js",
+        "Python",
+        "Django",
+        "GraphQL",
+        "REST API",
+        "Docker",
+        "AWS",
+        "Terraform",
+        "Jest",
+        "Cypress"
+      ],
+      "experience": [
+        {
+          "id": "exp-1",
+          "refinedBullets": [
+            "Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go, handling 12 million requests per day.",
+            "Designed REST and GraphQL APIs handling 12 million requests per day.",
+            "Set up CI/CD with GitHub Actions, cut deploy time from 18 to 4 minutes.",
+            "Built dashboards in Grafana, ran weekly on-call rotations, mentored 2 junior engineers."
+          ]
+        },
+        {
+          "id": "exp-2",
+          "refinedBullets": [
+            "Migrated legacy Angular code to React, shipped a component library used by 7 product teams.",
+            "Implemented WebSocket streaming for live dashboards.",
+            "Worked with product designers to redesign the funnel report; engagement on the report rose 35%.",
+            "Wrote Cypress and Jest tests, pushed unit-test coverage from 38% to 78%."
+          ]
+        },
+        {
+          "id": "exp-3",
+          "refinedBullets": [
+            "Triaged production bugs and on-call incidents, helped migrate the deployment pipeline from Jenkins to GitHub Actions.",
+            "Maintained a Django + PostgreSQL monolith for an e-commerce client.",
+            "Wrote integrations with Stripe and Shopify.",
+            "Containerized services with Docker, deployed to AWS ECS."
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj-1",
+          "refinedBullets": [
+            "Built KubeWatch, an open-source CLI that streams Kubernetes pod events to Slack, written in Go using client-go.",
+            "Shipped as a Helm chart and a Docker image, with integration tests against a kind cluster in CI."
+          ]
+        },
+        {
+          "id": "proj-2",
+          "refinedBullets": [
+            "Developed PaperTrail, a Next.js + tRPC reading-list app with offline support via service workers, using Tailwind CSS, Postgres on Supabase, and Vercel Edge Functions.",
+            "Achieved 400 monthly active users."
+          ]
+        },
+        {
+          "id": "proj-3",
+          "refinedBullets": [
+            "Standardized VPC, EKS, RDS, and IAM setup, reducing new-environment provisioning time from 2 days to 45 minutes across 6 product teams.",
+            "Created TerraDeploy, an internal tool that bootstraps multi-region AWS environments via Terraform modules."
+          ]
+        }
+      ],
+      "extracurriculars": []
+    }
+  },
+  {
+    "id": "frontend",
+    "out": {
+      "summary": "Senior Frontend Engineer with 6 years 2 months of experience specializing in React, Next.js, and TypeScript. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go. Proficient in building streaming, real-time dashboards using Server Components and WebSockets, with a strong focus on performance, accessibility, and component reusability. Aligns with Lumen Studio's tech stack and values.",
+      "skills": [
+        "React",
+        "Next.js",
+        "TypeScript",
+        "JavaScript",
+        "Node.js",
+        "Go",
+        "Python",
+        "Django",
+        "PostgreSQL",
+        "Redis",
+        "GraphQL",
+        "REST API",
+        "Docker",
+        "Kubernetes",
+        "AWS",
+        "Terraform",
+        "GitHub Actions",
+        "CI/CD",
+        "Jest",
+        "Cypress"
+      ],
+      "experience": [
+        {
+          "id": "exp-1",
+          "refinedBullets": [
+            "Built dashboards in Grafana, ran weekly on-call rotations, mentored 2 junior engineers.",
+            "Designed REST and GraphQL APIs handling 12 million requests per day.",
+            "Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go.",
+            "Set up CI/CD with GitHub Actions, cut deploy time from 18 to 4 minutes."
+          ]
+        },
+        {
+          "id": "exp-2",
+          "refinedBullets": [
+            "Migrated legacy Angular code to React, shipped a component library used by 7 product teams.",
+            "Built a customer-facing analytics dashboard in React, TypeScript, and Next.js.",
+            "Implemented WebSocket streaming for live dashboards.",
+            "Wrote Cypress and Jest tests, pushed unit-test coverage from 38% to 78%."
+          ]
+        },
+        {
+          "id": "exp-3",
+          "refinedBullets": [
+            "Maintained a Django + PostgreSQL monolith for an e-commerce client.",
+            "Wrote integrations with Stripe and Shopify.",
+            "Containerized services with Docker, deployed to AWS ECS.",
+            "Triaged production bugs and on-call incidents."
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj-1",
+          "refinedBullets": [
+            "Built KubeWatch, an open-source CLI that streams Kubernetes pod events to Slack, using Go and client-go.",
+            "Shipped as a Helm chart and a Docker image, with integration tests against a kind cluster in CI."
+          ]
+        },
+        {
+          "id": "proj-2",
+          "refinedBullets": [
+            "Developed PaperTrail, a Next.js + tRPC reading-list app with offline support via service workers, using Tailwind CSS, Postgres on Supabase, and Vercel Edge Functions.",
+            "Achieved 400 monthly active users."
+          ]
+        },
+        {
+          "id": "proj-3",
+          "refinedBullets": [
+            "Standardized VPC, EKS, RDS, and IAM setup, reducing new-environment provisioning time from 2 days to 45 minutes across 6 product teams.",
+            "Created TerraDeploy, an internal tool that bootstraps multi-region AWS environments via Terraform modules."
+          ]
+        }
+      ],
+      "extracurriculars": []
+    }
+  },
+  {
+    "id": "devops",
+    "out": {
+      "summary": "Senior Software Engineer with 6 years 2 months of experience specializing in Node.js, Kubernetes, and AWS. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go. Proficient in Terraform, GitHub Actions, and CI/CD pipelines. Experienced in on-call rotations and incident response with Grafana, Prometheus, and Loki.",
+      "skills": [
+        "Kubernetes",
+        "Terraform",
+        "AWS",
+        "GitHub Actions",
+        "CI/CD",
+        "Grafana",
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Next.js",
+        "Node.js",
+        "Go",
+        "Python",
+        "Django",
+        "PostgreSQL",
+        "Redis",
+        "GraphQL",
+        "REST API",
+        "Docker"
+      ],
+      "experience": [
+        {
+          "id": "exp-1",
+          "refinedBullets": [
+            "Set up CI/CD with GitHub Actions, cut deploy time from 18 to 4 minutes.",
+            "Designed REST and GraphQL APIs handling 12 million requests per day.",
+            "Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go.",
+            "Built dashboards in Grafana, ran weekly on-call rotations, mentored 2 junior engineers."
+          ]
+        },
+        {
+          "id": "exp-2",
+          "refinedBullets": [
+            "Implemented WebSocket streaming for live dashboards.",
+            "Migrated legacy Angular code to React, shipped a component library used by 7 product teams.",
+            "Wrote Cypress and Jest tests, pushed unit-test coverage from 38% to 78%.",
+            "Worked with product designers to redesign the funnel report; engagement on the report rose 35%."
+          ]
+        },
+        {
+          "id": "exp-3",
+          "refinedBullets": [
+            "Triaged production bugs and on-call incidents.",
+            "Containerized services with Docker, deployed to AWS ECS.",
+            "Helped migrate the deployment pipeline from Jenkins to GitHub Actions.",
+            "Maintained a Django + PostgreSQL monolith for an e-commerce client."
+          ]
+        }
+      ],
+      "projects": [
+        {
+          "id": "proj-1",
+          "refinedBullets": [
+            "Shipped KubeWatch as a Helm chart and a Docker image with integration tests against a kind cluster in CI.",
+            "Built KubeWatch, an open-source CLI that streams Kubernetes pod events to Slack, using Go and client-go."
+          ]
+        },
+        {
+          "id": "proj-2",
+          "refinedBullets": [
+            "Developed PaperTrail, a Next.js + tRPC reading-list app with offline support via service workers, using Tailwind CSS, Postgres on Supabase, and Vercel Edge Functions.",
+            "Achieved 400 monthly active users on PaperTrail."
+          ]
+        },
+        {
+          "id": "proj-3",
+          "refinedBullets": [
+            "Created TerraDeploy, an internal tool that bootstraps multi-region AWS environments via Terraform modules, standardizing VPC, EKS, RDS, and IAM setup.",
+            "Reduced new-environment provisioning time from 2 days to 45 minutes across 6 product teams using TerraDeploy."
+          ]
+        }
+      ],
+      "extracurriculars": []
+    }
+  }
+]

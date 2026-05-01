@@ -167,7 +167,7 @@ const AppContent = () => {
   const prefillFromProfile = async () => {
     if (!user) return;
     try {
-      const [profile, exps, projs, skls, uType, edus, extras, awds, certs, affils, pubs] = await Promise.all([
+      const [profile, exps, projs, skls, uType, edus, extras, awds, certs, affils, pubs, langs, refs] = await Promise.all([
         profileRepository.getProfile(user.id),
         profileRepository.getExperiences(user.id),
         profileRepository.getProjects(user.id),
@@ -179,6 +179,8 @@ const AppContent = () => {
         profileRepository.getCertifications(user.id),
         profileRepository.getAffiliations(user.id),
         profileRepository.getPublications(user.id),
+        profileRepository.getLanguages(user.id),
+        profileRepository.getReferences(user.id),
       ]);
 
       const initialVisible: string[] = ['skills', 'education', 'projects'];
@@ -190,6 +192,8 @@ const AppContent = () => {
       if (certs.length > 0) initialVisible.push('certifications');
       if (affils.length > 0) initialVisible.push('affiliations');
       if (pubs.length > 0) initialVisible.push('publications');
+      if (langs.length > 0) initialVisible.push('languages');
+      if (refs.length > 0) initialVisible.push('references');
 
       const uniqueVisible = Array.from(new Set(initialVisible));
 
@@ -206,6 +210,8 @@ const AppContent = () => {
         certifications: certs,
         affiliations: affils,
         publications: pubs,
+        languages: langs,
+        references: refs,
         visibleSections: uniqueVisible
       });
 
