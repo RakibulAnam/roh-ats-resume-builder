@@ -1,0 +1,111 @@
+══════════════════════════════════════════════════════════════════════════════
+  RESUME OPTIMIZER EFFECTIVENESS REPORT
+══════════════════════════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────────────────────────
+▶ BACKEND — Senior Backend Engineer   (2049ms)
+──────────────────────────────────────────────────────────────────────────────
+
+  Summary:
+    "Senior Software Engineer with 6 years 2 months of experience specializing in backend development, distributed systems, and CI/CD. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go, handling 12 million requests per day. Proficient in Go, Node.js, PostgreSQL, Redis, and Kubernetes, with experience in designing REST and GraphQL APIs. Strong background in software development with a degree in Computer Science from the University of Texas at Austin."
+    sentences=5  firstPerson=0  hasNumber=true  numbers=[6 years, 2 m, 850m, 220m, 12 m]
+
+  Skills (21, dup=0, fabricated=0):
+    Go · PostgreSQL · Redis · Kubernetes · GitHub Actions · CI/CD · Grafana · JavaScript · TypeScript · React · Next.js · Node.js · Python · Django · GraphQL · REST API · Docker · AWS · Terraform · Jest · Cypress
+
+  JD keyword coverage: 12/12 = 100.0%
+  JD phrase verbatim:  5/5 multi-word phrases lifted
+
+  Preserved metrics: 14/16
+    missing (some metrics are role-specific — only flag if material): 4 engineers | 1.2k
+
+  Lead bullet of current role hit JD anchor? ✓ matched [Go, latency, p95, Redis]
+
+  Per-item ATS audit:
+    [experience/exp-1] bullets=4  ✓ clean
+    [experience/exp-2] bullets=4  ⚠ 1 WEAK verb starts
+        WEAK "Worked" → "Worked with product designers to redesign the funnel report; engagement on the report rose…"
+    [experience/exp-3] bullets=4  ✓ clean
+    [project/proj-1] bullets=2  ✓ clean
+    [project/proj-2] bullets=2  ⚠ 1 too short
+    [project/proj-3] bullets=2  ✓ clean
+
+──────────────────────────────────────────────────────────────────────────────
+▶ FRONTEND — Senior Frontend Engineer (React)   (1610ms)
+──────────────────────────────────────────────────────────────────────────────
+
+  Summary:
+    "Senior Frontend Engineer with 6 years 2 months of experience specializing in React, Next.js, and TypeScript. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go. Proficient in building streaming, real-time dashboards using Server Components and WebSockets, with a strong focus on performance, accessibility, and component reusability. Aligns with Lumen Studio's tech stack and values."
+    sentences=5  firstPerson=0  hasNumber=true  numbers=[6 years, 2 m, 850m, 220m]
+
+  Skills (20, dup=0, fabricated=0):
+    React · Next.js · TypeScript · JavaScript · Node.js · Go · Python · Django · PostgreSQL · Redis · GraphQL · REST API · Docker · Kubernetes · AWS · Terraform · GitHub Actions · CI/CD · Jest · Cypress
+
+  JD keyword coverage: 11/11 = 100.0%
+  JD phrase verbatim:  5/5 multi-word phrases lifted
+
+  Preserved metrics: 13/16
+    missing (some metrics are role-specific — only flag if material): 4 engineers | 35% | 1.2k
+
+  Lead bullet of current role hit JD anchor? ✓ matched [dashboard]
+
+  Per-item ATS audit:
+    [experience/exp-1] bullets=4  ✓ clean
+    [experience/exp-2] bullets=4  ✓ clean
+    [experience/exp-3] bullets=4  ✓ clean
+    [project/proj-1] bullets=2  ✓ clean
+    [project/proj-2] bullets=2  ⚠ 1 too short
+    [project/proj-3] bullets=2  ✓ clean
+
+──────────────────────────────────────────────────────────────────────────────
+▶ DEVOPS — DevOps / Site Reliability Engineer   (1737ms)
+──────────────────────────────────────────────────────────────────────────────
+
+  Summary:
+    "Senior Software Engineer with 6 years 2 months of experience specializing in Node.js, Kubernetes, and AWS. Reduced p95 latency from 850ms to 220ms by introducing Redis caching and rewriting the route-planning service in Go. Proficient in Terraform, GitHub Actions, and CI/CD pipelines. Experienced in on-call rotations and incident response with Grafana, Prometheus, and Loki."
+    sentences=5  firstPerson=0  hasNumber=true  numbers=[6 years, 2 m, 850m, 220m]
+
+  Skills (19, dup=0, fabricated=0):
+    Kubernetes · Terraform · AWS · GitHub Actions · CI/CD · Grafana · JavaScript · TypeScript · React · Next.js · Node.js · Go · Python · Django · PostgreSQL · Redis · GraphQL · REST API · Docker
+
+  JD keyword coverage: 12/12 = 100.0%
+  JD phrase verbatim:  5/5 multi-word phrases lifted
+
+  Preserved metrics: 14/16
+    missing (some metrics are role-specific — only flag if material): 4 engineers | 1.2k
+
+  Lead bullet of current role hit JD anchor? ✓ matched [CI/CD]
+
+  Per-item ATS audit:
+    [experience/exp-1] bullets=4  ✓ clean
+    [experience/exp-2] bullets=4  ⚠ 1 WEAK verb starts
+        WEAK "Worked" → "Worked with product designers to redesign the funnel report; engagement on the report rose…"
+    [experience/exp-3] bullets=4  ⚠ 1 WEAK verb starts
+        WEAK "Helped" → "Helped migrate the deployment pipeline from Jenkins to GitHub Actions.…"
+    [project/proj-1] bullets=2  ✓ clean
+    [project/proj-2] bullets=2  ✓ clean
+    [project/proj-3] bullets=2  ✓ clean
+
+──────────────────────────────────────────────────────────────────────────────
+▶ CROSS-JD DIFFERENTIATION (lower = more tailored, higher = more generic/recycled)
+──────────────────────────────────────────────────────────────────────────────
+  backend ↔ frontend   bullets: 75.9%   summary: 35.7%   skills: 95.2%
+  backend ↔ devops   bullets: 74.6%   summary: 42.5%   skills: 90.5%
+  frontend ↔ devops   bullets: 71.8%   summary: 39.7%   skills: 85.7%
+
+──────────────────────────────────────────────────────────────────────────────
+▶ AGGREGATE
+──────────────────────────────────────────────────────────────────────────────
+  Keyword coverage:           35/35 = 100.0%
+  JD multi-word phrase lift:  15/15 = 100.0%
+  Summaries with a number:    3/3
+  Current-role lead bullets hitting JD anchor: 3/3
+  Fabricated skills (total):  0
+  Total bullets:              54
+  Weak-verb bullet starts:    3
+  Unknown-verb starts:        0  (review — may need to extend evaluator's verb list)
+  Banned phrase hits:         0
+  First-person hits:          0
+  Too short (<6 words):       2
+  Too long (>35 words):       0
+  Duplicate-verb items:       0

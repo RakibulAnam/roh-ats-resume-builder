@@ -211,6 +211,46 @@ export class PdfResumeExporter {
       // Comma-delimited — the most ATS-parseable skill layout.
       this.renderParagraph(doc, data.skills.join(', '), t, cursor, contentWidth);
     }
+
+    if (
+      isVisible('languages') &&
+      data.languages &&
+      data.languages.length > 0
+    ) {
+      this.renderSectionHeading(doc, 'Languages', t, cursor);
+      const langLine = data.languages
+        .filter((l) => l.name)
+        .map((l) => `${l.name} (${l.proficiency})`)
+        .join(', ');
+      this.renderParagraph(doc, langLine, t, cursor, contentWidth);
+    }
+
+    if (
+      isVisible('references') &&
+      data.references &&
+      data.references.length > 0
+    ) {
+      this.renderSectionHeading(doc, 'References', t, cursor);
+      for (const ref of data.references) {
+        this.ensureSpace(doc, cursor, t.sizeBody * 4, t.margin);
+        // Name in bold, then position/org line, then contact line, then optional relationship.
+        doc.setFont(t.pdfFont, 'bold');
+        doc.setFontSize(t.sizeBody);
+        cursor.y += t.sizeBody * t.lineHeight;
+        doc.text(ref.name || '', t.margin, cursor.y);
+        doc.setFont(t.pdfFont, 'normal');
+
+        const posOrg = [ref.position, ref.organization].filter(Boolean).join(', ');
+        if (posOrg) this.renderBodyLine(doc, posOrg, t, cursor, contentWidth);
+
+        const contact = [ref.email, ref.phone].filter(Boolean).join(' · ');
+        if (contact) this.renderBodyLine(doc, contact, t, cursor, contentWidth);
+
+        if (ref.relationship) this.renderBodyLine(doc, ref.relationship, t, cursor, contentWidth);
+
+        cursor.y += t.itemGap;
+      }
+    }
   }
 
   private renderHeader(

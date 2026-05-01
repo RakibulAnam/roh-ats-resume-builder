@@ -1,6 +1,6 @@
 import { supabase } from '../supabase/client';
 import { IProfileRepository } from '../../domain/repositories/IProfileRepository';
-import { PersonalInfo, WorkExperience, Education, Project, UserType, Extracurricular, Award, Certification, Affiliation, Publication } from '../../domain/entities/Resume';
+import { PersonalInfo, WorkExperience, Education, Project, UserType, Extracurricular, Award, Certification, Affiliation, Publication, Language, Reference } from '../../domain/entities/Resume';
 
 export class SupabaseProfileRepository implements IProfileRepository {
 
@@ -458,6 +458,80 @@ export class SupabaseProfileRepository implements IProfileRepository {
 
     async deletePublication(id: string): Promise<void> {
         const { error } = await supabase.from('publications').delete().eq('id', id);
+        if (error) throw error;
+    }
+
+    // --- Languages ---
+    async getLanguages(userId: string): Promise<Language[]> {
+        const { data, error } = await supabase
+            .from('languages')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            proficiency: item.proficiency,
+        }));
+    }
+
+    async saveLanguage(userId: string, item: Language): Promise<void> {
+        const payload: any = {
+            user_id: userId,
+            name: item.name,
+            proficiency: item.proficiency,
+        };
+        if (item.id && item.id.length > 20) payload.id = item.id;
+        const { error } = await supabase.from('languages').upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+    }
+
+    async deleteLanguage(id: string): Promise<void> {
+        const { error } = await supabase.from('languages').delete().eq('id', id);
+        if (error) throw error;
+    }
+
+    // --- References ---
+    // Note: table name is `references_list` because `references` is a reserved
+    // keyword in Postgres.
+    async getReferences(userId: string): Promise<Reference[]> {
+        const { data, error } = await supabase
+            .from('references_list')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return (data || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            position: item.position,
+            organization: item.organization,
+            email: item.email,
+            phone: item.phone,
+            relationship: item.relationship,
+        }));
+    }
+
+    async saveReference(userId: string, item: Reference): Promise<void> {
+        const payload: any = {
+            user_id: userId,
+            name: item.name,
+            position: item.position,
+            organization: item.organization,
+            email: item.email,
+            phone: item.phone,
+            relationship: item.relationship,
+        };
+        if (item.id && item.id.length > 20) payload.id = item.id;
+        const { error } = await supabase.from('references_list').upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+    }
+
+    async deleteReference(id: string): Promise<void> {
+        const { error } = await supabase.from('references_list').delete().eq('id', id);
         if (error) throw error;
     }
 }

@@ -1,4 +1,4 @@
-import { PersonalInfo, WorkExperience, Education, Project, UserType, Extracurricular, Award, Certification, Affiliation, Publication } from '../entities/Resume';
+import { PersonalInfo, WorkExperience, Education, Project, UserType, Extracurricular, Award, Certification, Affiliation, Publication, Language, Reference } from '../entities/Resume';
 
 export interface IProfileRepository {
     // Profile completeness
@@ -46,4 +46,12 @@ export interface IProfileRepository {
     getPublications(userId: string): Promise<Publication[]>;
     savePublication(userId: string, item: Publication): Promise<void>;
     deletePublication(id: string): Promise<void>;
+
+    getLanguages(userId: string): Promise<Language[]>;
+    saveLanguage(userId: string, item: Language): Promise<void>;
+    deleteLanguage(id: string): Promise<void>;
+
+    getReferences(userId: string): Promise<Reference[]>;
+    saveReference(userId: string, item: Reference): Promise<void>;
+    deleteReference(id: string): Promise<void>;
 }

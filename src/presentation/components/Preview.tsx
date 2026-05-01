@@ -635,6 +635,40 @@ export const Preview: React.FC<PreviewProps> = ({
           <div style={bodyTextStyle}>{data.skills.join(', ')}</div>
         </section>
       )}
+
+      {isVisible('languages') &&
+        data.languages &&
+        data.languages.length > 0 && (
+          <section style={sectionStyle}>
+            <h3 style={sectionHeadingStyle}>Languages</h3>
+            <div style={bodyTextStyle}>
+              {data.languages
+                .filter((l) => l.name)
+                .map((l) => `${l.name} (${l.proficiency})`)
+                .join(', ')}
+            </div>
+          </section>
+        )}
+
+      {isVisible('references') &&
+        data.references &&
+        data.references.length > 0 && (
+          <section style={sectionStyle}>
+            <h3 style={sectionHeadingStyle}>References</h3>
+            {data.references.map((ref) => (
+              <div key={ref.id} style={{ ...bodyTextStyle, marginBottom: '6pt' }}>
+                <div style={{ fontWeight: 600 }}>{ref.name}</div>
+                <div>
+                  {[ref.position, ref.organization].filter(Boolean).join(', ')}
+                </div>
+                <div>
+                  {[ref.email, ref.phone].filter(Boolean).join(' · ')}
+                </div>
+                {ref.relationship && <div>{ref.relationship}</div>}
+              </div>
+            ))}
+          </section>
+        )}
     </div>
   );
 

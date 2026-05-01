@@ -94,6 +94,31 @@ export interface Publication {
   link?: string;
 }
 
+// Spoken / written language proficiency. Common in Bangladesh CVs (Bengali +
+// English at minimum) and useful for global multilingual roles. ATS-safe:
+// flat list of name + proficiency, no flags or icons.
+export type LanguageProficiency = 'Native' | 'Fluent' | 'Professional' | 'Conversational' | 'Basic';
+
+export interface Language {
+  id: string;
+  name: string;            // e.g. "Bengali", "English", "Hindi"
+  proficiency: LanguageProficiency;
+}
+
+// Professional reference. Standard expectation in Bangladeshi CVs (2–3
+// referees with phone + email). Optional in most global resumes (where
+// "References available upon request" is the norm), so guarded behind the
+// section selector.
+export interface Reference {
+  id: string;
+  name: string;
+  position: string;        // e.g. "Head of Engineering"
+  organization: string;
+  email: string;
+  phone: string;
+  relationship?: string;   // e.g. "Direct manager at Northwind, 2023–present"
+}
+
 export interface OutreachEmail {
   subject: string;
   body: string; // Plain text, paragraph breaks as blank lines.
@@ -169,6 +194,8 @@ export interface ResumeData {
   certifications?: Certification[];
   affiliations?: Affiliation[];
   publications?: Publication[];
+  languages?: Language[];
+  references?: Reference[];
 
   coverLetter?: string; // AI Generated cover letter
   toolkit?: JobToolkit; // Additional AI-generated application artifacts.

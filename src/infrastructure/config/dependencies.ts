@@ -1,31 +1,34 @@
-import { GeminiResumeOptimizer } from '../ai/GeminiResumeOptimizer';
+// Dependency injection container — CLIENT side.
+//
+// All AI work is now proxied through Vercel Functions in /api/*. Client
+// holds NO provider keys. The proxy classes implement the same interfaces
+// the rest of the app already consumes; ResumeService is unchanged.
+
+import {
+  ProxyResumeOptimizer,
+  ProxyToolkitGenerator,
+  ProxyCoverLetterGenerator,
+  ProxyOutreachEmailGenerator,
+  ProxyLinkedInMessageGenerator,
+  ProxyInterviewQuestionsGenerator,
+  ProxyResumeExtractor,
+} from '../ai/proxy/ProxyClients';
 import { CompositeResumeExporter } from '../export/CompositeResumeExporter';
-import { GeminiCoverLetterGenerator } from '../ai/GeminiCoverLetterGenerator';
-import { GeminiResumeExtractor } from '../ai/GeminiResumeExtractor';
-import { GeminiOutreachEmailGenerator } from '../ai/GeminiOutreachEmailGenerator';
-import { GeminiLinkedInMessageGenerator } from '../ai/GeminiLinkedInMessageGenerator';
-import { GeminiInterviewQuestionsGenerator } from '../ai/GeminiInterviewQuestionsGenerator';
-import { GeminiToolkitGenerator } from '../ai/GeminiToolkitGenerator';
 import { ResumeService } from '../../application/services/ResumeService';
 import { SupabaseResumeRepository } from '../repositories/SupabaseResumeRepository';
 import { SupabaseProfileRepository } from '../repositories/SupabaseProfileRepository';
 import { SupabaseApplicationRepository } from '../repositories/SupabaseApplicationRepository';
-const apiKey = (import.meta as any).env.VITE_GEMINI_API_KEY;
 
-if (!apiKey || apiKey === 'your_api_key_here') {
-  console.error('API Key is missing or invalid. Please check .env file.');
-}
-
-const resumeOptimizer = new GeminiResumeOptimizer(apiKey);
+const resumeOptimizer = new ProxyResumeOptimizer();
+const toolkitGenerator = new ProxyToolkitGenerator();
+const coverLetterGenerator = new ProxyCoverLetterGenerator();
+const outreachEmailGenerator = new ProxyOutreachEmailGenerator();
+const linkedInMessageGenerator = new ProxyLinkedInMessageGenerator();
+const interviewQuestionsGenerator = new ProxyInterviewQuestionsGenerator();
 const resumeExporter = new CompositeResumeExporter();
-const coverLetterGenerator = new GeminiCoverLetterGenerator(apiKey);
-const outreachEmailGenerator = new GeminiOutreachEmailGenerator(apiKey);
-const linkedInMessageGenerator = new GeminiLinkedInMessageGenerator(apiKey);
-const interviewQuestionsGenerator = new GeminiInterviewQuestionsGenerator(apiKey);
-const toolkitGenerator = new GeminiToolkitGenerator(apiKey);
 const resumeRepository = new SupabaseResumeRepository();
 
-export const resumeExtractor = new GeminiResumeExtractor(apiKey);
+export const resumeExtractor = new ProxyResumeExtractor();
 
 // Supabase Repositories
 export const profileRepository = new SupabaseProfileRepository();

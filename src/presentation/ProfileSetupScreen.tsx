@@ -22,6 +22,8 @@ import {
     CertificationsStep,
     AffiliationsStep,
     PublicationsStep,
+    LanguagesStep,
+    ReferencesStep,
 } from './components/FormSteps';
 import {
     PersonalInfo,
@@ -34,6 +36,8 @@ import {
     Affiliation,
     Publication,
     Education,
+    Language,
+    Reference,
 } from '../domain/entities/Resume';
 import {
     ChevronLeft,
@@ -47,6 +51,7 @@ import {
 } from 'lucide-react';
 import { ResumeUploadStep } from './components/profile/ResumeUploadStep';
 import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
+import { isGibberish } from '../application/validation/gibberishDetector';
 
 interface Props {
     onComplete: () => void;
@@ -65,6 +70,8 @@ enum SetupStep {
     CERTIFICATIONS = 7,
     AFFILIATIONS = 8,
     PUBLICATIONS = 9,
+    LANGUAGES = 10,
+    REFERENCES = 11,
 }
 
 const STEP_COPY: Record<SetupStep, { label: string; phase: string }> = {
@@ -79,6 +86,8 @@ const STEP_COPY: Record<SetupStep, { label: string; phase: string }> = {
     [SetupStep.CERTIFICATIONS]: { label: 'Certifications', phase: 'Your credentials' },
     [SetupStep.AFFILIATIONS]: { label: 'Affiliations', phase: 'Your credentials' },
     [SetupStep.PUBLICATIONS]: { label: 'Publications', phase: 'Your credentials' },
+    [SetupStep.LANGUAGES]: { label: 'Languages', phase: 'Your credentials' },
+    [SetupStep.REFERENCES]: { label: 'References', phase: 'Your credentials' },
 };
 
 const Wordmark = () => (
@@ -114,6 +123,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     const [certifications, setCertifications] = useState<Certification[]>([]);
     const [affiliations, setAffiliations] = useState<Affiliation[]>([]);
     const [publications, setPublications] = useState<Publication[]>([]);
+    const [languages, setLanguages] = useState<Language[]>([]);
+    const [references, setReferences] = useState<Reference[]>([]);
 
     useEffect(() => {
         if (user?.id) {
@@ -126,7 +137,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         if (!user) return;
         setLoading(true);
         try {
-            const [profile, exps, projs, edus, skls, uType, extras, awds, certs, affs, pubs] =
+            const [profile, exps, projs, edus, skls, uType, extras, awds, certs, affs, pubs, langs, refs] =
                 await Promise.all([
                     profileRepository.getProfile(user.id),
                     profileRepository.getExperiences(user.id),
@@ -139,6 +150,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     profileRepository.getCertifications(user.id),
                     profileRepository.getAffiliations(user.id),
                     profileRepository.getPublications(user.id),
+                    profileRepository.getLanguages(user.id),
+                    profileRepository.getReferences(user.id),
                 ]);
 
             if (profile) setPersonalInfo(profile);
@@ -152,6 +165,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             if (certs.length > 0) setCertifications(certs);
             if (affs.length > 0) setAffiliations(affs);
             if (pubs.length > 0) setPublications(pubs);
+            if (langs.length > 0) setLanguages(langs);
+            if (refs.length > 0) setReferences(refs);
 
             // Resume at the first step that still lacks data.
             let nextStep = SetupStep.IMPORT_RESUME;
@@ -192,7 +207,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             SetupStep.SKILLS,
         ];
         if (userType === 'student') {
-            return [...base, SetupStep.EXTRACURRICULARS, SetupStep.AWARDS];
+            return [...base, SetupStep.EXTRACURRICULARS, SetupStep.AWARDS, SetupStep.LANGUAGES, SetupStep.REFERENCES];
         }
         if (userType === 'experienced') {
             return [
@@ -200,6 +215,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                 SetupStep.CERTIFICATIONS,
                 SetupStep.AFFILIATIONS,
                 SetupStep.PUBLICATIONS,
+                SetupStep.LANGUAGES,
+                SetupStep.REFERENCES,
             ];
         }
         return base;
@@ -220,6 +237,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             case SetupStep.CERTIFICATIONS: return certifications.length > 0;
             case SetupStep.AFFILIATIONS: return affiliations.length > 0;
             case SetupStep.PUBLICATIONS: return publications.length > 0;
+            case SetupStep.LANGUAGES: return languages.length > 0;
+            case SetupStep.REFERENCES: return references.length > 0;
             default: return false;
         }
     };
@@ -227,6 +246,19 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     const validateCurrentStep = (showToast = true): boolean => {
         const showError = (msg: string) => {
             if (showToast) toast.error(msg);
+        };
+
+        // Refuses to advance past free-form text fields that look like
+        // keyboard mashing. Skips proper-noun fields (company, school,
+        // organization, person names) where a dictionary check would
+        // false-positive. Returns true if any field tripped — caller bails
+        // immediately with a toast naming what to fix.
+        const flagGibberish = (label: string, text: string | undefined): boolean => {
+            if (text && text.trim().length > 0 && isGibberish(text)) {
+                showError(`${label} looks like random characters. Please write real content.`);
+                return true;
+            }
+            return false;
         };
 
         switch (currentStep) {
@@ -248,6 +280,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     if (!(edu.startDate || '').trim() || !(edu.endDate || '').trim()) {
                         showError('Add start and end years for every school.'); return false;
                     }
+                    if (flagGibberish('Field of study', edu.field)) return false;
                 }
                 return true;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
@@ -268,6 +301,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         if (!(exp.rawDescription || '').trim()) {
                             showError('Each position needs a brain-dump of what you did.'); return false;
                         }
+                        if (flagGibberish('Job title', exp.role)) return false;
+                        if (flagGibberish('What you did', exp.rawDescription)) return false;
                     }
                 } else {
                     for (const proj of projects) {
@@ -275,6 +310,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         if (!(proj.rawDescription || '').trim()) {
                             showError('Every project needs a description — one short paragraph is plenty.'); return false;
                         }
+                        if (flagGibberish('Project name', proj.name)) return false;
+                        if (flagGibberish('Project description', proj.rawDescription)) return false;
                     }
                 }
                 return true;
@@ -289,6 +326,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
                         showError('Each activity needs start and end dates.'); return false;
                     }
+                    if (flagGibberish('Activity title', item.title)) return false;
+                    if (flagGibberish('Activity description', item.description)) return false;
                 }
                 return true;
             case SetupStep.AWARDS:
@@ -297,6 +336,8 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         showError('Each award needs a title and issuer.'); return false;
                     }
                     if (!(item.date || '').trim()) { showError('Each award needs a date.'); return false; }
+                    if (flagGibberish('Award title', item.title)) return false;
+                    if (flagGibberish('Award description', item.description)) return false;
                 }
                 return true;
             case SetupStep.CERTIFICATIONS:
@@ -315,6 +356,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
                         showError('Each affiliation needs start and end dates.'); return false;
                     }
+                    if (flagGibberish('Affiliation role', item.role)) return false;
                 }
                 return true;
             case SetupStep.PUBLICATIONS:
@@ -323,6 +365,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         showError('Each publication needs a title and publisher.'); return false;
                     }
                     if (!(item.date || '').trim()) { showError('Each publication needs a date.'); return false; }
+                    if (flagGibberish('Publication title', item.title)) return false;
                 }
                 return true;
             default:
@@ -368,6 +411,12 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     break;
                 case SetupStep.PUBLICATIONS:
                     for (const item of publications) await profileRepository.savePublication(user.id, item);
+                    break;
+                case SetupStep.LANGUAGES:
+                    for (const item of languages) await profileRepository.saveLanguage(user.id, item);
+                    break;
+                case SetupStep.REFERENCES:
+                    for (const item of references) await profileRepository.saveReference(user.id, item);
                     break;
             }
             return true;
@@ -434,6 +483,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                 return <AffiliationsStep data={affiliations} update={setAffiliations} />;
             case SetupStep.PUBLICATIONS:
                 return <PublicationsStep data={publications} update={setPublications} />;
+            case SetupStep.LANGUAGES:
+                return <LanguagesStep data={languages} update={setLanguages} />;
+            case SetupStep.REFERENCES:
+                return <ReferencesStep data={references} update={setReferences} />;
             default:
                 return null;
         }
