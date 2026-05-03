@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { User, FileText, X } from 'lucide-react';
+import { useT } from '../i18n/LocaleContext';
 
 interface Props {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
     onChooseProfile,
     onChooseFresh
 }) => {
+    const t = useT();
     if (!isOpen) return null;
 
     return (
@@ -30,7 +32,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-charcoal-100">
-                    <h2 className="text-xl font-bold text-charcoal-900">Create New Application</h2>
+                    <h2 className="text-xl font-bold text-charcoal-900">{t('resumeSourceDialog.title')}</h2>
                     <button
                         type="button"
                         onClick={onClose}
@@ -43,7 +45,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                 {/* Content */}
                 <div className="p-6">
                     <p className="text-charcoal-600 mb-6">
-                        How would you like to start your new application?
+                        {t('resumeSourceDialog.subtitle')}
                     </p>
 
                     <div className="space-y-4">
@@ -58,9 +60,9 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                                     <User size={24} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-charcoal-900 mb-1">Use My Profile</h3>
+                                    <h3 className="font-semibold text-charcoal-900 mb-1">{t('resumeSourceDialog.useProfileTitle')}</h3>
                                     <p className="text-sm text-charcoal-500">
-                                        Pre-fill the application with your saved profile data including experience, projects, and skills.
+                                        {t('resumeSourceDialog.useProfileBody')}
                                     </p>
                                 </div>
                             </div>
@@ -77,9 +79,9 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                                     <FileText size={24} />
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-charcoal-900 mb-1">Start From Scratch</h3>
+                                    <h3 className="font-semibold text-charcoal-900 mb-1">{t('resumeSourceDialog.startFreshTitle')}</h3>
                                     <p className="text-sm text-charcoal-500">
-                                        Create a completely new application without using your saved profile data.
+                                        {t('resumeSourceDialog.startFreshBody')}
                                     </p>
                                 </div>
                             </div>
@@ -94,7 +96,7 @@ export const ResumeSourceDialog: React.FC<Props> = ({
                         onClick={onClose}
                         className="w-full py-2.5 text-charcoal-600 hover:text-charcoal-900 font-medium transition-colors"
                     >
-                        Cancel
+                        {t('resumeSourceDialog.cancel')}
                     </button>
                 </div>
             </div>

@@ -3,8 +3,11 @@ import { supabase } from '../infrastructure/supabase/client';
 import { toast } from 'sonner';
 import { Mail, Lock, Loader2, ArrowRight, AlertCircle, XCircle } from 'lucide-react';
 import { validateEmail } from '../application/validation/emailValidator';
+import { useT } from './i18n/LocaleContext';
+import { LanguageToggle } from './i18n/LanguageToggle';
 
 export const LoginScreen = () => {
+    const t = useT();
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -27,7 +30,7 @@ export const LoginScreen = () => {
         clearErrors();
 
         if (password.length < 6) {
-            setPasswordError('Password must be at least 6 characters long');
+            setPasswordError(t('login.weakPassword'));
             return;
         }
 
@@ -54,7 +57,7 @@ export const LoginScreen = () => {
                     password,
                 });
                 if (error) throw error;
-                toast.success('Welcome back!');
+                toast.success(t('login.signInSuccess'));
                 // AuthProvider will handle redirect
             } else {
                 const { error } = await supabase.auth.signUp({
@@ -68,13 +71,12 @@ export const LoginScreen = () => {
                 });
 
                 if (error) throw error;
-                toast.success('Account created successfully!');
+                toast.success(t('login.signUpSuccess'));
             }
         } catch (error) {
             console.error("Auth error:", error);
-            const message = error instanceof Error ? error.message : 'Authentication failed';
+            const message = error instanceof Error ? error.message : t('login.authFailedFallback');
             setAuthError(message);
-            // toast.error(message); // Optional: keep toast or rely on UI
         } finally {
             setLoading(false);
         }
@@ -84,22 +86,21 @@ export const LoginScreen = () => {
         <div className="min-h-screen bg-charcoal-100 flex items-center justify-center p-4">
             <div className="bg-charcoal-50 w-full max-w-md rounded-2xl border border-charcoal-200 shadow-2xl shadow-brand-900/5 overflow-hidden">
                 <div className="p-8">
-                    {/* Branding */}
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-baseline gap-1.5 select-none mb-4">
+                    {/* Branding + language toggle */}
+                    <div className="flex items-start justify-between mb-6">
+                        <div className="inline-flex items-baseline gap-1.5 select-none">
                             <span className="font-display text-2xl font-semibold tracking-tight text-brand-700">TOP</span>
                             <span className="font-display text-2xl font-semibold tracking-tight text-accent-500">CANDIDATE</span>
                         </div>
+                        <LanguageToggle />
                     </div>
 
                     <div className="text-center mb-8">
                         <h1 className="text-xl font-semibold text-charcoal-800 mb-2">
-                            {isLogin ? 'Welcome Back' : 'Create Account'}
+                            {isLogin ? t('login.welcomeBack') : t('login.createAccount')}
                         </h1>
                         <p className="text-sm text-charcoal-500">
-                            {isLogin
-                                ? 'Enter your credentials to access your dashboard'
-                                : 'Start building your career profile today'}
+                            {isLogin ? t('login.welcomeSubtitle') : t('login.createSubtitle')}
                         </p>
                     </div>
 
@@ -108,10 +109,10 @@ export const LoginScreen = () => {
                         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                             <XCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
                             <div className="flex-1">
-                                <h3 className="text-sm font-semibold text-red-800">Authentication Failed</h3>
+                                <h3 className="text-sm font-semibold text-red-800">{t('login.authFailedTitle')}</h3>
                                 <p className="text-sm text-red-600 mt-1">
                                     {authError === "Invalid login credentials"
-                                        ? "Incorrect email or password. Please try again."
+                                        ? t('login.invalidCredentials')
                                         : authError}
                                 </p>
                             </div>
@@ -121,7 +122,7 @@ export const LoginScreen = () => {
                     <form onSubmit={handleAuth} className="space-y-4">
                         {!isLogin && (
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('login.fullName')}</label>
                                 <div className="relative">
                                     <input
                                         type="text"
@@ -132,7 +133,7 @@ export const LoginScreen = () => {
                                             clearErrors();
                                         }}
                                         className="w-full px-4 py-2 pl-10 border border-charcoal-300 rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500 outline-none transition-colors"
-                                        placeholder="John Doe"
+                                        placeholder={t('login.fullNamePlaceholder')}
                                     />
                                     <div className="absolute left-3 top-2.5 text-charcoal-400">
                                         <ArrowRight size={18} />
@@ -142,7 +143,7 @@ export const LoginScreen = () => {
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-charcoal-700 mb-1">Email</label>
+                            <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('login.email')}</label>
                             <div className="relative">
                                 <input
                                     type="email"
@@ -156,7 +157,7 @@ export const LoginScreen = () => {
                                             ? 'border-red-500 focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:border-red-500'
                                             : 'border-charcoal-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500'
                                         }`}
-                                    placeholder="you@example.com"
+                                    placeholder={t('login.emailPlaceholder')}
                                 />
                                 <div className="absolute left-3 top-2.5 text-charcoal-400">
                                     <Mail size={18} />
@@ -171,7 +172,7 @@ export const LoginScreen = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-charcoal-700 mb-1">Password</label>
+                            <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('login.password')}</label>
                             <div className="relative">
                                 <input
                                     type="password"
@@ -185,7 +186,7 @@ export const LoginScreen = () => {
                                             ? 'border-red-500 focus-visible:ring-2 focus-visible:ring-red-200 focus-visible:border-red-500'
                                             : 'border-charcoal-300 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500'
                                         }`}
-                                    placeholder="••••••••"
+                                    placeholder={t('login.passwordPlaceholder')}
                                 />
                                 <div className="absolute left-3 top-2.5 text-charcoal-400">
                                     <Lock size={18} />
@@ -208,7 +209,7 @@ export const LoginScreen = () => {
                                 <Loader2 className="animate-spin" size={20} />
                             ) : (
                                 <>
-                                    {isLogin ? 'Sign In' : 'Sign Up'}
+                                    {isLogin ? t('login.signIn') : t('login.signUp')}
                                     <ArrowRight size={18} />
                                 </>
                             )}
@@ -216,7 +217,7 @@ export const LoginScreen = () => {
                     </form>
 
                     <div className="mt-6 text-center text-sm text-charcoal-600">
-                        {isLogin ? "Don't have an account? " : "Already have an account? "}
+                        {isLogin ? t('login.noAccount') : t('login.hasAccount')}{' '}
                         <button
                             type="button"
                             onClick={() => {
@@ -225,7 +226,7 @@ export const LoginScreen = () => {
                             }}
                             className="font-semibold text-brand-600 hover:text-brand-500 hover:underline"
                         >
-                            {isLogin ? 'Sign up' : 'Log in'}
+                            {isLogin ? t('login.switchToSignUp') : t('login.switchToSignIn')}
                         </button>
                     </div>
                 </div>

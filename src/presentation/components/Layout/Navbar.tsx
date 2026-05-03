@@ -1,6 +1,8 @@
 import React from 'react';
 import { LogOut, User, Menu } from 'lucide-react';
 import { useAuth } from '../../../infrastructure/auth/AuthContext';
+import { useT } from '../../i18n/LocaleContext';
+import { LanguageToggle } from '../../i18n/LanguageToggle';
 
 interface NavbarProps {
     onDashboardClick?: () => void;
@@ -9,6 +11,7 @@ interface NavbarProps {
 
 export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
     const { signOut, user } = useAuth();
+    const t = useT();
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
 
     return (
@@ -31,14 +34,16 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                                 onClick={onDashboardClick}
                                 className="text-sm font-medium text-charcoal-500 hover:text-brand-600 transition-colors px-3 py-1 rounded-md hover:bg-charcoal-50 bg-charcoal-50"
                             >
-                                Exit Builder
+                                {t('navbar.exitBuilder')}
                             </button>
                         )}
                     </div>
 
 
-                    {/* Right Section - User Menu */}
-                    <div className="hidden md:flex items-center gap-4">
+                    {/* Right Section - Language toggle + User Menu */}
+                    <div className="hidden md:flex items-center gap-3">
+                        <LanguageToggle />
+
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-charcoal-50 border border-charcoal-200">
                             <div className="w-6 h-6 bg-accent-50 rounded-full flex items-center justify-center">
                                 <User size={14} className="text-accent-600" />
@@ -52,14 +57,15 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                             type="button"
                             onClick={() => signOut()}
                             className="p-2 text-charcoal-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            title="Sign Out"
+                            title={t('navbar.signOutTooltip')}
                         >
                             <LogOut size={20} />
                         </button>
                     </div>
 
-                    {/* Mobile Menu Button */}
-                    <div className="flex items-center md:hidden">
+                    {/* Mobile: language toggle stays visible, then hamburger */}
+                    <div className="flex items-center gap-2 md:hidden">
+                        <LanguageToggle variant="compact" />
                         <button
                             type="button"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -81,11 +87,11 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                                 onClick={onDashboardClick}
                                 className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-charcoal-700 hover:text-charcoal-900 hover:bg-charcoal-50"
                             >
-                                Exit Builder
+                                {t('navbar.exitBuilder')}
                             </button>
                         )}
                         <div className="px-3 py-3 border-t border-charcoal-100 mt-2">
-                            <p className="text-sm font-medium text-charcoal-500">Signed in as</p>
+                            <p className="text-sm font-medium text-charcoal-500">{t('navbar.signedInAs')}</p>
                             <p className="text-sm font-bold text-charcoal-900 truncate">{user?.email}</p>
                         </div>
                         <button
@@ -93,7 +99,7 @@ export const Navbar = ({ onDashboardClick, showExitBuilder }: NavbarProps) => {
                             onClick={() => signOut()}
                             className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50"
                         >
-                            Sign Out
+                            {t('navbar.signOut')}
                         </button>
                     </div>
                 </div>

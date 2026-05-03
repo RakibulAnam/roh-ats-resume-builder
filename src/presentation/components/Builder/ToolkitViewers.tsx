@@ -21,6 +21,7 @@ import {
   OutreachEmail,
   InterviewQuestion,
 } from '../../../domain/entities/Resume';
+import { useT } from '../../i18n/LocaleContext';
 
 // ─────────────────────────────────────────────────────────────
 // Status card (missing / failed / regenerating)
@@ -51,9 +52,7 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
   onRetry,
   busy = false,
 }) => {
-  // Surface the real error only in the developer console — users see the
-  // friendly copy below. Keeps the devtools trail usable without leaking
-  // "quota exceeded" / stack traces into the product UI.
+  const t = useT();
   useEffect(() => {
     if (status === 'failed' && errorMessage) {
       console.debug(`[${eyebrow}] generation error:`, errorMessage);
@@ -81,10 +80,10 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
       <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl p-8 flex flex-col items-center text-center">
         <Loader2 size={28} className="text-brand-700 animate-spin mb-4" />
         <p className="font-display text-lg font-semibold text-brand-700 mb-1">
-          Regenerating…
+          {t('toolkit.statusRegenerating')}
         </p>
         <p className="text-sm text-brand-500">
-          Usually done in under 15 seconds.
+          {t('toolkit.statusRegenSubtitle')}
         </p>
       </div>
     )}
@@ -97,10 +96,10 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
           </div>
           <div>
             <p className="font-display text-base font-semibold text-brand-700 mb-1">
-              We couldn't finish this one
+              {t('toolkit.failedTitle')}
             </p>
             <p className="text-sm text-brand-500 leading-relaxed">
-              This usually clears up on its own — high demand on our end, or a brief hiccup between us and the model. Give it another try.
+              {t('toolkit.failedBody')}
             </p>
           </div>
         </div>
@@ -113,7 +112,7 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
             className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            {busy ? 'Another item is regenerating…' : 'Try again'}
+            {busy ? t('toolkit.busy') : t('toolkit.tryAgain')}
           </button>
         )}
       </div>
@@ -122,7 +121,7 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
     {status === 'missing' && (
       <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl p-6">
         <p className="text-sm text-brand-500 leading-relaxed mb-5">
-          This hasn't been generated for this resume yet. Kick off generation now — it uses the same tailored job description and won't change the resume itself.
+          {t('toolkit.missingBody')}
         </p>
         {onRetry && (
           <button
@@ -132,7 +131,7 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
             className="inline-flex items-center gap-2 text-sm font-semibold bg-brand-700 text-charcoal-50 rounded-md px-4 py-2 hover:bg-brand-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} className="text-accent-400" />}
-            {busy ? 'Another item is regenerating…' : 'Generate now'}
+            {busy ? t('toolkit.busy') : t('toolkit.generateNow')}
           </button>
         )}
       </div>
@@ -145,14 +144,14 @@ export const ToolkitStatusCard: React.FC<ToolkitStatusCardProps> = ({
 // Shared primitives
 // ─────────────────────────────────────────────────────────────
 
-const copyToClipboard = async (text: string, label: string) => {
+const copyToClipboard = async (text: string, label: string, t: ReturnType<typeof useT>) => {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success(`${label} copied to clipboard`);
+    toast.success(t('toolkit.copySuccess', { label }));
     return true;
   } catch (error) {
     console.error('Clipboard write failed:', error);
-    toast.error('Could not copy. Select the text and copy manually.');
+    toast.error(t('toolkit.copyFailed'));
     return false;
   }
 };
@@ -166,10 +165,11 @@ const CopyButton = ({
   label: string;
   variant?: 'primary' | 'secondary';
 }) => {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   const onCopy = async () => {
-    const ok = await copyToClipboard(text, label);
+    const ok = await copyToClipboard(text, label, t);
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -186,7 +186,7 @@ const CopyButton = ({
   return (
     <button type="button" onClick={onCopy} className={`${base} ${styles}`}>
       {copied ? <Check size={14} /> : <Copy size={14} />}
-      {copied ? 'Copied' : `Copy ${label.toLowerCase()}`}
+      {copied ? t('toolkit.copied') : t('toolkit.copyLabel', { label })}
     </button>
   );
 };
@@ -228,24 +228,25 @@ const ViewerShell = ({
 // ─────────────────────────────────────────────────────────────
 
 export const OutreachEmailViewer = ({ email }: { email: OutreachEmail }) => {
-  const fullText = `Subject: ${email.subject}\n\n${email.body}`;
+  const t = useT();
+  const fullText = `${t('toolkit.outreachSubject')}: ${email.subject}\n\n${email.body}`;
 
   return (
     <ViewerShell
       icon={Mail}
-      eyebrow="Outreach"
-      title="Email the hiring manager"
-      description="A short, specific cold email you can send directly to the person doing the hiring. Paste it into your client, add the recipient, and you're ready."
+      eyebrow={t('toolkit.outreachEyebrow')}
+      title={t('toolkit.outreachTitle')}
+      description={t('toolkit.outreachDesc')}
     >
       <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-charcoal-200 bg-charcoal-100">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.18em] text-brand-500 font-semibold mb-0.5">
-              Subject
+              {t('toolkit.outreachSubject')}
             </p>
             <p className="font-semibold text-brand-700 truncate">{email.subject}</p>
           </div>
-          <CopyButton text={email.subject} label="Subject" />
+          <CopyButton text={email.subject} label={t('toolkit.outreachSubject')} />
         </div>
 
         <div className="px-5 py-5">
@@ -253,15 +254,14 @@ export const OutreachEmailViewer = ({ email }: { email: OutreachEmail }) => {
             {email.body}
           </pre>
           <div className="flex flex-wrap gap-2">
-            <CopyButton text={email.body} label="Body" />
-            <CopyButton text={fullText} label="Subject + body" variant="primary" />
+            <CopyButton text={email.body} label={t('toolkit.outreachBody')} />
+            <CopyButton text={fullText} label={t('toolkit.outreachSubjectAndBody')} variant="primary" />
           </div>
         </div>
       </div>
 
       <p className="text-xs text-brand-500 mt-4 leading-relaxed">
-        Tip: find the hiring manager on LinkedIn, then confirm their work email with a tool like
-        Hunter or RocketReach before sending.
+        {t('toolkit.outreachTip')}
       </p>
     </ViewerShell>
   );
@@ -272,28 +272,29 @@ export const OutreachEmailViewer = ({ email }: { email: OutreachEmail }) => {
 // ─────────────────────────────────────────────────────────────
 
 export const LinkedInMessageViewer = ({ message }: { message: string }) => {
+  const t = useT();
   const charCount = message.length;
   const overLimit = charCount > 280;
 
   return (
     <ViewerShell
       icon={Linkedin}
-      eyebrow="Outreach"
-      title="LinkedIn connection note"
-      description="A short, tailored note to send with your connection request. Stays within LinkedIn's 300-character limit and avoids template-y language recipients learn to ignore."
+      eyebrow={t('toolkit.linkedinEyebrow')}
+      title={t('toolkit.linkedinTitle')}
+      description={t('toolkit.linkedinDesc')}
     >
       <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl p-5">
         <p className="font-sans text-[15px] leading-relaxed text-brand-700 mb-4">{message}</p>
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-charcoal-200">
           <div className="text-xs flex items-center gap-2">
             <span className={overLimit ? 'text-red-600 font-semibold' : 'text-brand-500'}>
-              {charCount} / 280 characters
+              {t('toolkit.linkedinCharCount', { n: charCount })}
             </span>
             {overLimit && (
-              <span className="text-red-600">— trim before sending</span>
+              <span className="text-red-600">{t('toolkit.linkedinTrim')}</span>
             )}
           </div>
-          <CopyButton text={message} label="Note" variant="primary" />
+          <CopyButton text={message} label={t('toolkit.linkedinNote')} variant="primary" />
         </div>
       </div>
     </ViewerShell>
@@ -325,8 +326,16 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   expanded,
   onToggle,
 }) => {
+  const t = useT();
+  const categoryLabels: Record<string, string> = {
+    Behavioral: t('toolkit.catBehavioral'),
+    Technical: t('toolkit.catTechnical'),
+    'Role-specific': t('toolkit.catRoleSpecific'),
+    'Values & Culture': t('toolkit.catValuesCulture'),
+    Situational: t('toolkit.catSituational'),
+  };
   const badge = CATEGORY_STYLES[q.category] ?? CATEGORY_STYLES['Role-specific'];
-  const fullText = `Q${index + 1}. ${q.question}\n\nWhy they ask: ${q.whyAsked}\n\nHow to answer: ${q.answerStrategy}`;
+  const fullText = `Q${index + 1}. ${q.question}\n\n${t('toolkit.interviewWhy')}: ${q.whyAsked}\n\n${t('toolkit.interviewHow')}: ${q.answerStrategy}`;
 
   return (
     <div className="bg-charcoal-50 border border-charcoal-200 rounded-2xl overflow-hidden">
@@ -345,7 +354,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           <span
             className={`inline-block text-[10px] uppercase tracking-[0.14em] font-semibold px-2 py-0.5 rounded-full border ${badge}`}
           >
-            {q.category}
+            {categoryLabels[q.category] ?? q.category}
           </span>
         </div>
         <span className="text-brand-500 shrink-0 pt-1">
@@ -357,18 +366,18 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="px-5 pb-5 pl-[4.25rem] space-y-4 text-sm leading-relaxed">
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-brand-500 font-semibold mb-1.5">
-              Why they ask
+              {t('toolkit.interviewWhy')}
             </p>
             <p className="text-brand-700">{q.whyAsked}</p>
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.18em] text-brand-500 font-semibold mb-1.5">
-              How to answer
+              {t('toolkit.interviewHow')}
             </p>
             <p className="text-brand-700">{q.answerStrategy}</p>
           </div>
           <div className="pt-2">
-            <CopyButton text={fullText} label="Question + notes" />
+            <CopyButton text={fullText} label={t('toolkit.interviewQNotes')} />
           </div>
         </div>
       )}
@@ -381,6 +390,7 @@ export const InterviewPrepViewer = ({
 }: {
   questions: InterviewQuestion[];
 }) => {
+  const t = useT();
   const [expanded, setExpanded] = useState<Set<number>>(new Set([0]));
 
   const toggle = (i: number) => {
@@ -402,20 +412,20 @@ export const InterviewPrepViewer = ({
   const fullBrief = questions
     .map(
       (q, i) =>
-        `Q${i + 1}. ${q.question}\n[${q.category}]\nWhy they ask: ${q.whyAsked}\nHow to answer: ${q.answerStrategy}`,
+        `Q${i + 1}. ${q.question}\n[${q.category}]\n${t('toolkit.interviewWhy')}: ${q.whyAsked}\n${t('toolkit.interviewHow')}: ${q.answerStrategy}`,
     )
     .join('\n\n──\n\n');
 
   return (
     <ViewerShell
       icon={MessageSquare}
-      eyebrow="Interview prep"
-      title="Must-know interview questions"
-      description="The questions you are most likely to be asked for this role, with what interviewers are scoring and how to structure a great answer using your actual experience."
+      eyebrow={t('toolkit.interviewEyebrow')}
+      title={t('toolkit.interviewTitle')}
+      description={t('toolkit.interviewDesc')}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
         <p className="text-sm text-brand-500">
-          {questions.length} questions tailored to your JD
+          {t('toolkit.interviewQCount', { n: questions.length })}
         </p>
         <div className="flex gap-2">
           <button
@@ -423,9 +433,9 @@ export const InterviewPrepViewer = ({
             onClick={setAll}
             className="text-sm font-semibold text-brand-700 hover:text-accent-600 px-2 py-1.5"
           >
-            {allExpanded ? 'Collapse all' : 'Expand all'}
+            {allExpanded ? t('toolkit.interviewCollapseAll') : t('toolkit.interviewExpandAll')}
           </button>
-          <CopyButton text={fullBrief} label="Prep brief" variant="primary" />
+          <CopyButton text={fullBrief} label={t('toolkit.interviewBrief')} variant="primary" />
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { AppStep } from '../../../domain/entities';
+import { useT } from '../../i18n/LocaleContext';
 
 interface StepInfo {
     id: AppStep;
@@ -13,6 +14,7 @@ interface BuilderStepperProps {
 }
 
 export const BuilderStepper = ({ steps, currentStep }: BuilderStepperProps) => {
+    const t = useT();
     const currentStepIndex = steps.findIndex(s => s.id === currentStep);
     const progress = steps.length > 0 ? ((currentStepIndex + 1) / steps.length) * 100 : 0;
 
@@ -58,7 +60,7 @@ export const BuilderStepper = ({ steps, currentStep }: BuilderStepperProps) => {
                 <div className="md:hidden">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-semibold text-charcoal-500 uppercase tracking-[0.2em]">
-                            Step {currentStepIndex + 1} of {steps.length}
+                            {t('profileSetup.stepCount', { n: currentStepIndex + 1, total: steps.length })}
                         </span>
                         <span className="text-sm font-semibold text-brand-700">
                             {steps[currentStepIndex]?.title}

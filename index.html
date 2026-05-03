@@ -64,11 +64,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Merriweather:wght@300;400;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Merriweather:wght@300;400;700&family=Hind+Siliguri:wght@300;400;500;600;700&family=Tiro+Bangla:ital@0;1&display=swap"
     rel="stylesheet">
   <style>
     body {
-      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      font-family: 'Inter', 'Hind Siliguri', ui-sans-serif, system-ui, sans-serif;
       background-color: #FAFAF7;
       color: #1A1812;
       -webkit-font-smoothing: antialiased;
@@ -76,13 +76,24 @@
     }
 
     .font-display {
-      font-family: 'Fraunces', Georgia, serif;
+      font-family: 'Fraunces', 'Tiro Bangla', Georgia, serif;
       font-optical-sizing: auto;
       letter-spacing: -0.02em;
     }
 
     .font-serif {
       font-family: 'Merriweather', Georgia, serif;
+    }
+
+    /* Bengali locale: prefer Bengali-first font stacks so glyphs render correctly.
+       English digits / Latin words inside Bengali strings still fall back to Inter. */
+    html[data-locale="bn"] body {
+      font-family: 'Hind Siliguri', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    html[data-locale="bn"] .font-display {
+      font-family: 'Tiro Bangla', 'Fraunces', Georgia, serif;
+      letter-spacing: 0;
     }
 
     /* Subtle paper grain — used sparingly on hero / large blank surfaces */

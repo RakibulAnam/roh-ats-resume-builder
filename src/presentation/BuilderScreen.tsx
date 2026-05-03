@@ -26,24 +26,33 @@ import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Navbar } from './components/Layout/Navbar';
 import { BuilderStepper } from './components/Builder/BuilderStepper';
 import { profileRepository } from '../infrastructure/config/dependencies';
+import { useT } from './i18n/LocaleContext';
 
-const STEPS_INFO = [
-  { id: AppStep.USER_TYPE, title: 'User Type' },
-  { id: AppStep.SECTIONS, title: 'Sections' },
-  { id: AppStep.TARGET_JOB, title: 'Target Job' },
-  { id: AppStep.PERSONAL_INFO, title: 'Personal Info' },
-  { id: AppStep.EXPERIENCE, title: 'Experience' },
-  { id: AppStep.PROJECTS, title: 'Projects' },
-  { id: AppStep.EDUCATION, title: 'Education' },
-  { id: AppStep.SKILLS, title: 'Skills' },
-  { id: AppStep.EXTRACURRICULARS, title: 'Activities' },
-  { id: AppStep.AWARDS, title: 'Awards' },
-  { id: AppStep.CERTIFICATIONS, title: 'Certifications' },
-  { id: AppStep.AFFILIATIONS, title: 'Affiliations' },
-  { id: AppStep.PUBLICATIONS, title: 'Publications' },
-  { id: AppStep.LANGUAGES, title: 'Languages' },
-  { id: AppStep.REFERENCES, title: 'References' },
+const stepsInfoFor = (t: ReturnType<typeof useT>) => [
+  { id: AppStep.USER_TYPE, title: t('builder.stepsUserType') },
+  { id: AppStep.SECTIONS, title: t('builder.stepsSections') },
+  { id: AppStep.TARGET_JOB, title: t('builder.stepsTargetJob') },
+  { id: AppStep.PERSONAL_INFO, title: t('builder.stepsPersonalInfo') },
+  { id: AppStep.EXPERIENCE, title: t('builder.stepsExperience') },
+  { id: AppStep.PROJECTS, title: t('builder.stepsProjects') },
+  { id: AppStep.EDUCATION, title: t('builder.stepsEducation') },
+  { id: AppStep.SKILLS, title: t('builder.stepsSkills') },
+  { id: AppStep.EXTRACURRICULARS, title: t('builder.stepsActivities') },
+  { id: AppStep.AWARDS, title: t('builder.stepsAwards') },
+  { id: AppStep.CERTIFICATIONS, title: t('builder.stepsCertifications') },
+  { id: AppStep.AFFILIATIONS, title: t('builder.stepsAffiliations') },
+  { id: AppStep.PUBLICATIONS, title: t('builder.stepsPublications') },
+  { id: AppStep.LANGUAGES, title: t('builder.stepsLanguages') },
+  { id: AppStep.REFERENCES, title: t('builder.stepsReferences') },
 ];
+
+// Static IDs without titles — used by getVisibleSteps which is called outside React.
+const STEP_IDS_INFO: { id: AppStep }[] = [
+  AppStep.USER_TYPE, AppStep.SECTIONS, AppStep.TARGET_JOB, AppStep.PERSONAL_INFO,
+  AppStep.EXPERIENCE, AppStep.PROJECTS, AppStep.EDUCATION, AppStep.SKILLS,
+  AppStep.EXTRACURRICULARS, AppStep.AWARDS, AppStep.CERTIFICATIONS,
+  AppStep.AFFILIATIONS, AppStep.PUBLICATIONS, AppStep.LANGUAGES, AppStep.REFERENCES,
+].map(id => ({ id }));
 
 const DEFAULT_SECTIONS = [
   'experience', 'education', 'projects', 'skills',
@@ -69,7 +78,7 @@ export const getVisibleSteps = (userType?: 'experienced' | 'student', visibleSec
     'references': AppStep.REFERENCES,
   };
 
-  return STEPS_INFO.filter(s => {
+  return STEP_IDS_INFO.filter(s => {
     if (stepsToShow.includes(s.id)) return true;
     const sectionKey = Object.keys(sectionMap).find(key => sectionMap[key] === s.id);
 
@@ -106,6 +115,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   onExit,
 }) => {
   const { user } = useAuth();
+  const t = useT();
   const [step, setStep] = useState<AppStep>(initialStep);
   const [resumeData, setResumeData] = useState<ResumeData>(initialData);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -170,7 +180,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       try {
         const newData = await resumeService.regenerateGeneralResume(user.id, activeResumeId);
         setResumeData(newData);
-        toast.success('General Resume regenerated successfully!');
+        toast.success(t('builder.generalRegenSuccess'));
 
         // update cooldown logic
         const info = await resumeService.getGeneralResumeInfo(user.id);
@@ -189,21 +199,21 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         toast.error(
           isCooldown || isGibberish
             ? msg
-            : "We couldn't regenerate your General Resume. Please try again in a moment."
+            : t('builder.generalRegenFailGeneric')
         );
       }
   };
 
   const ITEM_LABELS: Record<ToolkitItem, string> = {
-    coverLetter: 'Cover letter',
-    outreachEmail: 'Outreach email',
-    linkedInMessage: 'LinkedIn note',
-    interviewQuestions: 'Interview questions',
+    coverLetter: t('builder.itemCoverLetter'),
+    outreachEmail: t('builder.itemOutreachEmail'),
+    linkedInMessage: t('builder.itemLinkedInMessage'),
+    interviewQuestions: t('builder.itemInterviewQuestions'),
   };
 
   const handleRegenerateItem = async (item: ToolkitItem) => {
     if (!resumeService) {
-      toast.error('Service not initialized. Please refresh the page.');
+      toast.error(t('builder.serviceNotInit'));
       return;
     }
     // Concurrent regen would race on local state and double-bill the API; let
@@ -223,15 +233,13 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       if (itemError) {
         // Keep the user-facing message generic — the real error is logged to
         // the devtools console by the service / ToolkitStatusCard.
-        toast.error(`${ITEM_LABELS[item]} didn't come through. Give it another try in a moment.`);
+        toast.error(t('builder.itemFailed', { label: ITEM_LABELS[item] }));
       } else {
-        toast.success(`${ITEM_LABELS[item]} generated.`);
+        toast.success(t('builder.itemSuccess', { label: ITEM_LABELS[item] }));
       }
     } catch (error) {
-      // Only persistence errors bubble up here — AI failures are recorded on
-      // toolkit.errors and returned without throwing.
       console.error('Regeneration persist failed:', error);
-      toast.error('Couldn\'t save that change. Please try again.');
+      toast.error(t('builder.itemPersistFailed'));
     } finally {
       setRegeneratingItem(null);
     }
@@ -246,7 +254,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     // person names) where a dictionary check would false-positive. Errors
     // here surface inline on the field, matching how required-field errors
     // already render.
-    const GIBBERISH_MSG = 'This looks like random characters. Please write real content.';
+    const GIBBERISH_MSG = t('builder.gibberishField');
     const flagIfGibberish = (key: string, text: string | undefined) => {
       if (text && text.trim().length > 0 && isGibberish(text)) {
         newErrors[key] = GIBBERISH_MSG;
@@ -257,15 +265,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     switch (currentStepId) {
       case AppStep.TARGET_JOB:
         if (!(resumeData.targetJob?.title || '').trim()) {
-          newErrors['targetJob.title'] = 'Job title is required';
+          newErrors['targetJob.title'] = t('builder.errJobTitle');
           isValid = false;
         }
         if (!(resumeData.targetJob?.company || '').trim()) {
-          newErrors['targetJob.company'] = 'Company is required';
+          newErrors['targetJob.company'] = t('builder.errCompany');
           isValid = false;
         }
         if (!(resumeData.targetJob?.description || '').trim()) {
-          newErrors['targetJob.description'] = 'Job description is required';
+          newErrors['targetJob.description'] = t('builder.errJobDescription');
           isValid = false;
         }
         flagIfGibberish('targetJob.title', resumeData.targetJob?.title);
@@ -274,39 +282,39 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
       case AppStep.PERSONAL_INFO:
         if (!(resumeData.personalInfo.fullName || '').trim()) {
-          newErrors['personalInfo.fullName'] = 'Please enter your full name';
+          newErrors['personalInfo.fullName'] = t('builder.errFullName');
           isValid = false;
         }
         if (!(resumeData.personalInfo.email || '').trim()) {
-          newErrors['personalInfo.email'] = 'Please enter your email';
+          newErrors['personalInfo.email'] = t('builder.errEmail');
           isValid = false;
         }
         break;
 
       case AppStep.EXPERIENCE:
         if (resumeData.userType === 'experienced' && resumeData.experience.length === 0) {
-          if (showToast) toast.error('Please add at least one work experience');
+          if (showToast) toast.error(t('builder.addOneExp'));
           isValid = false;
         }
         resumeData.experience.forEach((exp, index) => {
           if (!(exp.company || '').trim()) {
-            newErrors[`experience.${index}.company`] = 'Company is required';
+            newErrors[`experience.${index}.company`] = t('builder.errExpCompany');
             isValid = false;
           }
           if (!(exp.role || '').trim()) {
-            newErrors[`experience.${index}.role`] = 'Role is required';
+            newErrors[`experience.${index}.role`] = t('builder.errExpRole');
             isValid = false;
           }
           if (!(exp.startDate || '').trim()) {
-            newErrors[`experience.${index}.startDate`] = 'Start Date is required';
+            newErrors[`experience.${index}.startDate`] = t('builder.errStartDate');
             isValid = false;
           }
           if (!exp.isCurrent && !(exp.endDate || '').trim()) {
-            newErrors[`experience.${index}.endDate`] = 'End Date is required';
+            newErrors[`experience.${index}.endDate`] = t('builder.errEndDate');
             isValid = false;
           }
           if (!(exp.rawDescription || '').trim()) {
-            newErrors[`experience.${index}.rawDescription`] = 'Description is required';
+            newErrors[`experience.${index}.rawDescription`] = t('builder.errDescription');
             isValid = false;
           }
           flagIfGibberish(`experience.${index}.role`, exp.role);
@@ -316,19 +324,16 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
       case AppStep.PROJECTS:
         if (resumeData.userType === 'student' && resumeData.projects.length === 0) {
-          if (showToast) toast.error('Please add at least one project');
+          if (showToast) toast.error(t('builder.addOneProject'));
           isValid = false;
         }
         resumeData.projects.forEach((proj, index) => {
           if (!(proj.name || '').trim()) {
-            newErrors[`projects.${index}.name`] = 'Project Name is required';
+            newErrors[`projects.${index}.name`] = t('builder.errProjectName');
             isValid = false;
           }
-          // "Tools / Methods / Media" is optional — many non-tech projects
-          // (research studies, legal cases, marketing campaigns, curriculum
-          // design, art portfolios) don't have technologies to list.
           if (!(proj.rawDescription || '').trim()) {
-            newErrors[`projects.${index}.rawDescription`] = 'Description is required';
+            newErrors[`projects.${index}.rawDescription`] = t('builder.errDescription');
             isValid = false;
           }
           flagIfGibberish(`projects.${index}.name`, proj.name);
@@ -339,23 +344,23 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.EDUCATION:
         resumeData.education.forEach((edu, index) => {
           if (!(edu.school || '').trim()) {
-            newErrors[`education.${index}.school`] = 'School is required';
+            newErrors[`education.${index}.school`] = t('builder.errSchool');
             isValid = false;
           }
           if (!(edu.degree || '').trim()) {
-            newErrors[`education.${index}.degree`] = 'Degree is required';
+            newErrors[`education.${index}.degree`] = t('builder.errDegree');
             isValid = false;
           }
           if (!(edu.field || '').trim()) {
-            newErrors[`education.${index}.field`] = 'Field of Study is required';
+            newErrors[`education.${index}.field`] = t('builder.errField');
             isValid = false;
           }
           if (!(edu.startDate || '').trim()) {
-            newErrors[`education.${index}.startDate`] = 'Start Year is required';
+            newErrors[`education.${index}.startDate`] = t('builder.errStartYear');
             isValid = false;
           }
           if (!edu.isCurrent && !(edu.endDate || '').trim()) {
-            newErrors[`education.${index}.endDate`] = 'End Year is required';
+            newErrors[`education.${index}.endDate`] = t('builder.errEndYear');
             isValid = false;
           }
           flagIfGibberish(`education.${index}.field`, edu.field);
@@ -364,7 +369,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
       case AppStep.SKILLS:
         if (resumeData.skills.length === 0) {
-          if (showToast) toast.error('Please add at least one skill');
+          if (showToast) toast.error(t('builder.addOneSkill'));
           isValid = false;
         }
         break;
@@ -372,19 +377,19 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.EXTRACURRICULARS:
         resumeData.extracurriculars?.forEach((item, index) => {
           if (!(item.title || '').trim()) {
-            newErrors[`extracurriculars.${index}.title`] = 'Role is required';
+            newErrors[`extracurriculars.${index}.title`] = t('builder.errRole');
             isValid = false;
           }
           if (!(item.organization || '').trim()) {
-            newErrors[`extracurriculars.${index}.organization`] = 'Organization is required';
+            newErrors[`extracurriculars.${index}.organization`] = t('builder.errOrganization');
             isValid = false;
           }
           if (!(item.startDate || '').trim()) {
-            newErrors[`extracurriculars.${index}.startDate`] = 'Start Date is required';
+            newErrors[`extracurriculars.${index}.startDate`] = t('builder.errStartDate');
             isValid = false;
           }
           if (!(item.endDate || '').trim()) {
-            newErrors[`extracurriculars.${index}.endDate`] = 'End Date is required';
+            newErrors[`extracurriculars.${index}.endDate`] = t('builder.errEndDate');
             isValid = false;
           }
           flagIfGibberish(`extracurriculars.${index}.title`, item.title);
@@ -395,15 +400,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.AWARDS:
         resumeData.awards?.forEach((item, index) => {
           if (!(item.title || '').trim()) {
-            newErrors[`awards.${index}.title`] = 'Award Title is required';
+            newErrors[`awards.${index}.title`] = t('builder.errAwardTitle');
             isValid = false;
           }
           if (!(item.issuer || '').trim()) {
-            newErrors[`awards.${index}.issuer`] = 'Issuer is required';
+            newErrors[`awards.${index}.issuer`] = t('builder.errIssuer');
             isValid = false;
           }
           if (!(item.date || '').trim()) {
-            newErrors[`awards.${index}.date`] = 'Date is required';
+            newErrors[`awards.${index}.date`] = t('builder.errDate');
             isValid = false;
           }
           flagIfGibberish(`awards.${index}.title`, item.title);
@@ -414,15 +419,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.CERTIFICATIONS:
         resumeData.certifications?.forEach((item, index) => {
           if (!(item.name || '').trim()) {
-            newErrors[`certifications.${index}.name`] = 'Certification Name is required';
+            newErrors[`certifications.${index}.name`] = t('builder.errCertName');
             isValid = false;
           }
           if (!(item.issuer || '').trim()) {
-            newErrors[`certifications.${index}.issuer`] = 'Issuer is required';
+            newErrors[`certifications.${index}.issuer`] = t('builder.errIssuer');
             isValid = false;
           }
           if (!(item.date || '').trim()) {
-            newErrors[`certifications.${index}.date`] = 'Date is required';
+            newErrors[`certifications.${index}.date`] = t('builder.errDate');
             isValid = false;
           }
         });
@@ -431,19 +436,19 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.AFFILIATIONS:
         resumeData.affiliations?.forEach((item, index) => {
           if (!(item.organization || '').trim()) {
-            newErrors[`affiliations.${index}.organization`] = 'Organization is required';
+            newErrors[`affiliations.${index}.organization`] = t('builder.errOrganization');
             isValid = false;
           }
           if (!(item.role || '').trim()) {
-            newErrors[`affiliations.${index}.role`] = 'Role is required';
+            newErrors[`affiliations.${index}.role`] = t('builder.errRole');
             isValid = false;
           }
           if (!(item.startDate || '').trim()) {
-            newErrors[`affiliations.${index}.startDate`] = 'Start Date is required';
+            newErrors[`affiliations.${index}.startDate`] = t('builder.errStartDate');
             isValid = false;
           }
           if (!(item.endDate || '').trim()) {
-            newErrors[`affiliations.${index}.endDate`] = 'End Date is required';
+            newErrors[`affiliations.${index}.endDate`] = t('builder.errEndDate');
             isValid = false;
           }
           flagIfGibberish(`affiliations.${index}.role`, item.role);
@@ -453,15 +458,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.PUBLICATIONS:
         resumeData.publications?.forEach((item, index) => {
           if (!(item.title || '').trim()) {
-            newErrors[`publications.${index}.title`] = 'Title is required';
+            newErrors[`publications.${index}.title`] = t('builder.errTitle');
             isValid = false;
           }
           if (!(item.publisher || '').trim()) {
-            newErrors[`publications.${index}.publisher`] = 'Publisher is required';
+            newErrors[`publications.${index}.publisher`] = t('builder.errPublisher');
             isValid = false;
           }
           if (!(item.date || '').trim()) {
-            newErrors[`publications.${index}.date`] = 'Date is required';
+            newErrors[`publications.${index}.date`] = t('builder.errDate');
             isValid = false;
           }
           flagIfGibberish(`publications.${index}.title`, item.title);
@@ -471,7 +476,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.LANGUAGES:
         resumeData.languages?.forEach((item, index) => {
           if (!(item.name || '').trim()) {
-            newErrors[`languages.${index}.name`] = 'Language is required';
+            newErrors[`languages.${index}.name`] = t('builder.errLanguage');
             isValid = false;
           }
         });
@@ -480,23 +485,23 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       case AppStep.REFERENCES:
         resumeData.references?.forEach((item, index) => {
           if (!(item.name || '').trim()) {
-            newErrors[`references.${index}.name`] = 'Name is required';
+            newErrors[`references.${index}.name`] = t('builder.errName');
             isValid = false;
           }
           if (!(item.position || '').trim()) {
-            newErrors[`references.${index}.position`] = 'Position is required';
+            newErrors[`references.${index}.position`] = t('builder.errPosition');
             isValid = false;
           }
           if (!(item.organization || '').trim()) {
-            newErrors[`references.${index}.organization`] = 'Organization is required';
+            newErrors[`references.${index}.organization`] = t('builder.errOrganization');
             isValid = false;
           }
           if (!(item.email || '').trim()) {
-            newErrors[`references.${index}.email`] = 'Email is required';
+            newErrors[`references.${index}.email`] = t('builder.errEmail');
             isValid = false;
           }
           if (!(item.phone || '').trim()) {
-            newErrors[`references.${index}.phone`] = 'Phone is required';
+            newErrors[`references.${index}.phone`] = t('builder.errPhone');
             isValid = false;
           }
           flagIfGibberish(`references.${index}.position`, item.position);
@@ -516,9 +521,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     // one work experience").
     if (!isValid && showToast) {
       if (Object.keys(newErrors).length > 0) {
-        toast.error('Please fix the highlighted fields.');
+        toast.error(t('builder.fieldsErrorToast'));
       } else {
-        toast.error('Please fill in all required fields properly.');
+        toast.error(t('builder.fieldsErrorFallback'));
       }
     }
     
@@ -564,7 +569,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
   const handleGenerate = async () => {
     if (!resumeService) {
-      toast.error('Service not initialized. Please refresh the page.');
+      toast.error(t('builder.serviceNotInit'));
       return;
     }
 
@@ -582,9 +587,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       // each tab, so we just tell the user where to look.
       const toolkitFailed = Object.keys(mergedData.toolkit?.errors ?? {}).length > 0;
       if (!toolkitFailed) {
-        toast.success('Toolkit ready — resume, cover letter, outreach, and interview prep.');
+        toast.success(t('builder.toolkitReady'));
       } else {
-        toast.warning('Resume ready. The outreach kit didn\'t finish this round — try any tab from the sidebar to regenerate it.');
+        toast.warning(t('builder.toolkitPartial'));
       }
 
       if (user) {
@@ -602,7 +607,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           }
         } catch (saveErr) {
           console.error('Auto-save failed', saveErr);
-          toast.error('Could not save your resume. You can keep working, but changes will be local only.');
+          toast.error(t('builder.autosaveFailed'));
         }
       }
     } catch (err) {
@@ -612,7 +617,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       if (err instanceof Error && err.name === 'GibberishContentError') {
         toast.error(err.message);
       } else {
-        toast.error("We couldn't build your toolkit just now. Please try again in a moment.");
+        toast.error(t('builder.optimizeFailed'));
       }
     } finally {
       setIsGenerating(false);
@@ -620,22 +625,22 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   };
 
   const handleExportWord = async (data: ResumeData) => {
-    if (!resumeService) throw new Error('Service not initialized');
+    if (!resumeService) throw new Error(t('builder.serviceMissing'));
     await resumeService.exportToWord(data);
   };
 
   const handleExportPDF = async (data: ResumeData) => {
-    if (!resumeService) throw new Error('Service not initialized');
+    if (!resumeService) throw new Error(t('builder.serviceMissing'));
     await resumeService.exportToPDF(data);
   };
 
   const handleExportCoverLetter = async (data: ResumeData) => {
-    if (!resumeService) throw new Error('Service not initialized');
+    if (!resumeService) throw new Error(t('builder.serviceMissing'));
     await resumeService.exportCoverLetterToWord(data);
   };
 
   const handleExportCoverLetterPDF = async (data: ResumeData) => {
-    if (!resumeService) throw new Error('Service not initialized');
+    if (!resumeService) throw new Error(t('builder.serviceMissing'));
     await resumeService.exportCoverLetterToPDF(data);
   };
 
@@ -660,7 +665,9 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     );
   }
 
-  const visibleSteps = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
+  const visibleStepIds = getVisibleSteps(resumeData.userType, resumeData.visibleSections);
+  const stepInfoMap = new Map(stepsInfoFor(t).map(s => [s.id, s]));
+  const visibleSteps = visibleStepIds.map(s => stepInfoMap.get(s.id) ?? { id: s.id, title: '' });
   const isLastStep = visibleSteps.length > 0 && visibleSteps[visibleSteps.length - 1].id === step;
 
   return (
@@ -787,12 +794,10 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 </div>
               </div>
               <h3 className="mt-6 font-display text-xl font-semibold text-brand-700">
-                Building your toolkit…
+                {t('builder.loadingTitle')}
               </h3>
               <p className="text-brand-500 mt-2 text-center max-w-md px-4 leading-relaxed">
-                Tailoring your resume, writing the cover letter, drafting your
-                outreach email and LinkedIn note, and preparing your interview
-                questions. About 20–30 seconds.
+                {t('builder.loadingBody')}
               </p>
             </div>
           )}
@@ -810,7 +815,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
               : 'text-charcoal-600 hover:bg-charcoal-100'
               }`}
           >
-            <ChevronLeft size={18} /> Back
+            <ChevronLeft size={18} /> {t('builder.backCta')}
           </button>
 
           <div className="flex flex-col items-end">
@@ -826,7 +831,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 disabled={!resumeData.userType}
                 className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-colors focus-visible:ring-2 focus-visible:ring-charcoal-900 focus-visible:ring-offset-2 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next <ChevronRight size={18} />
+                {t('builder.nextCta')} <ChevronRight size={18} />
               </button>
             ) : isLastStep ? (
               <button
@@ -835,7 +840,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 disabled={isGenerating}
                 className="flex items-center gap-2 px-8 py-3 bg-brand-700 text-charcoal-50 rounded-lg text-sm font-bold hover:bg-brand-800 transition-colors focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
               >
-                {isGenerating ? 'Generating…' : 'Build my toolkit'}{' '}
+                {isGenerating ? t('builder.generating') : t('builder.buildToolkitCta')}{' '}
                 <Sparkles size={18} className="text-accent-400" />
               </button>
             ) : (
@@ -844,7 +849,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
                 onClick={handleNext}
                 className="flex items-center gap-2 px-8 py-3 bg-charcoal-900 text-white rounded-lg text-sm font-bold hover:bg-black transition-colors focus-visible:ring-2 focus-visible:ring-charcoal-900 focus-visible:ring-offset-2 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next <ChevronRight size={18} />
+                {t('builder.nextCta')} <ChevronRight size={18} />
               </button>
             )}
           </div>

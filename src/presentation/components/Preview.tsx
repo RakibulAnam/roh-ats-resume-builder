@@ -35,6 +35,7 @@ import {
   ToolkitStatusCard,
   ToolkitItemStatus,
 } from './Builder/ToolkitViewers';
+import { useT } from '../i18n/LocaleContext';
 
 type PreviewTab = 'resume' | 'coverLetter' | 'outreachEmail' | 'linkedInMessage' | 'interviewPrep';
 
@@ -122,6 +123,7 @@ export const Preview: React.FC<PreviewProps> = ({
   onRegenerateItem,
   regeneratingItem = null,
 }) => {
+  const t = useT();
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState<PreviewTab>('resume');
   const [isRegenerating, setIsRegenerating] = useState(false);
@@ -143,7 +145,7 @@ export const Preview: React.FC<PreviewProps> = ({
       }
       const hours = Math.floor(diffStr / (1000 * 60 * 60));
       const minutes = Math.floor((diffStr % (1000 * 60 * 60)) / (1000 * 60));
-      setCooldownText(`Regeneration locked. Try again in ${hours}h ${minutes}m`);
+      setCooldownText(t('preview.cooldownText', { h: hours, m: minutes }));
     };
 
     updateCooldownText();
@@ -275,11 +277,11 @@ export const Preview: React.FC<PreviewProps> = ({
     setIsExporting(true);
     try {
       await onExportWord(data);
-      toast.success('Resume exported to Word successfully!');
+      toast.success(t('preview.resumeWordSuccess'));
     } catch (error) {
       console.error('Export failed', error);
       toast.error(
-        `Failed to generate Word document: ${error instanceof Error ? error.message : 'Unknown error'}`
+        t('preview.wordExportFailed', { message: error instanceof Error ? error.message : t('preview.unknownError') })
       );
     } finally {
       setIsExporting(false);
@@ -291,11 +293,11 @@ export const Preview: React.FC<PreviewProps> = ({
     setIsExporting(true);
     try {
       await onExportCoverLetter(data);
-      toast.success('Cover letter exported to Word successfully!');
+      toast.success(t('preview.coverLetterWordSuccess'));
     } catch (error) {
       console.error('Cover letter export failed', error);
       toast.error(
-        `Failed to generate cover letter: ${error instanceof Error ? error.message : 'Unknown error'}`
+        t('preview.coverLetterExportFailed', { message: error instanceof Error ? error.message : t('preview.unknownError') })
       );
     } finally {
       setIsExporting(false);
@@ -306,7 +308,7 @@ export const Preview: React.FC<PreviewProps> = ({
     if (isPdfGenerating) return;
 
     if (activeTab === 'coverLetter' && !onExportCoverLetterPDF) {
-      toast.error('Cover letter PDF export is not available.');
+      toast.error(t('preview.pdfNotAvailable'));
       return;
     }
 
@@ -317,11 +319,11 @@ export const Preview: React.FC<PreviewProps> = ({
       } else if (onExportCoverLetterPDF) {
         await onExportCoverLetterPDF(data);
       }
-      toast.success('PDF exported successfully!');
+      toast.success(t('preview.pdfSuccess'));
     } catch (error) {
       console.error('PDF export failed:', error);
       toast.error(
-        `Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
+        t('preview.pdfExportFailed', { message: error instanceof Error ? error.message : t('preview.unknownError') })
       );
     } finally {
       setIsPdfGenerating(false);
@@ -780,15 +782,15 @@ export const Preview: React.FC<PreviewProps> = ({
             onClick={onGoHome}
             className="flex items-center gap-2 text-charcoal-500 hover:text-charcoal-900 transition-colors text-sm font-medium"
           >
-            <ArrowLeft size={18} /> Back to Dashboard
+            <ArrowLeft size={18} /> {t('preview.backToDashboard')}
           </button>
 
           <div className="h-6 w-px bg-charcoal-300"></div>
 
           <h1 className="text-lg font-semibold text-charcoal-800">
             {data.targetJob?.title
-              ? `${data.targetJob.title} Resume - `
-              : 'Resume - '}
+              ? `${data.targetJob.title} ${t('preview.resumeTitleSuffix')} - `
+              : `${t('preview.resumeTitleFallback')} - `}
             {new Date().getFullYear()}
           </h1>
         </div>
@@ -809,7 +811,7 @@ export const Preview: React.FC<PreviewProps> = ({
               }}
               disabled={!canRegenerate || isRegenerating}
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md border shadow-sm transition-colors disabled:opacity-50 bg-white border-brand-200 text-brand-700 hover:bg-brand-50"
-              title={cooldownText || 'Regenerate General Resume'}
+              title={cooldownText || t('preview.regenerateLockedTitle')}
             >
               {isRegenerating ? (
                 <Loader2 size={16} className="animate-spin" />
@@ -818,7 +820,7 @@ export const Preview: React.FC<PreviewProps> = ({
               ) : (
                 <RefreshCw size={16} />
               )}
-              {!canRegenerate ? 'Regenerate Locked' : 'Regenerate'}
+              {!canRegenerate ? t('preview.regenerateLocked') : t('preview.regenerate')}
             </button>
           )}
 
@@ -837,7 +839,7 @@ export const Preview: React.FC<PreviewProps> = ({
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-brand-700 bg-charcoal-50 border border-charcoal-300 rounded-md hover:border-brand-700 shadow-sm transition-colors disabled:opacity-50"
               >
                 <FileText size={16} />
-                Download Word
+                {t('preview.downloadWord')}
               </button>
 
               <button
@@ -851,7 +853,7 @@ export const Preview: React.FC<PreviewProps> = ({
                 ) : (
                   <Download size={16} />
                 )}
-                {isPdfGenerating ? 'Generating PDF...' : 'Download PDF'}
+                {isPdfGenerating ? t('preview.generatingPDF') : t('preview.downloadPDF')}
               </button>
             </>
           )}
@@ -865,7 +867,7 @@ export const Preview: React.FC<PreviewProps> = ({
             {/* Documents group — Resume (template picker) + Cover Letter */}
             <div>
               <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
-                Documents
+                {t('preview.sidebarDocs')}
               </h2>
 
               <div className="flex flex-row md:flex-col gap-2 min-w-max md:min-w-0">
@@ -916,7 +918,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           : 'text-brand-400'
                       }
                     />
-                    <span className="text-sm font-semibold">Cover Letter</span>
+                    <span className="text-sm font-semibold">{t('preview.tabCoverLetter')}</span>
                   </div>
                   <StatusDot status={getItemStatus(data, 'coverLetter', regeneratingItem)} />
                 </button>
@@ -926,7 +928,7 @@ export const Preview: React.FC<PreviewProps> = ({
             {/* Outreach group */}
             <div>
               <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
-                Outreach
+                {t('preview.sidebarOutreach')}
               </h2>
               <div className="flex flex-row md:flex-col gap-2 min-w-max md:min-w-0">
                 <button
@@ -947,7 +949,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           : 'text-brand-400'
                       }
                     />
-                    <span className="text-sm font-semibold">Outreach Email</span>
+                    <span className="text-sm font-semibold">{t('preview.tabOutreachEmail')}</span>
                   </div>
                   <StatusDot status={getItemStatus(data, 'outreachEmail', regeneratingItem)} />
                 </button>
@@ -969,7 +971,7 @@ export const Preview: React.FC<PreviewProps> = ({
                           : 'text-brand-400'
                       }
                     />
-                    <span className="text-sm font-semibold">LinkedIn Note</span>
+                    <span className="text-sm font-semibold">{t('preview.tabLinkedIn')}</span>
                   </div>
                   <StatusDot status={getItemStatus(data, 'linkedInMessage', regeneratingItem)} />
                 </button>
@@ -979,7 +981,7 @@ export const Preview: React.FC<PreviewProps> = ({
             {/* Interview prep */}
             <div>
               <h2 className="text-[10px] font-bold text-brand-500 uppercase tracking-[0.18em] mb-3">
-                Interview
+                {t('preview.sidebarInterview')}
               </h2>
               <button
                 type="button"
@@ -1000,7 +1002,7 @@ export const Preview: React.FC<PreviewProps> = ({
                     }
                   />
                   <span className="text-sm font-semibold">
-                    Question Prep
+                    {t('preview.tabQuestionPrep')}
                     {data.toolkit?.interviewQuestions && data.toolkit.interviewQuestions.length > 0 && (
                       <span className="ml-1.5 text-[11px] font-normal text-brand-500">
                         · {data.toolkit.interviewQuestions.length}
@@ -1013,7 +1015,7 @@ export const Preview: React.FC<PreviewProps> = ({
             </div>
 
             <p className="hidden md:block text-[11px] text-brand-500 leading-snug mt-auto pt-4 border-t border-charcoal-200">
-              All resume templates are single-column, real-text, and pass ATS keyword extraction.
+              {t('preview.sidebarFootnote')}
             </p>
           </div>
         </aside>
@@ -1032,9 +1034,9 @@ export const Preview: React.FC<PreviewProps> = ({
               ) : (
                 <ToolkitStatusCard
                   icon={FileCheck}
-                  eyebrow="Cover Letter"
-                  title="Tailored cover letter"
-                  description="A custom cover letter based on your experience and the target job description."
+                  eyebrow={t('preview.tabCoverLetter')}
+                  title={t('preview.statusCoverLetterTitle')}
+                  description={t('preview.statusCoverLetterDesc')}
                   status={getItemStatus(data, 'coverLetter', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.coverLetter}
                   onRetry={() => onRegenerateItem?.('coverLetter')}
@@ -1050,9 +1052,9 @@ export const Preview: React.FC<PreviewProps> = ({
               ) : (
                 <ToolkitStatusCard
                   icon={Mail}
-                  eyebrow="Outreach"
-                  title="Email the hiring manager"
-                  description="A short, specific cold email you can send directly to the person doing the hiring."
+                  eyebrow={t('preview.sidebarOutreach')}
+                  title={t('preview.statusOutreachTitle')}
+                  description={t('preview.statusOutreachDesc')}
                   status={getItemStatus(data, 'outreachEmail', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.outreachEmail}
                   onRetry={() => onRegenerateItem?.('outreachEmail')}
@@ -1068,9 +1070,9 @@ export const Preview: React.FC<PreviewProps> = ({
               ) : (
                 <ToolkitStatusCard
                   icon={Linkedin}
-                  eyebrow="Outreach"
-                  title="LinkedIn connection note"
-                  description="A short, tailored note to send with your connection request."
+                  eyebrow={t('preview.sidebarOutreach')}
+                  title={t('preview.statusLinkedInTitle')}
+                  description={t('preview.statusLinkedInDesc')}
                   status={getItemStatus(data, 'linkedInMessage', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.linkedInMessage}
                   onRetry={() => onRegenerateItem?.('linkedInMessage')}
@@ -1086,9 +1088,9 @@ export const Preview: React.FC<PreviewProps> = ({
               ) : (
                 <ToolkitStatusCard
                   icon={MessageSquare}
-                  eyebrow="Interview prep"
-                  title="Must-know interview questions"
-                  description="The questions you are most likely to be asked for this role."
+                  eyebrow={t('preview.sidebarInterview')}
+                  title={t('preview.statusInterviewTitle')}
+                  description={t('preview.statusInterviewDesc')}
                   status={getItemStatus(data, 'interviewQuestions', regeneratingItem) as Exclude<ToolkitItemStatus, 'success'>}
                   errorMessage={data.toolkit?.errors?.interviewQuestions}
                   onRetry={() => onRegenerateItem?.('interviewQuestions')}

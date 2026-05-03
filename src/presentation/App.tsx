@@ -15,6 +15,7 @@ import { ProfileScreen } from './ProfileScreen';
 import { ProfileSetupScreen } from './ProfileSetupScreen';
 import { ResumeSourceDialog } from './components/ResumeSourceDialog';
 import { useBrowserNav, NavScreen } from './hooks/useBrowserNav';
+import { LocaleProvider, useT } from './i18n/LocaleContext';
 
 const INITIAL_DATA: ResumeData = {
   userType: undefined,
@@ -42,6 +43,7 @@ const AUTHED_SCREENS: NavScreen[] = ['DASHBOARD', 'PROFILE', 'PROFILE_SETUP', 'B
 
 const AppContent = () => {
   const { user, loading } = useAuth();
+  const t = useT();
   const [checkingProfile, setCheckingProfile] = useState(true);
   const [showSourceDialog, setShowSourceDialog] = useState(false);
 
@@ -85,7 +87,7 @@ const AppContent = () => {
       }
     } catch (error) {
       console.error('Failed to initialize resume service:', error);
-      toast.error('Failed to initialize application. Please check your configuration.');
+      toast.error(t('common.appInitFailed'));
     }
   }, []);
 
@@ -136,7 +138,7 @@ const AppContent = () => {
       <div className="min-h-screen flex items-center justify-center bg-charcoal-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
-          <p className="text-charcoal-500">Loading…</p>
+          <p className="text-charcoal-500">{t('common.loading')}</p>
         </div>
       </div>
     );
@@ -158,7 +160,7 @@ const AppContent = () => {
       <div className="min-h-screen flex items-center justify-center bg-charcoal-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-600" size={40} />
-          <p className="text-charcoal-500">Loading Profile…</p>
+          <p className="text-charcoal-500">{t('common.loadingProfile')}</p>
         </div>
       </div>
     );
@@ -222,7 +224,7 @@ const AppContent = () => {
       }
     } catch (error) {
       console.error('Error loading profile data:', error);
-      toast.error('Failed to load profile data');
+      toast.error(t('common.profileLoadFailed'));
     }
   };
 
@@ -256,7 +258,7 @@ const AppContent = () => {
       }
     } catch (error) {
       console.error('Failed to load resume', error);
-      toast.error('Failed to load resume');
+      toast.error(t('common.resumeLoadFailed'));
     }
   };
 
@@ -316,9 +318,11 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <Toaster richColors position="top-center" />
-    </AuthProvider>
+    <LocaleProvider>
+      <AuthProvider>
+        <AppContent />
+        <Toaster richColors position="top-center" />
+      </AuthProvider>
+    </LocaleProvider>
   );
 }

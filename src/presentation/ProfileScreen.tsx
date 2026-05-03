@@ -19,25 +19,38 @@ import { AffiliationSection } from './components/profile/AffiliationSection';
 import { PublicationSection } from './components/profile/PublicationSection';
 import { LanguageSection } from './components/profile/LanguageSection';
 import { ReferenceSection } from './components/profile/ReferenceSection';
+import { useT } from './i18n/LocaleContext';
 
-const Tabs = [
-    'Personal',
-    'Experience',
-    'Projects',
-    'Education',
-    'Skills',
-    'Activities',
-    'Awards',
-    'Certifications',
-    'Affiliations',
-    'Publications',
-    'Languages',
-    'References',
+type TabId =
+    | 'Personal' | 'Experience' | 'Projects' | 'Education' | 'Skills'
+    | 'Activities' | 'Awards' | 'Certifications' | 'Affiliations'
+    | 'Publications' | 'Languages' | 'References';
+
+const TAB_IDS: TabId[] = [
+    'Personal', 'Experience', 'Projects', 'Education', 'Skills',
+    'Activities', 'Awards', 'Certifications', 'Affiliations',
+    'Publications', 'Languages', 'References',
 ];
+
+const TAB_KEYS: Record<TabId, 'profile.tabPersonal'> = {
+    Personal: 'profile.tabPersonal',
+    Experience: 'profile.tabExperience' as 'profile.tabPersonal',
+    Projects: 'profile.tabProjects' as 'profile.tabPersonal',
+    Education: 'profile.tabEducation' as 'profile.tabPersonal',
+    Skills: 'profile.tabSkills' as 'profile.tabPersonal',
+    Activities: 'profile.tabActivities' as 'profile.tabPersonal',
+    Awards: 'profile.tabAwards' as 'profile.tabPersonal',
+    Certifications: 'profile.tabCertifications' as 'profile.tabPersonal',
+    Affiliations: 'profile.tabAffiliations' as 'profile.tabPersonal',
+    Publications: 'profile.tabPublications' as 'profile.tabPersonal',
+    Languages: 'profile.tabLanguages' as 'profile.tabPersonal',
+    References: 'profile.tabReferences' as 'profile.tabPersonal',
+};
 
 export const ProfileScreen = () => {
     const { user, signOut } = useAuth();
-    const [activeTab, setActiveTab] = useState('Personal');
+    const t = useT();
+    const [activeTab, setActiveTab] = useState<TabId>('Personal');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -111,7 +124,7 @@ export const ProfileScreen = () => {
 
         } catch (error) {
             console.error(error);
-            toast.error('Failed to load profile data');
+            toast.error(t('common.profileLoadFailed'));
         } finally {
             setLoading(false);
         }
@@ -139,10 +152,10 @@ export const ProfileScreen = () => {
             const service = createResumeService();
             await service.generateGeneralResume(user.id);
             setHasGeneralResume(true);
-            toast.success('Your General Resume has been created!');
+            toast.success(t('profile.generalResumeReady'));
         } catch (error) {
             console.error('General resume generation failed:', error);
-            const message = error instanceof Error ? error.message : 'Failed to generate resume';
+            const message = error instanceof Error ? error.message : t('profile.generalResumeFailed');
             toast.error(message);
         } finally {
             setGeneratingGeneral(false);
@@ -155,9 +168,9 @@ export const ProfileScreen = () => {
         setSaving(true);
         try {
             await profileRepository.saveProfile(user.id, personalInfo);
-            toast.success('Personal info saved');
+            toast.success(t('profile.savedSuccess'));
         } catch (error) {
-            toast.error('Failed to save');
+            toast.error(t('profile.saveError'));
         } finally {
             setSaving(false);
         }
@@ -168,11 +181,11 @@ export const ProfileScreen = () => {
         setDeleting(true);
         try {
             await profileRepository.deleteProfile(user.id);
-            toast.success('Account deleted successfully');
-            await signOut(); // This should trigger a redirect or re-render based on AuthContext
+            toast.success(t('profile.deletedSuccess'));
+            await signOut();
         } catch (error) {
             console.error('Failed to delete account', error);
-            toast.error('Failed to delete account. Please try again.');
+            toast.error(t('profile.deleteError'));
             setDeleting(false);
         }
     };
@@ -183,9 +196,9 @@ export const ProfileScreen = () => {
 
     return (
         <div className="max-w-6xl mx-auto p-4 md:p-8">
-            <h1 className="text-3xl font-bold mb-2 text-charcoal-900">Your Master Profile</h1>
+            <h1 className="text-3xl font-bold mb-2 text-charcoal-900">{t('profile.pageTitle')}</h1>
             <p className="text-charcoal-500 mb-6">
-                Manage your core information here. When you create a new resume, we'll pull from this data.
+                {t('profile.pageSubtitle')}
             </p>
 
             {/* General Resume Banner */}
@@ -196,9 +209,9 @@ export const ProfileScreen = () => {
                             <Sparkles size={20} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-charcoal-900">Generate Your General Resume</h3>
+                            <h3 className="font-bold text-charcoal-900">{t('profile.bannerTitle')}</h3>
                             <p className="text-sm text-charcoal-500 mt-0.5">
-                                Create a one-time general-purpose resume from your profile data using AI.
+                                {t('profile.bannerBody')}
                             </p>
                         </div>
                     </div>
@@ -211,12 +224,12 @@ export const ProfileScreen = () => {
                         {generatingGeneral ? (
                             <>
                                 <Loader2 className="animate-spin" size={18} />
-                                Generating...
+                                {t('profile.bannerGenerating')}
                             </>
                         ) : (
                             <>
                                 <Sparkles size={18} />
-                                Generate Now
+                                {t('profile.bannerCta')}
                             </>
                         )}
                     </button>
@@ -224,7 +237,7 @@ export const ProfileScreen = () => {
             )}
 
             <div className="flex gap-2 overflow-x-auto mb-8 border-b border-charcoal-200 pb-1 scrollbar-hide">
-                {Tabs.map(tab => (
+                {TAB_IDS.map(tab => (
                     <button
                         key={tab}
                         type="button"
@@ -234,7 +247,7 @@ export const ProfileScreen = () => {
                             : 'text-charcoal-500 hover:text-charcoal-700'
                             }`}
                     >
-                        {tab}
+                        {t(TAB_KEYS[tab])}
                     </button>
                 ))}
             </div>
@@ -244,7 +257,7 @@ export const ProfileScreen = () => {
                     <form onSubmit={handleSavePersonal} className="space-y-4 animate-in fade-in">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Full Name</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldFullName')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.fullName}
@@ -253,7 +266,7 @@ export const ProfileScreen = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Email</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldEmail')}</label>
                                 <input
                                     type="email"
                                     value={personalInfo.email}
@@ -262,7 +275,7 @@ export const ProfileScreen = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Phone</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldPhone')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.phone}
@@ -271,7 +284,7 @@ export const ProfileScreen = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Location</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldLocation')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.location}
@@ -280,33 +293,33 @@ export const ProfileScreen = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">LinkedIn</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldLinkedin')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.linkedin || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, linkedin: e.target.value })}
                                     className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
-                                    placeholder="https://linkedin.com/in/..."
+                                    placeholder={t('profile.placeholderLinkedin')}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">GitHub / Code Portfolio (Optional)</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldGithub')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.github || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, github: e.target.value })}
                                     className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
-                                    placeholder="https://github.com/..."
+                                    placeholder={t('profile.placeholderGithub')}
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-charcoal-700 mb-1">Portfolio / Website</label>
+                                <label className="block text-sm font-medium text-charcoal-700 mb-1">{t('profile.fieldWebsite')}</label>
                                 <input
                                     type="text"
                                     value={personalInfo.website || ''}
                                     onChange={e => setPersonalInfo({ ...personalInfo, website: e.target.value })}
                                     className="w-full p-2 border rounded-lg focus-visible:ring-2 focus-visible:ring-brand-500"
-                                    placeholder="e.g. https://yourname.com or Behance / Dribbble / personal site"
+                                    placeholder={t('profile.placeholderWebsite')}
                                 />
                             </div>
                         </div>
@@ -317,7 +330,7 @@ export const ProfileScreen = () => {
                                 className="flex items-center gap-2 bg-brand-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-brand-700 disabled:opacity-50"
                             >
                                 {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                                Save Personal Info
+                                {t('profile.saveCta')}
                             </button>
                         </div>
                     </form>
@@ -325,9 +338,9 @@ export const ProfileScreen = () => {
 
                 {activeTab === 'Personal' && (
                     <div className="mt-12 pt-8 border-t border-red-100">
-                        <h3 className="text-lg font-semibold text-red-600 mb-2">Danger Zone</h3>
+                        <h3 className="text-lg font-semibold text-red-600 mb-2">{t('profile.dangerHeader')}</h3>
                         <p className="text-charcoal-500 mb-4 text-sm">
-                            Once you delete your account, there is no going back. Please be certain.
+                            {t('profile.dangerBody')}
                         </p>
 
                         {!showDeleteConfirm ? (
@@ -336,16 +349,16 @@ export const ProfileScreen = () => {
                                 type="button"
                                 className="px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors"
                             >
-                                Delete Account
+                                {t('profile.deleteCta')}
                             </button>
                         ) : (
                             <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-in fade-in slide-in-from-top-2">
                                 <div className="flex items-start gap-3">
                                     <AlertTriangle className="text-red-500 mt-0.5" size={20} />
                                     <div>
-                                        <h4 className="font-medium text-red-800">Are you absolutely sure?</h4>
+                                        <h4 className="font-medium text-red-800">{t('profile.deleteConfirmTitle')}</h4>
                                         <p className="text-red-600 text-sm mt-1 mb-4">
-                                            This action cannot be undone. This will permanently delete your account, profile data, experiences, projects, and all generated resumes.
+                                            {t('profile.deleteConfirmBody')}
                                         </p>
                                         <div className="flex gap-3">
                                             <button
@@ -354,7 +367,7 @@ export const ProfileScreen = () => {
                                                 type="button"
                                                 className="px-4 py-2 bg-white border border-charcoal-300 text-charcoal-700 rounded-lg hover:bg-charcoal-50 text-sm font-medium transition-colors disabled:opacity-50"
                                             >
-                                                Cancel
+                                                {t('profile.cancelCta')}
                                             </button>
                                             <button
                                                 onClick={handleDeleteAccount}
@@ -363,7 +376,7 @@ export const ProfileScreen = () => {
                                                 className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors disabled:opacity-50"
                                             >
                                                 {deleting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
-                                                Yes, delete my account
+                                                {t('profile.confirmDeleteCta')}
                                             </button>
                                         </div>
                                     </div>
