@@ -22,6 +22,7 @@ This document is load-bearing. It is what keeps future agents from burning token
 | Add a new env var | §12 Env vars |
 | Add a new runtime dependency | §2 Tech stack |
 | Change feature surface (ship/kill) | §3 Product surface |
+| Add a new user-facing string | Add to `src/presentation/i18n/locales/en.ts` AND `bn.ts`, then use via `useT()` (§11) |
 
 Also update `CLAUDE.md` if the change introduces a new rule agents must follow (e.g. "always do X when editing Y").
 If a feature ships, delete its entry from §13 "Known debt / non-goals" once it is no longer a non-goal.
@@ -48,6 +49,7 @@ A future mock-interview marketplace is planned but **out of scope** until explic
 
 - **React 19** + **TypeScript 5.8** + **Vite 6**
 - **Tailwind CSS** (via CDN, not PostCSS — config lives in `index.html`)
+- **Internationalisation** — DIY typed dictionary at `src/presentation/i18n/` (no library). Two locales: `en` (default) and `bn` (বাংলা / Bengali). Switch via `<LanguageToggle />` in the navbar / landing / login. Locale persists in `localStorage` (`topcandidate.locale`) and is applied to `<html data-locale>` for font-stack swapping. See §10 for fonts and §11 for the convention.
 - **AI providers** for resume optimization: **Groq** (`llama-3.3-70b-versatile`, primary — 1,000 RPD free, ~5–8s latency) → **Google Gemini 2.5 Flash** (fallback). Routed through `MultiProviderResumeOptimizer`. Toolkit generators (cover letter, outreach, LinkedIn, interview, extractor) are still Gemini-only. SDK: `@google/genai` for Gemini; plain `fetch` to `api.groq.com/openai/v1/chat/completions` for Groq
 - **Server-side API proxy** — all AI calls go through Vercel Functions in `/api/*` (deployed automatically alongside the Vite app). Client holds NO provider keys. Auth via Supabase JWT bearer; per-user daily-cap rate limiting via the `ai_call_log` table.
 - **Supabase** (`@supabase/supabase-js`) for auth + persistence
@@ -282,6 +284,10 @@ src/application/validation/                  Pre-flight content gates (run clien
 src/domain/entities/Resume.ts           Core types
 src/domain/entities/AppStep.ts          Builder step enum
 src/presentation/hooks/useBrowserNav.ts  Top-level screen routing + browser history (push/pop)
+src/presentation/i18n/                  i18n infrastructure (en/bn locales, useT hook, LanguageToggle)
+  ├── LocaleContext.tsx                  Provider + useT() hook + localStorage persistence
+  ├── LanguageToggle.tsx                 Pill-style EN | বাং switch — used in nav/landing/login
+  └── locales/{en,bn}.ts                 Typed dictionaries (TS enforces key parity)
 src/domain/usecases/                    Use case classes + domain-layer interfaces (8 total)
 src/domain/repositories/                Repo interfaces (IProfile, IResume, IApplication)
 
@@ -375,9 +381,13 @@ The router cools down a provider for 10 minutes when it returns 429/503/timeout,
 - No emojis in UI unless the user asked for them.
 
 **Fonts** (Google Fonts, loaded in `index.html`):
-- `Inter` — UI and body (default `font-sans`)
-- `Fraunces` — display headlines (`font-display`) — editorial serif
+- `Inter` — UI and body (default `font-sans`) — Latin script
+- `Fraunces` — display headlines (`font-display`) — editorial serif, Latin
 - `Merriweather` — resume template serif (`font-serif`) — don't change, used by PDF
+- `Hind Siliguri` — Bengali UI/body. Stack swaps in via `html[data-locale="bn"] body`
+- `Tiro Bangla` — Bengali display headlines. Stack swaps in via `html[data-locale="bn"] .font-display`
+
+**Bengali rendering rule:** the resume document itself stays in English (so the rendered preview matches the PDF/Word exporter byte-for-byte and recruiters get the format they expect). Only UI chrome — navbar, dashboard, builder forms, preview tabs, toasts — translates. AI-generated content (resume bullets, cover letter, outreach, interview prep) stays in the language the user typed.
 
 **UI idioms established:**
 - Rounded cards: `rounded-2xl` (24px) for content, `rounded-full` for pill buttons
@@ -431,6 +441,7 @@ Skill packages live at `.agent/skills/` and are also mirrored to `~/.claude/skil
 - All persistence goes through a repository interface, never a raw Supabase call from presentation/application
 - Prefer `Promise.allSettled` for parallel independent AI calls so a single failure does not kill the flow
 - `Preview.tsx` renders in pt (`PAGE_WIDTH_PT = 595.28`) to mirror the PDF exporter exactly — numeric sizes must stay in lockstep
+- **All user-facing strings go through `useT()`** (`src/presentation/i18n/LocaleContext.tsx`). Never inline a literal in JSX or a `toast.*()` call. Add the key to `locales/en.ts` first, then `locales/bn.ts` — TypeScript enforces parity. Toggle is `<LanguageToggle />`, mounted in `Navbar`, `LandingScreen`, `LoginScreen`, `DashboardScreen` header, and `ProfileSetupScreen` top bar. Switching locale only mutates context — form state, current builder step, and scroll position are React state and survive a switch automatically.
 
 ---
 
@@ -470,11 +481,12 @@ Agents: **do not build these unless the user asks.**
 - **Mock-interview marketplace** — consultant profiles, booking, payments. Surfaced on the landing page but intentionally unbuilt. Separate product scope.
 - **OAuth providers** — Supabase Auth is wired for email/password only.
 - **Unit / integration tests** — no test harness exists. Don't invent one without asking.
-- **i18n / l10n** — strings are all English, inline.
 - **General Resume toolkit generation** — the General Resume currently triggers the toolkit generators on a generic JD. Harmless but low-value. Consider short-circuiting for General Resume in a future pass.
 - **Code-splitting** — the bundle is ~1.7MB. Vite warns about it; acceptable for now.
 - **Legacy `applications` table** — exists in schema, unused by current code. Do not write to it; use `generated_resumes`.
 - **Languages / References in ProfileSetupScreen and ProfileScreen** — currently only wired into the BuilderScreen flow (and loaded from the profile sub-tables when prefilling). To capture in the master profile too, add: state vars + step entries in `ProfileSetupScreen.tsx`, save cases in its switch, and tab + section component in `ProfileScreen.tsx` (mirror `PublicationSection`).
+- **AI output in Bengali** — the UI translates (en/bn), but the AI-generated resume bullets, cover letter, outreach email, LinkedIn note, and interview Q&A still come back in English. Most BD recruiters expect English CVs, so this is intentional. Adding a per-document "Generate in: English / বাংলা" toggle would mean: branching prompts in `prompts/resumeOptimizerPrompts.ts` and each toolkit generator + a UI affordance + a prompt-language pass-through in the optimize flow. Don't ship without an explicit ask.
+- **Locale persistence to Supabase** — locale is currently `localStorage`-only. Cross-device sync would need a `preferred_locale` column on `profiles` + a fetch on sign-in. Skipped for v1 because device-local is enough for a Bangladesh-first launch.
 
 ---
 

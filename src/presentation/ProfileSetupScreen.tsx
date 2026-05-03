@@ -52,6 +52,8 @@ import {
 import { ResumeUploadStep } from './components/profile/ResumeUploadStep';
 import { ExtractedProfileData } from '../domain/usecases/ExtractResumeUseCase';
 import { isGibberish } from '../application/validation/gibberishDetector';
+import { useT } from './i18n/LocaleContext';
+import { LanguageToggle } from './i18n/LanguageToggle';
 
 interface Props {
     onComplete: () => void;
@@ -74,20 +76,23 @@ enum SetupStep {
     REFERENCES = 11,
 }
 
-const STEP_COPY: Record<SetupStep, { label: string; phase: string }> = {
-    [SetupStep.IMPORT_RESUME]: { label: 'Import', phase: 'Quick start' },
-    [SetupStep.USER_TYPE]: { label: 'Your path', phase: 'About you' },
-    [SetupStep.PERSONAL_INFO]: { label: 'Contact details', phase: 'About you' },
-    [SetupStep.EDUCATION]: { label: 'Education', phase: 'About you' },
-    [SetupStep.EXPERIENCE_OR_PROJECTS]: { label: 'Experience', phase: 'Your work' },
-    [SetupStep.SKILLS]: { label: 'Skills', phase: 'Your work' },
-    [SetupStep.EXTRACURRICULARS]: { label: 'Activities', phase: 'Your credentials' },
-    [SetupStep.AWARDS]: { label: 'Awards', phase: 'Your credentials' },
-    [SetupStep.CERTIFICATIONS]: { label: 'Certifications', phase: 'Your credentials' },
-    [SetupStep.AFFILIATIONS]: { label: 'Affiliations', phase: 'Your credentials' },
-    [SetupStep.PUBLICATIONS]: { label: 'Publications', phase: 'Your credentials' },
-    [SetupStep.LANGUAGES]: { label: 'Languages', phase: 'Your credentials' },
-    [SetupStep.REFERENCES]: { label: 'References', phase: 'Your credentials' },
+type StepCopyT = ReturnType<typeof useT>;
+const stepCopyOf = (t: StepCopyT, step: SetupStep): { label: string; phase: string } => {
+    switch (step) {
+        case SetupStep.IMPORT_RESUME: return { label: t('profileSetup.stepImport'), phase: t('profileSetup.phaseQuickStart') };
+        case SetupStep.USER_TYPE: return { label: t('profileSetup.stepUserType'), phase: t('profileSetup.phaseAboutYou') };
+        case SetupStep.PERSONAL_INFO: return { label: t('profileSetup.stepPersonalInfo'), phase: t('profileSetup.phaseAboutYou') };
+        case SetupStep.EDUCATION: return { label: t('profileSetup.stepEducation'), phase: t('profileSetup.phaseAboutYou') };
+        case SetupStep.EXPERIENCE_OR_PROJECTS: return { label: t('profileSetup.stepExperience'), phase: t('profileSetup.phaseYourWork') };
+        case SetupStep.SKILLS: return { label: t('profileSetup.stepSkills'), phase: t('profileSetup.phaseYourWork') };
+        case SetupStep.EXTRACURRICULARS: return { label: t('profileSetup.stepActivities'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.AWARDS: return { label: t('profileSetup.stepAwards'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.CERTIFICATIONS: return { label: t('profileSetup.stepCertifications'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.AFFILIATIONS: return { label: t('profileSetup.stepAffiliations'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.PUBLICATIONS: return { label: t('profileSetup.stepPublications'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.LANGUAGES: return { label: t('profileSetup.stepLanguages'), phase: t('profileSetup.phaseYourCredentials') };
+        case SetupStep.REFERENCES: return { label: t('profileSetup.stepReferences'), phase: t('profileSetup.phaseYourCredentials') };
+    }
 };
 
 const Wordmark = () => (
@@ -99,6 +104,8 @@ const Wordmark = () => (
 
 export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService }) => {
     const { user, signOut } = useAuth();
+    const t = useT();
+    const stepCopy = (s: SetupStep) => stepCopyOf(t, s);
     const [currentStep, setCurrentStep] = useState(SetupStep.IMPORT_RESUME);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -253,9 +260,9 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         // organization, person names) where a dictionary check would
         // false-positive. Returns true if any field tripped — caller bails
         // immediately with a toast naming what to fix.
-        const flagGibberish = (label: string, text: string | undefined): boolean => {
+        const flagGibberish = (field: string, text: string | undefined): boolean => {
             if (text && text.trim().length > 0 && isGibberish(text)) {
-                showError(`${label} looks like random characters. Please write real content.`);
+                showError(t('profileSetup.gibberishField', { field }));
                 return true;
             }
             return false;
@@ -265,107 +272,107 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             case SetupStep.IMPORT_RESUME:
                 return true;
             case SetupStep.USER_TYPE:
-                if (!userType) { showError('Pick the path that fits you best to continue.'); return false; }
+                if (!userType) { showError(t('profileSetup.valUserType')); return false; }
                 return true;
             case SetupStep.PERSONAL_INFO:
-                if (!(personalInfo.fullName || '').trim()) { showError('We need your full name.'); return false; }
-                if (!(personalInfo.email || '').trim()) { showError('We need an email recruiters can reach you at.'); return false; }
+                if (!(personalInfo.fullName || '').trim()) { showError(t('profileSetup.valFullName')); return false; }
+                if (!(personalInfo.email || '').trim()) { showError(t('profileSetup.valEmail')); return false; }
                 return true;
             case SetupStep.EDUCATION:
-                if (education.length === 0) { showError('Add at least one school.'); return false; }
+                if (education.length === 0) { showError(t('profileSetup.valEduOne')); return false; }
                 for (const edu of education) {
                     if (!(edu.school || '').trim() || !(edu.degree || '').trim() || !(edu.field || '').trim()) {
-                        showError('Fill in school, degree, and field for every entry.'); return false;
+                        showError(t('profileSetup.valEduFields')); return false;
                     }
                     if (!(edu.startDate || '').trim() || !(edu.endDate || '').trim()) {
-                        showError('Add start and end years for every school.'); return false;
+                        showError(t('profileSetup.valEduDates')); return false;
                     }
-                    if (flagGibberish('Field of study', edu.field)) return false;
+                    if (flagGibberish(t('profileSetup.fieldFieldOfStudy'), edu.field)) return false;
                 }
                 return true;
             case SetupStep.EXPERIENCE_OR_PROJECTS:
                 if (userType === 'experienced' && experiences.length === 0) {
-                    showError('Add at least one position — even an internship counts.'); return false;
+                    showError(t('profileSetup.valExpOne')); return false;
                 }
                 if (userType === 'student' && projects.length === 0) {
-                    showError('Add at least one project — capstones, coursework, and clubs all count.'); return false;
+                    showError(t('profileSetup.valProjOne')); return false;
                 }
                 if (userType === 'experienced') {
                     for (const exp of experiences) {
                         if (!(exp.company || '').trim() || !(exp.role || '').trim()) {
-                            showError('Each position needs a role and a company.'); return false;
+                            showError(t('profileSetup.valExpFields')); return false;
                         }
                         if (!(exp.startDate || '').trim() || (!exp.isCurrent && !(exp.endDate || '').trim())) {
-                            showError('Each position needs start and end dates (or "I currently work here").'); return false;
+                            showError(t('profileSetup.valExpDates')); return false;
                         }
                         if (!(exp.rawDescription || '').trim()) {
-                            showError('Each position needs a brain-dump of what you did.'); return false;
+                            showError(t('profileSetup.valExpDesc')); return false;
                         }
-                        if (flagGibberish('Job title', exp.role)) return false;
-                        if (flagGibberish('What you did', exp.rawDescription)) return false;
+                        if (flagGibberish(t('profileSetup.fieldJobTitle'), exp.role)) return false;
+                        if (flagGibberish(t('profileSetup.fieldWhatYouDid'), exp.rawDescription)) return false;
                     }
                 } else {
                     for (const proj of projects) {
-                        if (!(proj.name || '').trim()) { showError('Every project needs a name.'); return false; }
+                        if (!(proj.name || '').trim()) { showError(t('profileSetup.valProjName')); return false; }
                         if (!(proj.rawDescription || '').trim()) {
-                            showError('Every project needs a description — one short paragraph is plenty.'); return false;
+                            showError(t('profileSetup.valProjDesc')); return false;
                         }
-                        if (flagGibberish('Project name', proj.name)) return false;
-                        if (flagGibberish('Project description', proj.rawDescription)) return false;
+                        if (flagGibberish(t('profileSetup.fieldProjectName'), proj.name)) return false;
+                        if (flagGibberish(t('profileSetup.fieldProjectDescription'), proj.rawDescription)) return false;
                     }
                 }
                 return true;
             case SetupStep.SKILLS:
-                if (skills.length === 0) { showError('Add at least one skill — they drive ATS keyword matches.'); return false; }
+                if (skills.length === 0) { showError(t('profileSetup.valSkills')); return false; }
                 return true;
             case SetupStep.EXTRACURRICULARS:
                 for (const item of extracurriculars) {
                     if (!(item.title || '').trim() || !(item.organization || '').trim()) {
-                        showError('Each activity needs a role and an organization.'); return false;
+                        showError(t('profileSetup.valActivityFields')); return false;
                     }
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-                        showError('Each activity needs start and end dates.'); return false;
+                        showError(t('profileSetup.valActivityDates')); return false;
                     }
-                    if (flagGibberish('Activity title', item.title)) return false;
-                    if (flagGibberish('Activity description', item.description)) return false;
+                    if (flagGibberish(t('profileSetup.fieldActivityTitle'), item.title)) return false;
+                    if (flagGibberish(t('profileSetup.fieldActivityDescription'), item.description)) return false;
                 }
                 return true;
             case SetupStep.AWARDS:
                 for (const item of awards) {
                     if (!(item.title || '').trim() || !(item.issuer || '').trim()) {
-                        showError('Each award needs a title and issuer.'); return false;
+                        showError(t('profileSetup.valAwardFields')); return false;
                     }
-                    if (!(item.date || '').trim()) { showError('Each award needs a date.'); return false; }
-                    if (flagGibberish('Award title', item.title)) return false;
-                    if (flagGibberish('Award description', item.description)) return false;
+                    if (!(item.date || '').trim()) { showError(t('profileSetup.valAwardDate')); return false; }
+                    if (flagGibberish(t('profileSetup.fieldAwardTitle'), item.title)) return false;
+                    if (flagGibberish(t('profileSetup.fieldAwardDescription'), item.description)) return false;
                 }
                 return true;
             case SetupStep.CERTIFICATIONS:
                 for (const item of certifications) {
                     if (!(item.name || '').trim() || !(item.issuer || '').trim()) {
-                        showError('Each certification needs a name and issuer.'); return false;
+                        showError(t('profileSetup.valCertFields')); return false;
                     }
-                    if (!(item.date || '').trim()) { showError('Each certification needs a date.'); return false; }
+                    if (!(item.date || '').trim()) { showError(t('profileSetup.valCertDate')); return false; }
                 }
                 return true;
             case SetupStep.AFFILIATIONS:
                 for (const item of affiliations) {
                     if (!(item.organization || '').trim() || !(item.role || '').trim()) {
-                        showError('Each affiliation needs a role and organization.'); return false;
+                        showError(t('profileSetup.valAffilFields')); return false;
                     }
                     if (!(item.startDate || '').trim() || !(item.endDate || '').trim()) {
-                        showError('Each affiliation needs start and end dates.'); return false;
+                        showError(t('profileSetup.valAffilDates')); return false;
                     }
-                    if (flagGibberish('Affiliation role', item.role)) return false;
+                    if (flagGibberish(t('profileSetup.fieldAffiliationRole'), item.role)) return false;
                 }
                 return true;
             case SetupStep.PUBLICATIONS:
                 for (const item of publications) {
                     if (!(item.title || '').trim() || !(item.publisher || '').trim()) {
-                        showError('Each publication needs a title and publisher.'); return false;
+                        showError(t('profileSetup.valPubFields')); return false;
                     }
-                    if (!(item.date || '').trim()) { showError('Each publication needs a date.'); return false; }
-                    if (flagGibberish('Publication title', item.title)) return false;
+                    if (!(item.date || '').trim()) { showError(t('profileSetup.valPubDate')); return false; }
+                    if (flagGibberish(t('profileSetup.fieldPublicationTitle'), item.title)) return false;
                 }
                 return true;
             default:
@@ -422,7 +429,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
             return true;
         } catch (error) {
             console.error('Error saving step:', error);
-            toast.error('We couldn\'t save that. Please try again.');
+            toast.error(t('profileSetup.saveStepError'));
             return false;
         } finally {
             setSaving(false);
@@ -508,7 +515,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     // Phase rail structure
     const phaseGroups: { title: string; steps: SetupStep[] }[] = [];
     for (const step of visibleSteps) {
-        const phase = STEP_COPY[step].phase;
+        const phase = stepCopy(step).phase;
         const last = phaseGroups[phaseGroups.length - 1];
         if (!last || last.title !== phase) {
             phaseGroups.push({ title: phase, steps: [step] });
@@ -527,11 +534,11 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         setGenerationError(null);
         try {
             await resumeService.generateGeneralResume(user.id);
-            toast.success('Your General Resume is ready.');
+            toast.success(t('profileSetup.generalResumeReady'));
             onComplete();
         } catch (error) {
             console.error('General resume generation failed:', error);
-            const message = error instanceof Error ? error.message : 'Failed to generate resume';
+            const message = error instanceof Error ? error.message : t('profileSetup.generalResumeFailed');
             setGenerationError(message);
             setGenerationFailed(true);
             setIsGeneratingResume(false);
@@ -539,7 +546,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
     };
 
     const handleSkipGeneration = () => {
-        toast.info("You can generate your General Resume later from the dashboard.");
+        toast.info(t('profileSetup.skippedGenInfo'));
         onComplete();
     };
 
@@ -554,11 +561,11 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
         } else {
             try {
                 if (user) await profileRepository.markProfileComplete(user.id);
-                toast.success("Profile done — let's build your first resume.");
+                toast.success(t('profileSetup.profileDoneToast'));
                 await handleGenerateGeneralResume();
             } catch (error) {
                 console.error('Error completing profile:', error);
-                toast.error("We couldn't finish setup. Please try again.");
+                toast.error(t('profileSetup.profileFinishError'));
             }
         }
     };
@@ -600,14 +607,13 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         </div>
                     </div>
                     <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold mb-3">
-                        Your first resume
+                        {t('profileSetup.generatingEyebrow')}
                     </p>
                     <h2 className="font-display text-3xl font-semibold text-brand-700 leading-tight mb-3">
-                        Building your General Resume
+                        {t('profileSetup.generatingTitle')}
                     </h2>
                     <p className="text-brand-500 leading-relaxed">
-                        Our AI is drafting a professional, ATS-friendly resume from everything
-                        you just shared. About 15–20 seconds.
+                        {t('profileSetup.generatingBody')}
                     </p>
                 </div>
             </div>
@@ -623,11 +629,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         <AlertCircle size={22} className="text-red-600" />
                     </div>
                     <h2 className="font-display text-2xl font-semibold text-brand-700 mb-2">
-                        Resume generation hit a snag
+                        {t('profileSetup.failedTitle')}
                     </h2>
                     <p className="text-brand-500 mb-2 leading-relaxed">
-                        We couldn't build your General Resume this time. Your profile is saved —
-                        you can try again or skip and come back later.
+                        {t('profileSetup.failedBody')}
                     </p>
                     {generationError && (
                         <p className="text-sm text-red-700 mb-5 bg-red-50 rounded-lg p-3 text-left border border-red-100">
@@ -641,14 +646,14 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                             className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-brand-700 text-charcoal-50 rounded-full font-semibold hover:bg-brand-800 transition-colors"
                         >
                             <Sparkles size={16} className="text-accent-400" />
-                            Try again
+                            {t('profileSetup.failedTryAgain')}
                         </button>
                         <button
                             type="button"
                             onClick={handleSkipGeneration}
                             className="w-full px-5 py-3 text-brand-600 hover:text-brand-700 font-semibold hover:bg-charcoal-100 rounded-full transition-colors text-sm"
                         >
-                            Skip for now
+                            {t('profileSetup.failedSkip')}
                         </button>
                     </div>
                 </div>
@@ -669,21 +674,22 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                         <Wordmark />
                         <span className="hidden sm:block h-5 w-px bg-charcoal-300" />
                         <span className="hidden sm:block text-sm font-medium text-brand-600 truncate">
-                            Complete your profile
+                            {t('profileSetup.title')}
                         </span>
                     </div>
 
                     <div className="flex items-center gap-3">
                         {!isFirstStep && (
                             <div className="hidden sm:block text-xs text-charcoal-500 font-medium tabular-nums">
-                                Step {progressIndex} of {progressSteps.length}
+                                {t('profileSetup.stepCount', { n: progressIndex, total: progressSteps.length })}
                             </div>
                         )}
+                        <LanguageToggle />
                         <button
                             type="button"
                             onClick={() => signOut()}
                             className="text-charcoal-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-charcoal-100"
-                            title="Sign out"
+                            title={t('profileSetup.signOutTooltip')}
                         >
                             <LogOut size={18} />
                         </button>
@@ -695,10 +701,10 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     <div className="lg:hidden px-4 py-3 border-t border-charcoal-100">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] uppercase tracking-[0.18em] text-accent-600 font-semibold">
-                                {STEP_COPY[currentStep].phase}
+                                {stepCopy(currentStep).phase}
                             </span>
                             <span className="text-xs font-medium text-charcoal-500 tabular-nums">
-                                {progressIndex} / {progressSteps.length}
+                                {t('profileSetup.progressShort', { n: progressIndex, total: progressSteps.length })}
                             </span>
                         </div>
                         <div className="w-full h-1 bg-charcoal-200 rounded-full overflow-hidden">
@@ -718,14 +724,13 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                     <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-24">
                             <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold mb-2">
-                                Your profile
+                                {t('profileSetup.railEyebrow')}
                             </p>
                             <h1 className="font-display text-2xl font-semibold text-brand-700 leading-tight mb-6">
-                                Set once, reuse everywhere
+                                {t('profileSetup.railTitle')}
                             </h1>
                             <p className="text-sm text-brand-500 leading-relaxed mb-8">
-                                This becomes the master source every future tailored resume, cover letter,
-                                and outreach email is generated from. Take your time — it only happens once.
+                                {t('profileSetup.railBody')}
                             </p>
 
                             <nav className="space-y-6">
@@ -787,7 +792,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                                                                                 : 'border-charcoal-300 bg-charcoal-50'
                                                                     }`}
                                                                 />
-                                                                <span className="truncate">{STEP_COPY[step].label}</span>
+                                                                <span className="truncate">{stepCopy(step).label}</span>
                                                             </button>
                                                         </li>
                                                     );
@@ -802,19 +807,18 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                                 <div className="flex items-center gap-2 mb-2">
                                     <FileText size={14} className="text-accent-400" />
                                     <p className="text-[11px] uppercase tracking-[0.2em] text-accent-400 font-semibold">
-                                        Already have a resume?
+                                        {t('profileSetup.importCardEyebrow')}
                                     </p>
                                 </div>
                                 <p className="text-sm text-charcoal-200 leading-relaxed mb-3">
-                                    Upload your existing PDF and we'll prefill everything below. You can
-                                    edit anything after.
+                                    {t('profileSetup.importCardBody')}
                                 </p>
                                 <button
                                     type="button"
                                     onClick={() => setCurrentStep(SetupStep.IMPORT_RESUME)}
                                     className="text-sm text-accent-300 hover:text-accent-200 font-semibold inline-flex items-center gap-1 transition-colors"
                                 >
-                                    Import resume
+                                    {t('profileSetup.importCardCta')}
                                     <ChevronRight size={14} />
                                 </button>
                             </div>
@@ -842,7 +846,7 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-brand-600 hover:text-brand-700 hover:bg-charcoal-100 rounded-full disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent transition-colors"
                         >
                             <ChevronLeft size={16} />
-                            Back
+                            {t('profileSetup.back')}
                         </button>
 
                         <button
@@ -854,16 +858,16 @@ export const ProfileSetupScreen: React.FC<Props> = ({ onComplete, resumeService 
                             {saving ? (
                                 <>
                                     <Loader2 className="animate-spin" size={16} />
-                                    Saving
+                                    {t('profileSetup.saving')}
                                 </>
                             ) : isLastStep ? (
                                 <>
-                                    Finish & build resume
+                                    {t('profileSetup.finishCta')}
                                     <Sparkles size={16} className="text-accent-400" />
                                 </>
                             ) : (
                                 <>
-                                    Continue
+                                    {t('profileSetup.continueCta')}
                                     <ChevronRight size={16} />
                                 </>
                             )}

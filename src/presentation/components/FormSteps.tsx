@@ -59,6 +59,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { MonthPicker } from './ui/month-picker';
+import { useT } from '../i18n/LocaleContext';
 
 // -----------------------------------------------------------------------------
 // Shared primitives
@@ -105,7 +106,9 @@ const InputGroup = ({
   required?: boolean;
   children?: React.ReactNode;
   className?: string;
-}) => (
+}) => {
+  const t = useT();
+  return (
   <div className={`flex flex-col gap-1.5 ${className}`}>
     <div className="flex items-baseline justify-between gap-2">
       <label className="text-sm font-semibold text-brand-700">
@@ -114,7 +117,7 @@ const InputGroup = ({
       </label>
       {optional && (
         <span className="text-[10px] uppercase tracking-[0.18em] text-charcoal-400 font-semibold">
-          Optional
+          {t('formSteps.optional')}
         </span>
       )}
     </div>
@@ -125,7 +128,8 @@ const InputGroup = ({
       <p className="text-xs text-charcoal-500 leading-relaxed">{helper}</p>
     ) : null}
   </div>
-);
+  );
+};
 
 type InputProps = React.ComponentProps<'input'> & { error?: string };
 
@@ -159,11 +163,11 @@ const TextArea = ({ error, className, ...props }: TextAreaProps) => (
 // to coach the user as they fill the form, not hide guidance behind a click.
 // User can still collapse it ("Hide") if they want to focus on typing.
 const TipCard = ({
-  eyebrow = 'Quick guide',
-  title = 'How to write a strong entry',
+  eyebrow,
+  title,
   rules,
   examples,
-  exampleLabel = 'Real examples',
+  exampleLabel,
   defaultOpen = true,
 }: {
   eyebrow?: string;
@@ -173,7 +177,11 @@ const TipCard = ({
   exampleLabel?: string;
   defaultOpen?: boolean;
 }) => {
+  const t = useT();
   const [open, setOpen] = useState(defaultOpen);
+  const eyebrowText = eyebrow ?? t('formSteps.quickGuide');
+  const titleText = title ?? t('formSteps.howToWriteStrong');
+  const exampleLabelText = exampleLabel ?? t('formSteps.realExamples');
   return (
     <div className="rounded-2xl border border-accent-200 bg-accent-50/70 overflow-hidden">
       <div className="flex items-start gap-3 px-5 pt-4 pb-3">
@@ -182,20 +190,20 @@ const TipCard = ({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.22em] text-accent-700 font-semibold">
-            {eyebrow}
+            {eyebrowText}
           </p>
           <p className="text-[15px] font-semibold text-brand-700 leading-snug mt-0.5">
-            {title}
+            {titleText}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setOpen(o => !o)}
           aria-expanded={open}
-          aria-label={open ? 'Hide guide' : 'Show guide'}
+          aria-label={open ? t('formSteps.hideGuide') : t('formSteps.showGuide')}
           className="text-[11px] uppercase tracking-[0.18em] text-accent-700 font-semibold inline-flex items-center gap-1 hover:text-accent-800 transition-colors shrink-0 mt-1"
         >
-          {open ? 'Hide' : 'Show'}
+          {open ? t('formSteps.hide') : t('formSteps.show')}
           <ChevronDown
             size={14}
             className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
@@ -222,7 +230,7 @@ const TipCard = ({
           {examples.length > 0 && (
             <div className="rounded-xl bg-white/70 border border-accent-100 p-3.5">
               <p className="text-[10px] uppercase tracking-[0.22em] text-accent-700 font-semibold mb-2">
-                {exampleLabel}
+                {exampleLabelText}
               </p>
               <ul className="space-y-2">
                 {examples.map(e => (
@@ -259,35 +267,35 @@ type WritingCheck = {
   passed: boolean;
 };
 
-function getWritingChecks(text: string): WritingCheck[] {
-  const t = text.trim();
-  const words = t.length === 0 ? 0 : t.split(/\s+/).length;
-  const hasVerb = ACTION_VERB_RE.test(t);
-  const hasMetric = METRIC_RE.test(t);
-  const hasOutcome = hasMetric || OUTCOME_RE.test(t);
+function getWritingChecks(text: string, t: ReturnType<typeof useT>): WritingCheck[] {
+  const trimmed = text.trim();
+  const words = trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length;
+  const hasVerb = ACTION_VERB_RE.test(trimmed);
+  const hasMetric = METRIC_RE.test(trimmed);
+  const hasOutcome = hasMetric || OUTCOME_RE.test(trimmed);
   return [
     {
       id: 'verb',
-      label: 'Lead with an action verb',
-      hint: 'led, built, grew, shipped, designed, taught, drove…',
+      label: t('formSteps.checkVerbLabel'),
+      hint: t('formSteps.checkVerbHint'),
       passed: hasVerb,
     },
     {
       id: 'metric',
-      label: 'Include a real number',
-      hint: '%, $, users, headcount, hours, audience size, grade',
+      label: t('formSteps.checkMetricLabel'),
+      hint: t('formSteps.checkMetricHint'),
       passed: hasMetric,
     },
     {
       id: 'outcome',
-      label: 'Say what changed because of you',
-      hint: 'the result — fewer tickets, more revenue, faster turnaround',
+      label: t('formSteps.checkOutcomeLabel'),
+      hint: t('formSteps.checkOutcomeHint'),
       passed: hasOutcome,
     },
     {
       id: 'detail',
-      label: 'Give 2–3 sentences of detail',
-      hint: 'enough so the AI has something real to shape into bullets',
+      label: t('formSteps.checkDetailLabel'),
+      hint: t('formSteps.checkDetailHint'),
       passed: words >= 18,
     },
   ];
@@ -314,7 +322,8 @@ const PromptList = ({ prompts }: { prompts: string[] }) => (
 // Live, transparent feedback under brain-dump textareas. Replaces the old
 // 3-bar opaque meter with explicit checks the user can read at a glance.
 const WritingChecklist = ({ text }: { text: string }) => {
-  const items = getWritingChecks(text);
+  const t = useT();
+  const items = getWritingChecks(text, t);
   const passed = items.filter(i => i.passed).length;
   const empty = !text.trim();
   const allPass = passed === items.length;
@@ -324,15 +333,15 @@ const WritingChecklist = ({ text }: { text: string }) => {
       <div className="flex items-center justify-between mb-2.5">
         <p className="text-[10px] uppercase tracking-[0.22em] text-charcoal-500 font-semibold">
           {empty
-            ? 'We\'ll check 4 things as you type'
+            ? t('formSteps.weCheckFour')
             : allPass
-              ? 'Looking great'
-              : `${passed} of ${items.length} so far`}
+              ? t('formSteps.lookingGreat')
+              : t('formSteps.soFarN', { passed, total: items.length })}
         </p>
         {allPass && (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-700">
             <Sparkles size={12} />
-            Plenty for the AI to work with
+            {t('formSteps.plentyForAi')}
           </span>
         )}
       </div>
@@ -382,6 +391,7 @@ const WritingGuide = ({
   reassurance: string;
   examples: string[];
 }) => {
+  const t = useT();
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-2xl border border-accent-200 bg-accent-50/70 overflow-hidden">
@@ -391,7 +401,7 @@ const WritingGuide = ({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[10px] uppercase tracking-[0.22em] text-accent-700 font-semibold mb-1.5">
-            You're safe to brain-dump
+            {t('formSteps.safeBrainDump')}
           </p>
           <p className="text-[15px] leading-relaxed text-brand-700">
             {reassurance}
@@ -408,8 +418,8 @@ const WritingGuide = ({
           >
             <span className="text-[11px] uppercase tracking-[0.18em] text-accent-700 font-semibold">
               {open
-                ? 'Hide examples'
-                : `Want a peek? ${examples.length} real examples`}
+                ? t('formSteps.hideExamples')
+                : t('formSteps.peekExamples', { n: examples.length })}
             </span>
             <ChevronDown
               size={14}
@@ -459,15 +469,15 @@ const MiniGuide = ({
 );
 
 // Calm reassurance shown next to brain-dump fields so users brain-dump freely.
-const PolishHint = () => (
+const PolishHint = () => {
+  const t = useT();
+  return (
   <p className="flex items-start gap-1.5 text-[12px] text-charcoal-500 leading-relaxed">
     <Sparkles size={12} className="text-accent-500 shrink-0 mt-0.5" />
-    <span>
-      Type messy. The AI rewrites this into clean resume bullets after you
-      submit — your job is just to give it the raw facts.
-    </span>
+    <span>{t('formSteps.polishHint')}</span>
   </p>
-);
+  );
+};
 
 // List-item card that auto-collapses to a one-line summary once its key fields
 // are filled. Prevents long forms from becoming an endless scroll.
@@ -488,6 +498,7 @@ const CollapsibleItem = ({
   onRemove: () => void;
   children: React.ReactNode;
 }) => {
+  const t = useT();
   const [open, setOpen] = useState(!isFilled);
   return (
     <div className="rounded-2xl border border-charcoal-200 bg-white overflow-hidden">
@@ -515,7 +526,7 @@ const CollapsibleItem = ({
             </p>
           ) : (
             <p className="text-[13px] text-charcoal-500 mt-0.5">
-              {open ? 'Editing details' : 'Tap to fill in the details'}
+              {open ? t('formSteps.editing') : t('formSteps.tapToFill')}
             </p>
           )}
         </button>
@@ -523,7 +534,7 @@ const CollapsibleItem = ({
           type="button"
           onClick={() => setOpen(o => !o)}
           className="text-charcoal-400 hover:text-brand-700 p-1.5 rounded-md hover:bg-charcoal-100 transition-colors"
-          aria-label={open ? 'Collapse' : 'Expand'}
+          aria-label={open ? t('formSteps.collapse') : t('formSteps.expand')}
         >
           <ChevronDown
             size={18}
@@ -534,7 +545,7 @@ const CollapsibleItem = ({
           type="button"
           onClick={onRemove}
           className="text-charcoal-400 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
-          aria-label="Remove"
+          aria-label={t('formSteps.remove')}
         >
           <Trash2 size={16} />
         </button>
@@ -588,6 +599,7 @@ export const UserTypeStep: React.FC<{
   userType?: UserType;
   update: (userType: UserType) => void;
 }> = ({ userType, update }) => {
+  const t = useT();
   const options: {
     key: UserType;
     title: string;
@@ -597,24 +609,24 @@ export const UserTypeStep: React.FC<{
   }[] = [
     {
       key: 'experienced',
-      title: 'Experienced Professional',
+      title: t('formSteps.expCardTitle'),
       icon: <Briefcase size={22} />,
-      lead: "You've held at least one job — full-time, internship, long contract, freelance — that you want on your resume.",
+      lead: t('formSteps.expCardLead'),
       fits: [
-        'Any industry — nursing, teaching, law, design, sales, engineering, trades',
-        "Career changers — we'll still lead with your work history",
-        'Returning after a break — experience still goes first',
+        t('formSteps.expCardFit1'),
+        t('formSteps.expCardFit2'),
+        t('formSteps.expCardFit3'),
       ],
     },
     {
       key: 'student',
-      title: 'Student / Entry Level',
+      title: t('formSteps.studentCardTitle'),
       icon: <GraduationCap size={22} />,
-      lead: "You're in school or recently graduated and don't have full-time work yet. We'll lead with your projects, coursework, and activities.",
+      lead: t('formSteps.studentCardLead'),
       fits: [
-        'Undergrad, grad student, or recent graduate',
-        'Bootcamp, trade, or certificate programs',
-        'First job or first internship — projects and activities do the work',
+        t('formSteps.studentCardFit1'),
+        t('formSteps.studentCardFit2'),
+        t('formSteps.studentCardFit3'),
       ],
     },
   ];
@@ -622,9 +634,9 @@ export const UserTypeStep: React.FC<{
   return (
     <div>
       <SectionHeader
-        eyebrow="Step 1 · About you"
-        title="Which path fits you best?"
-        desc="This one choice shapes the rest of the form — which sections we show you, what examples we use, and how the AI frames your story. You can change it later."
+        eyebrow={t('formSteps.userTypeEyebrow')}
+        title={t('formSteps.userTypeTitle')}
+        desc={t('formSteps.userTypeDesc')}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -680,10 +692,7 @@ export const UserTypeStep: React.FC<{
       <div className="mt-6 flex items-start gap-2.5 rounded-lg bg-charcoal-100 border border-charcoal-200 px-4 py-3 text-[13px] text-brand-600">
         <Info size={15} className="text-brand-500 shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          <span className="font-semibold text-brand-700">Not sure?</span> If you have
-          even one paid role on your resume already, pick Experienced Professional. If
-          your strongest material is coursework, clubs, or capstone projects, pick
-          Student / Entry Level.
+          <span className="font-semibold text-brand-700">{t('formSteps.notSureLabel')}</span> {t('formSteps.notSureBody')}
         </p>
       </div>
     </div>
@@ -694,37 +703,39 @@ export const TargetJobStep: React.FC<{
   data: TargetJob;
   errors?: Record<string, string>;
   update: (d: TargetJob) => void;
-}> = ({ data, errors, update }) => (
+}> = ({ data, errors, update }) => {
+  const t = useT();
+  return (
   <div>
     <SectionHeader
-      eyebrow="Target role"
-      title="What job are you applying for?"
-      desc="Paste the actual job posting. The more context we have, the more precisely your resume, cover letter, outreach email, and interview prep can be tailored."
+      eyebrow={t('formSteps.targetJobEyebrow')}
+      title={t('formSteps.targetJobTitle')}
+      desc={t('formSteps.targetJobDesc')}
     />
 
     <div className="space-y-5">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <InputGroup
-          label="Job Title"
+          label={t('formSteps.targetJobJobTitleLabel')}
           required
-          helper="Exactly as it appears in the posting."
+          helper={t('formSteps.targetJobJobTitleHelper')}
           error={errors?.['targetJob.title']}
         >
           <Input
-            placeholder="e.g. Senior Marketing Manager"
+            placeholder={t('formSteps.targetJobJobTitlePlaceholder')}
             value={data.title}
             error={errors?.['targetJob.title']}
             onChange={e => update({ ...data, title: e.target.value })}
           />
         </InputGroup>
         <InputGroup
-          label="Company / Organization"
+          label={t('formSteps.targetJobCompanyLabel')}
           required
-          helper="Used in cover letter salutation and outreach email."
+          helper={t('formSteps.targetJobCompanyHelper')}
           error={errors?.['targetJob.company']}
         >
           <Input
-            placeholder="e.g. Acme Inc., Mayo Clinic, Pearson"
+            placeholder={t('formSteps.targetJobCompanyPlaceholder')}
             value={data.company}
             error={errors?.['targetJob.company']}
             onChange={e => update({ ...data, company: e.target.value })}
@@ -733,17 +744,14 @@ export const TargetJobStep: React.FC<{
       </div>
 
       <InputGroup
-        label="Full Job Description"
+        label={t('formSteps.targetJobDescLabel')}
         required
-        helper="Paste everything — responsibilities, qualifications, and 'about the team'. More text = sharper tailoring."
+        helper={t('formSteps.targetJobDescHelper')}
         error={errors?.['targetJob.description']}
       >
         <TextArea
           rows={10}
-          placeholder={`Copy the full posting from the careers page or LinkedIn. Include:
-• The "Responsibilities" or "What you'll do" section
-• The "Qualifications" or "What we're looking for" section
-• Any team or mission blurb — it helps with the cover letter`}
+          placeholder={t('formSteps.targetJobDescPlaceholder')}
           value={data.description}
           error={errors?.['targetJob.description']}
           onChange={e => update({ ...data, description: e.target.value })}
@@ -751,17 +759,18 @@ export const TargetJobStep: React.FC<{
       </InputGroup>
 
       <TipCard
-        title="Why the full JD matters"
+        title={t('formSteps.targetJobTipTitle')}
         rules={[
-          'The AI matches your experience to specific phrases in the posting — keywords, tools, and responsibilities.',
-          'A longer JD lets us rank which of your skills and bullets to lead with.',
-          "The cover letter pulls on the 'about us' or team paragraph, so leave it in.",
+          t('formSteps.targetJobTipRule1'),
+          t('formSteps.targetJobTipRule2'),
+          t('formSteps.targetJobTipRule3'),
         ]}
         examples={[]}
       />
     </div>
   </div>
-);
+  );
+};
 
 // Small section header used inside PersonalInfoStep cards.
 const PanelHeader = ({
@@ -776,7 +785,9 @@ const PanelHeader = ({
   hint?: string;
   optional?: boolean;
   icon?: React.ReactNode;
-}) => (
+}) => {
+  const t = useT();
+  return (
   <div className="mb-5">
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-2">
@@ -787,7 +798,7 @@ const PanelHeader = ({
       </div>
       {optional && (
         <span className="text-[10px] uppercase tracking-[0.18em] text-charcoal-400 font-semibold">
-          All optional
+          {t('formSteps.allOptional')}
         </span>
       )}
     </div>
@@ -800,31 +811,33 @@ const PanelHeader = ({
       </p>
     )}
   </div>
-);
+  );
+};
 
 export const PersonalInfoStep: React.FC<{
   data: PersonalInfo;
   errors?: Record<string, string>;
   update: (d: PersonalInfo) => void;
-}> = ({ data, errors, update }) => (
+}> = ({ data, errors, update }) => {
+  const t = useT();
+  return (
   <div>
     <SectionHeader
-      eyebrow="Contact"
-      title="How can recruiters reach you?"
-      desc="Just the essentials at the top of a resume. Two required fields — name and email. Everything else is optional, add what you have."
+      eyebrow={t('formSteps.personalEyebrow')}
+      title={t('formSteps.personalTitle')}
+      desc={t('formSteps.personalDesc')}
     />
 
     <div className="space-y-5">
-      {/* The basics — required */}
       <section className="rounded-2xl border border-charcoal-200 bg-white p-5 sm:p-6">
         <PanelHeader
-          eyebrow="The basics"
-          title="Name and email"
-          hint="These two go on every resume. Name as you'd want it printed."
+          eyebrow={t('formSteps.basicsEyebrow')}
+          title={t('formSteps.basicsTitle')}
+          hint={t('formSteps.basicsHint')}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputGroup
-            label="Full name"
+            label={t('formSteps.fullNameLabel')}
             required
             error={errors?.['personalInfo.fullName']}
           >
@@ -832,12 +845,12 @@ export const PersonalInfoStep: React.FC<{
               error={errors?.['personalInfo.fullName']}
               value={data.fullName}
               onChange={e => update({ ...data, fullName: e.target.value })}
-              placeholder="Jane Doe"
+              placeholder={t('formSteps.fullNamePlaceholder')}
               autoComplete="name"
             />
           </InputGroup>
           <InputGroup
-            label="Email"
+            label={t('formSteps.emailLabel')}
             required
             error={errors?.['personalInfo.email']}
           >
@@ -846,87 +859,86 @@ export const PersonalInfoStep: React.FC<{
               type="email"
               value={data.email}
               onChange={e => update({ ...data, email: e.target.value })}
-              placeholder="jane@example.com"
+              placeholder={t('formSteps.emailPlaceholder')}
               autoComplete="email"
             />
           </InputGroup>
         </div>
       </section>
 
-      {/* Phone & location — optional */}
       <section className="rounded-2xl border border-charcoal-200 bg-white p-5 sm:p-6">
         <PanelHeader
-          eyebrow="Phone & location"
-          title="Where you're based"
-          hint="Optional, but most recruiters expect to see them."
+          eyebrow={t('formSteps.phoneLocEyebrow')}
+          title={t('formSteps.phoneLocTitle')}
+          hint={t('formSteps.phoneLocHint')}
           optional
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InputGroup label="Phone">
+          <InputGroup label={t('formSteps.phoneLabel')}>
             <Input
               type="tel"
               value={data.phone}
               onChange={e => update({ ...data, phone: e.target.value })}
-              placeholder="+1 (555) 000-0000"
+              placeholder={t('formSteps.phonePlaceholder')}
               autoComplete="tel"
             />
           </InputGroup>
           <InputGroup
-            label="Location"
-            helper="City + state or country is plenty. No street address."
+            label={t('formSteps.locationLabel')}
+            helper={t('formSteps.locationHelper')}
           >
             <Input
               value={data.location}
               onChange={e => update({ ...data, location: e.target.value })}
-              placeholder="San Francisco, CA"
+              placeholder={t('formSteps.locationPlaceholder')}
             />
           </InputGroup>
         </div>
       </section>
 
-      {/* Links — optional */}
       <section className="rounded-2xl border border-charcoal-200 bg-white p-5 sm:p-6">
         <PanelHeader
-          eyebrow="Links"
-          title="Where to send them next"
-          hint="Add only the links that back up your work — two polished beats five half-built."
+          eyebrow={t('formSteps.linksEyebrow')}
+          title={t('formSteps.linksTitle')}
+          hint={t('formSteps.linksHint')}
           optional
           icon={<LinkIcon size={14} />}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InputGroup label="LinkedIn">
+          <InputGroup label={t('formSteps.linkedinLabel')}>
             <Input
               type="url"
               value={data.linkedin || ''}
               onChange={e => update({ ...data, linkedin: e.target.value })}
-              placeholder="https://linkedin.com/in/janedoe"
+              placeholder={t('formSteps.linkedinPlaceholder')}
             />
           </InputGroup>
-          <InputGroup label="GitHub / Code portfolio">
+          <InputGroup label={t('formSteps.githubLabel')}>
             <Input
               type="url"
               value={data.github || ''}
               onChange={e => update({ ...data, github: e.target.value })}
-              placeholder="https://github.com/janedoe"
+              placeholder={t('formSteps.githubPlaceholder')}
             />
           </InputGroup>
           <InputGroup
-            label="Website / Portfolio"
+            label={t('formSteps.websiteLabel')}
             className="md:col-span-2"
-            helper="Personal site, Behance, Dribbble, Medium, published article, case study — anything the reader can click."
+            helper={t('formSteps.websiteHelper')}
           >
             <Input
               type="url"
               value={data.website || ''}
               onChange={e => update({ ...data, website: e.target.value })}
-              placeholder="https://janedoe.com"
+              placeholder={t('formSteps.websitePlaceholder')}
             />
           </InputGroup>
         </div>
       </section>
     </div>
   </div>
-);
+  );
+};
 
 export const ProjectsStep: React.FC<{
   data: Project[];
@@ -934,6 +946,7 @@ export const ProjectsStep: React.FC<{
   update: (d: Project[]) => void;
   userType?: UserType;
 }> = ({ data, errors, update, userType }) => {
+  const t = useT();
   const addProject = () => {
     update([
       ...data,
@@ -954,30 +967,30 @@ export const ProjectsStep: React.FC<{
   };
 
   const studentExamples = [
-    'Built a study-group matching app for my cohort; 120+ students signed up in the first month.',
-    'Ran a 6-week community tutoring program for 24 middle-schoolers; average reading scores rose 18%.',
-    'Designed a capstone brand campaign for a local café; presentation voted best in cohort.',
+    t('formSteps.projectsStudentEx1'),
+    t('formSteps.projectsStudentEx2'),
+    t('formSteps.projectsStudentEx3'),
   ];
   const proExamples = [
-    'Led a 6-month brand relaunch across web, packaging, and social; engagement grew 40%.',
-    'Shipped a customer dashboard with React + Node.js in 8 weeks; support tickets fell 30%.',
-    'Ran a 20-patient community health study; findings published in the department review.',
+    t('formSteps.projectsProEx1'),
+    t('formSteps.projectsProEx2'),
+    t('formSteps.projectsProEx3'),
   ];
 
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Your work"
-        title="Projects"
+        eyebrow={t('formSteps.projectsEyebrow')}
+        title={t('formSteps.projectsTitle')}
         desc={
           userType === 'student'
-            ? "Capstones, coursework, clubs, freelance, side projects — anything you planned, built, or delivered. These carry your resume when you don't have full-time experience yet."
-            : 'Side projects, freelance work, research studies, campaigns, case studies, open-source contributions — anything you planned, built, or delivered outside of a job title.'
+            ? t('formSteps.projectsDescStudent')
+            : t('formSteps.projectsDescPro')
         }
       />
 
       <WritingGuide
-        reassurance="Tell us about each project in your own words — no formatting, no special structure. The AI turns it into clean resume bullets after you submit. The questions next to the textarea are just a nudge if you draw a blank; you don't have to follow them."
+        reassurance={t('formSteps.projectsReassurance')}
         examples={userType === 'student' ? studentExamples : proExamples}
       />
 
@@ -987,14 +1000,14 @@ export const ProjectsStep: React.FC<{
           <CollapsibleItem
             key={project.id}
             icon={<FolderGit2 size={16} />}
-            indexLabel={`Project ${index + 1}`}
+            indexLabel={t('formSteps.projectsIndex', { n: index + 1 })}
             isFilled={filled}
-            summaryPrimary={project.name || 'Untitled project'}
+            summaryPrimary={project.name || t('formSteps.projectsUntitled')}
             summarySecondary={project.technologies}
             onRemove={() => removeProject(project.id)}
           >
             <InputGroup
-              label="Project name"
+              label={t('formSteps.projectsNameLabel')}
               required
               error={errors?.[`projects.${index}.name`]}
             >
@@ -1004,28 +1017,28 @@ export const ProjectsStep: React.FC<{
                 onChange={e =>
                   updateProject(project.id, 'name', e.target.value)
                 }
-                placeholder="e.g. Brand Relaunch Campaign, Community Health Study, E-commerce Platform"
+                placeholder={t('formSteps.projectsNamePlaceholder')}
               />
             </InputGroup>
 
             <InputGroup
-              label="Tools, methods, or technologies"
+              label={t('formSteps.projectsTechLabel')}
               optional
-              helper="Comma-separated. Leave blank if it doesn't apply (research, legal cases, curriculum, art)."
+              helper={t('formSteps.projectsTechHelper')}
             >
               <Input
                 value={project.technologies || ''}
                 onChange={e =>
                   updateProject(project.id, 'technologies', e.target.value)
                 }
-                placeholder="e.g. Figma, Adobe Suite · SPSS, qualitative interviews · React, Node.js"
+                placeholder={t('formSteps.projectsTechPlaceholder')}
               />
             </InputGroup>
 
             <InputGroup
-              label="Link"
+              label={t('formSteps.projectsLinkLabel')}
               optional
-              helper="Portfolio page, GitHub repo, published article, case study — anything the reader can click."
+              helper={t('formSteps.projectsLinkHelper')}
             >
               <Input
                 type="url"
@@ -1033,20 +1046,20 @@ export const ProjectsStep: React.FC<{
                 onChange={e =>
                   updateProject(project.id, 'link', e.target.value)
                 }
-                placeholder="https://…"
+                placeholder={t('formSteps.projectsLinkPlaceholder')}
               />
             </InputGroup>
 
             <InputGroup
-              label="Tell us about this project"
+              label={t('formSteps.projectsDescLabel')}
               required
               error={errors?.[`projects.${index}.rawDescription`]}
             >
               <PromptList
                 prompts={[
-                  'What were you trying to do, and for whom?',
-                  'What did you build, design, study, or deliver?',
-                  'What was the result — users, audience, money, time saved, grade?',
+                  t('formSteps.projectsPrompt1'),
+                  t('formSteps.projectsPrompt2'),
+                  t('formSteps.projectsPrompt3'),
                 ]}
               />
               <PolishHint />
@@ -1057,7 +1070,7 @@ export const ProjectsStep: React.FC<{
                 onChange={e =>
                   updateProject(project.id, 'rawDescription', e.target.value)
                 }
-                placeholder="e.g. Built a study-group matching app for our cohort. Designed the matching logic in Python, the UI in React. Within a month 120+ students had signed up and we matched 85% of them within 24 hours."
+                placeholder={t('formSteps.projectsDescPlaceholder')}
               />
               <WritingChecklist text={project.rawDescription} />
             </InputGroup>
@@ -1065,7 +1078,7 @@ export const ProjectsStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addProject} label="Add project" />
+      <AddButton onClick={addProject} label={t('formSteps.projectsAddCta')} />
     </div>
   );
 };
@@ -1075,6 +1088,7 @@ export const ExperienceStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: WorkExperience[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addExp = () => {
     update([
       ...data,
@@ -1099,18 +1113,18 @@ export const ExperienceStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Your work"
-        title="Experience"
-        desc="Paid roles — full-time, part-time, contract, freelance, internships. Start with the most recent. The AI will rewrite each entry into tight, achievement-focused bullets."
+        eyebrow={t('formSteps.experienceEyebrow')}
+        title={t('formSteps.experienceTitle')}
+        desc={t('formSteps.experienceDesc')}
       />
 
       <WritingGuide
-        reassurance="Write each role however feels natural — even one run-on paragraph works. The AI rewrites this into clean, polished resume bullets after you submit. The questions next to each textarea are just a nudge if you draw a blank; you don't have to follow them."
+        reassurance={t('formSteps.experienceReassurance')}
         examples={[
-          'Led a 5-person team through a checkout rebuild; cart-abandon rate fell 28% in one quarter.',
-          'Managed 20+ patient caseload across 3 units; reduced 30-day readmissions 15%.',
-          'Closed $1.2M in new business in Q3; grew territory pipeline 35% YoY.',
-          'Drafted and argued 30+ motions in civil cases; average turnaround cut in half.',
+          t('formSteps.experienceEx1'),
+          t('formSteps.experienceEx2'),
+          t('formSteps.experienceEx3'),
+          t('formSteps.experienceEx4'),
         ]}
       />
 
@@ -1121,19 +1135,19 @@ export const ExperienceStep: React.FC<{
           <CollapsibleItem
             key={exp.id}
             icon={<Briefcase size={16} />}
-            indexLabel={`Position ${index + 1}`}
+            indexLabel={t('formSteps.experienceIndex', { n: index + 1 })}
             isFilled={filled}
             summaryPrimary={
               exp.role && exp.company
                 ? `${exp.role} · ${exp.company}`
-                : exp.role || exp.company || 'Untitled role'
+                : exp.role || exp.company || t('formSteps.untitledRole')
             }
             summarySecondary={dateRange(exp.startDate, exp.endDate, exp.isCurrent)}
             onRemove={() => removeExp(exp.id)}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Job title"
+                label={t('formSteps.experienceJobTitleLabel')}
                 required
                 error={errors?.[`experience.${index}.role`]}
               >
@@ -1141,11 +1155,11 @@ export const ExperienceStep: React.FC<{
                   error={errors?.[`experience.${index}.role`]}
                   value={exp.role}
                   onChange={e => updateExp(exp.id, 'role', e.target.value)}
-                  placeholder="e.g. Registered Nurse, Marketing Manager, Software Engineer"
+                  placeholder={t('formSteps.experienceJobTitlePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Company / Organization"
+                label={t('formSteps.experienceCompanyLabel')}
                 required
                 error={errors?.[`experience.${index}.company`]}
               >
@@ -1153,12 +1167,12 @@ export const ExperienceStep: React.FC<{
                   error={errors?.[`experience.${index}.company`]}
                   value={exp.company}
                   onChange={e => updateExp(exp.id, 'company', e.target.value)}
-                  placeholder="e.g. Mayo Clinic, Acme Corp, Oakwood High School"
+                  placeholder={t('formSteps.experienceCompanyPlaceholder')}
                 />
               </InputGroup>
 
               <InputGroup
-                label="Start date"
+                label={t('formSteps.experienceStartLabel')}
                 required
                 error={errors?.[`experience.${index}.startDate`]}
               >
@@ -1172,7 +1186,7 @@ export const ExperienceStep: React.FC<{
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-baseline justify-between">
                   <label className="text-sm font-semibold text-brand-700">
-                    End date
+                    {t('formSteps.experienceEndLabel')}
                     {!exp.isCurrent && (
                       <span className="text-accent-500 ml-0.5">*</span>
                     )}
@@ -1180,7 +1194,7 @@ export const ExperienceStep: React.FC<{
                 </div>
                 {exp.isCurrent ? (
                   <div className="w-full rounded-lg border border-charcoal-200 bg-charcoal-100 px-3.5 py-2.5 text-sm text-brand-600 font-medium">
-                    Present
+                    {t('formSteps.monthPresent')}
                   </div>
                 ) : (
                   <>
@@ -1222,22 +1236,22 @@ export const ExperienceStep: React.FC<{
                       exp.isCurrent ? 'text-accent-700' : 'text-charcoal-600'
                     }`}
                   >
-                    I currently work here
+                    {t('formSteps.experienceCurrentLabel')}
                   </span>
                 </label>
               </div>
             </div>
 
             <InputGroup
-              label="Tell us what you did here"
+              label={t('formSteps.experienceDescLabel')}
               required
               error={errors?.[`experience.${index}.rawDescription`]}
             >
               <PromptList
                 prompts={[
-                  'What did you own day-to-day — your scope, team, customers?',
-                  'What did you actually build, ship, lead, fix, or improve?',
-                  'What changed because of you? Add a number if you have one ($, %, users, hours).',
+                  t('formSteps.experiencePrompt1'),
+                  t('formSteps.experiencePrompt2'),
+                  t('formSteps.experiencePrompt3'),
                 ]}
               />
               <PolishHint />
@@ -1248,7 +1262,7 @@ export const ExperienceStep: React.FC<{
                 onChange={e =>
                   updateExp(exp.id, 'rawDescription', e.target.value)
                 }
-                placeholder="e.g. I led a 5-person team rebuilding our checkout flow over Q2. We shipped a one-page checkout that cut cart abandonment from 38% to 27% — about $1.4M in recovered revenue that year."
+                placeholder={t('formSteps.experienceDescPlaceholder')}
               />
               <WritingChecklist text={exp.rawDescription} />
             </InputGroup>
@@ -1256,7 +1270,7 @@ export const ExperienceStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addExp} label="Add position" />
+      <AddButton onClick={addExp} label={t('formSteps.experienceAddCta')} />
     </div>
   );
 };
@@ -1266,6 +1280,7 @@ export const EducationStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Education[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addEdu = () =>
     update([
       ...data,
@@ -1288,22 +1303,22 @@ export const EducationStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Education"
-        desc="Most recent first. Include the full degree name — recruiters search on it."
+        eyebrow={t('formSteps.educationEyebrow')}
+        title={t('formSteps.educationTitle')}
+        desc={t('formSteps.educationDesc')}
       />
 
       <TipCard
-        title="What to include"
+        title={t('formSteps.educationTipTitle')}
         rules={[
-          'Full degree name as it appears on your diploma — "Bachelor of Science", not "BS".',
-          'Only list GPA if it helps you: 3.5+ for college, 3.7+ for grad school.',
-          'High school is fine if you\'re a student or recent grad — drop it once you have a degree.',
+          t('formSteps.educationTipRule1'),
+          t('formSteps.educationTipRule2'),
+          t('formSteps.educationTipRule3'),
         ]}
         examples={[
-          'BSN, Nursing — University of Michigan, 2018–2022',
-          'MBA, Marketing — NYU Stern, 2020–2022, GPA 3.8/4.0',
-          'High School Diploma — Oakwood High School, 2019–2023',
+          t('formSteps.educationTipEx1'),
+          t('formSteps.educationTipEx2'),
+          t('formSteps.educationTipEx3'),
         ]}
       />
 
@@ -1314,12 +1329,12 @@ export const EducationStep: React.FC<{
           <CollapsibleItem
             key={edu.id}
             icon={<GraduationCap size={16} />}
-            indexLabel={`School ${index + 1}`}
+            indexLabel={t('formSteps.educationIndex', { n: index + 1 })}
             isFilled={filled}
             summaryPrimary={
               edu.degree && edu.field
                 ? `${edu.degree}, ${edu.field}`
-                : edu.degree || edu.school || 'Untitled entry'
+                : edu.degree || edu.school || t('formSteps.educationUntitled')
             }
             summarySecondary={
               edu.school
@@ -1334,7 +1349,7 @@ export const EducationStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="School / University"
+                label={t('formSteps.educationSchoolLabel')}
                 required
                 error={errors?.[`education.${index}.school`]}
               >
@@ -1342,11 +1357,11 @@ export const EducationStep: React.FC<{
                   error={errors?.[`education.${index}.school`]}
                   value={edu.school}
                   onChange={e => updateEdu(edu.id, 'school', e.target.value)}
-                  placeholder="e.g. Stanford University, NYU, State University"
+                  placeholder={t('formSteps.educationSchoolPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Degree"
+                label={t('formSteps.educationDegreeLabel')}
                 required
                 error={errors?.[`education.${index}.degree`]}
               >
@@ -1354,11 +1369,11 @@ export const EducationStep: React.FC<{
                   error={errors?.[`education.${index}.degree`]}
                   value={edu.degree}
                   onChange={e => updateEdu(edu.id, 'degree', e.target.value)}
-                  placeholder="e.g. Bachelor of Arts, BSN, MBA, High School Diploma"
+                  placeholder={t('formSteps.educationDegreePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Field of study"
+                label={t('formSteps.educationFieldLabel')}
                 required
                 error={errors?.[`education.${index}.field`]}
               >
@@ -1366,12 +1381,12 @@ export const EducationStep: React.FC<{
                   error={errors?.[`education.${index}.field`]}
                   value={edu.field}
                   onChange={e => updateEdu(edu.id, 'field', e.target.value)}
-                  placeholder="e.g. Nursing, Business, Education, Computer Science"
+                  placeholder={t('formSteps.educationFieldPlaceholder')}
                 />
               </InputGroup>
               <div className="grid grid-cols-2 gap-3">
                 <InputGroup
-                  label="Start year"
+                  label={t('formSteps.educationStartYearLabel')}
                   required
                   error={errors?.[`education.${index}.startDate`]}
                 >
@@ -1381,11 +1396,11 @@ export const EducationStep: React.FC<{
                     onChange={e =>
                       updateEdu(edu.id, 'startDate', e.target.value)
                     }
-                    placeholder="2018"
+                    placeholder={t('formSteps.educationStartYearPlaceholder')}
                   />
                 </InputGroup>
                 <InputGroup
-                  label="End year"
+                  label={t('formSteps.educationEndYearLabel')}
                   required
                   error={errors?.[`education.${index}.endDate`]}
                 >
@@ -1393,20 +1408,20 @@ export const EducationStep: React.FC<{
                     error={errors?.[`education.${index}.endDate`]}
                     value={edu.endDate}
                     onChange={e => updateEdu(edu.id, 'endDate', e.target.value)}
-                    placeholder="2022"
+                    placeholder={t('formSteps.educationEndYearPlaceholder')}
                   />
                 </InputGroup>
               </div>
               <InputGroup
-                label="GPA / CGPA"
+                label={t('formSteps.educationGpaLabel')}
                 optional
-                helper="Only if it helps you — skip otherwise."
+                helper={t('formSteps.educationGpaHelper')}
                 className="md:col-span-2"
               >
                 <Input
                   value={edu.gpa || ''}
                   onChange={e => updateEdu(edu.id, 'gpa', e.target.value)}
-                  placeholder="e.g. 3.8/4.0 or 8.5/10"
+                  placeholder={t('formSteps.educationGpaPlaceholder')}
                 />
               </InputGroup>
             </div>
@@ -1414,7 +1429,7 @@ export const EducationStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addEdu} label="Add education" />
+      <AddButton onClick={addEdu} label={t('formSteps.educationAddCta')} />
     </div>
   );
 };
@@ -1435,6 +1450,7 @@ export const SkillsStep: React.FC<{
    */
   profilePool?: string[];
 }> = ({ data, update, userType, jdText, profilePool = [] }) => {
+  const t = useT();
   const [currentSkill, setCurrentSkill] = useState('');
 
   const addSkill = (e?: React.FormEvent) => {
@@ -1514,12 +1530,12 @@ export const SkillsStep: React.FC<{
   // Encouraging count vibe — purely cosmetic, no validation behaviour.
   const countLabel =
     count === 0
-      ? 'Add a few to get started'
+      ? t('formSteps.skillsAddSome')
       : count < 6
-        ? `${count} so far — keep going`
+        ? t('formSteps.skillsKeepGoing', { n: count })
         : count <= 18
-          ? `${count} skills — solid list`
-          : `${count} skills — long, but the AI will trim`;
+          ? t('formSteps.skillsSolidList', { n: count })
+          : t('formSteps.skillsLongList', { n: count });
   const countTone =
     count === 0
       ? 'text-charcoal-500'
@@ -1530,19 +1546,15 @@ export const SkillsStep: React.FC<{
   return (
     <div>
       <SectionHeader
-        eyebrow="Your work"
-        title="Skills"
-        desc="A mix of tools you use (React, Excel, Figma) and ways you work (leadership, negotiation). The AI ranks them against the job description and trims the list later — so you don't need to overthink the order or count."
+        eyebrow={t('formSteps.skillsEyebrow')}
+        title={t('formSteps.skillsTitle')}
+        desc={t('formSteps.skillsDesc')}
       />
 
       <MiniGuide>
-        <strong>Cast a wide net.</strong> Mix specific tools (SEMrush, NumPy,
-        Adobe Suite) with the soft skills you'd actually defend in an interview
-        (coaching, stakeholder management). The AI prunes anything irrelevant
-        when it tailors the resume.
+        <strong>{t('formSteps.skillsMiniGuidePrefix')}</strong>{t('formSteps.skillsMiniGuideBody')}
       </MiniGuide>
 
-      {/* Add input */}
       <form
         onSubmit={addSkill}
         className="mt-6 flex flex-col sm:flex-row gap-2"
@@ -1550,7 +1562,7 @@ export const SkillsStep: React.FC<{
         <Input
           value={currentSkill}
           onChange={e => setCurrentSkill(e.target.value)}
-          placeholder="Type a skill, then press Enter or click Add"
+          placeholder={t('formSteps.skillsInputPlaceholder')}
           className="flex-1"
           autoComplete="off"
         />
@@ -1559,7 +1571,7 @@ export const SkillsStep: React.FC<{
           className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-brand-700 text-charcoal-50 rounded-lg font-semibold text-sm hover:bg-brand-800 transition-colors disabled:opacity-50"
           disabled={!currentSkill.trim()}
         >
-          <Plus size={15} /> Add
+          <Plus size={15} /> {t('formSteps.skillsAddBtn')}
         </button>
       </form>
 
@@ -1575,16 +1587,15 @@ export const SkillsStep: React.FC<{
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-[0.22em] text-accent-700 font-semibold">
-                  From this job description
+                  {t('formSteps.skillsFromJD')}
                 </p>
                 <p className="text-[13.5px] text-brand-700 leading-snug mt-0.5 max-w-md">
-                  We matched these against the JD you pasted. Click to add — the
-                  AI will polish them for the resume.
+                  {t('formSteps.skillsFromJDDesc')}
                 </p>
               </div>
             </div>
             <p className="text-[11px] text-accent-700 font-semibold whitespace-nowrap">
-              {jdMatched.length} matched
+              {t('formSteps.skillsMatchedCount', { n: jdMatched.length })}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1610,10 +1621,10 @@ export const SkillsStep: React.FC<{
         <div className="mt-7">
           <div className="flex items-baseline justify-between mb-3">
             <p className="text-[11px] uppercase tracking-[0.22em] text-charcoal-500 font-semibold">
-              {hasJdMatches ? 'Other common picks' : 'Common picks · click to add'}
+              {hasJdMatches ? t('formSteps.skillsOtherCommon') : t('formSteps.skillsCommonPicks')}
             </p>
             <p className="text-[11px] text-charcoal-500">
-              {userType === 'student' ? 'Student-friendly' : 'Pro-friendly'}
+              {userType === 'student' ? t('formSteps.skillsStudentFriendly') : t('formSteps.skillsProFriendly')}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1639,7 +1650,7 @@ export const SkillsStep: React.FC<{
         <div className="flex items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-[11px] uppercase tracking-[0.22em] text-brand-700 font-semibold">
-              Your skills
+              {t('formSteps.skillsYoursLabel')}
             </span>
             {count > 0 && (
               <span className="inline-flex items-center justify-center min-w-[22px] h-[20px] px-1.5 rounded-full bg-brand-700 text-charcoal-50 text-[11px] font-semibold leading-none">
@@ -1652,7 +1663,7 @@ export const SkillsStep: React.FC<{
         {count === 0 ? (
           <div className="rounded-xl border border-dashed border-charcoal-200 bg-charcoal-50/60 px-5 py-7 text-center">
             <p className="text-sm text-charcoal-500">
-              Nothing here yet — type one above, or click any suggestion.
+              {t('formSteps.skillsNothingYet')}
             </p>
           </div>
         ) : (
@@ -1667,7 +1678,7 @@ export const SkillsStep: React.FC<{
                   type="button"
                   onClick={() => removeSkill(skill)}
                   className="ml-0.5 w-[18px] h-[18px] inline-flex items-center justify-center rounded text-charcoal-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                  aria-label={`Remove ${skill}`}
+                  aria-label={t('formSteps.skillsRemoveAria', { skill })}
                 >
                   <X size={12} strokeWidth={2.5} />
                 </button>
@@ -1685,6 +1696,7 @@ export const ExtracurricularStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Extracurricular[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -1709,22 +1721,22 @@ export const ExtracurricularStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Extracurricular activities"
-        desc="Leadership roles, clubs, student government, sports teams, volunteering. These signal initiative — especially valuable before you have a full work history."
+        eyebrow={t('formSteps.extracurricularsEyebrow')}
+        title={t('formSteps.extracurricularsTitle')}
+        desc={t('formSteps.extracurricularsDesc')}
       />
 
       <TipCard
-        title="What makes a strong activity entry"
+        title={t('formSteps.extracurricularsTipTitle')}
         rules={[
-          'A role with responsibility beats "member". Treasurer > member; captain > player.',
-          'Describe one thing you led, organized, or delivered — with a number.',
-          'Short is fine. One sentence of real impact beats three of filler.',
+          t('formSteps.extracurricularsTipRule1'),
+          t('formSteps.extracurricularsTipRule2'),
+          t('formSteps.extracurricularsTipRule3'),
         ]}
         examples={[
-          'President, Debate Club — ran weekly meetings for 30+ members; team placed top-3 at regionals.',
-          'Volunteer coordinator, Red Cross — organized 3 fundraisers; raised $8K.',
-          'Captain, Varsity Soccer — led 18-player roster; team ranked 2nd in the league.',
+          t('formSteps.extracurricularsTipEx1'),
+          t('formSteps.extracurricularsTipEx2'),
+          t('formSteps.extracurricularsTipEx3'),
         ]}
       />
 
@@ -1734,7 +1746,7 @@ export const ExtracurricularStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<Users size={16} />}
-            indexLabel={`Activity ${index + 1}`}
+            indexLabel={t('formSteps.extracurricularsIndex', { n: index + 1 })}
             isFilled={filled}
             summaryPrimary={
               item.title && item.organization
@@ -1746,7 +1758,7 @@ export const ExtracurricularStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Role / Title"
+                label={t('formSteps.extracurricularsRoleLabel')}
                 required
                 error={errors?.[`extracurriculars.${index}.title`]}
               >
@@ -1754,11 +1766,11 @@ export const ExtracurricularStep: React.FC<{
                   error={errors?.[`extracurriculars.${index}.title`]}
                   value={item.title}
                   onChange={e => updateItem(item.id, 'title', e.target.value)}
-                  placeholder="e.g. President, Volunteer Coordinator, Team Captain"
+                  placeholder={t('formSteps.extracurricularsRolePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Organization"
+                label={t('formSteps.extracurricularsOrgLabel')}
                 required
                 error={errors?.[`extracurriculars.${index}.organization`]}
               >
@@ -1768,11 +1780,11 @@ export const ExtracurricularStep: React.FC<{
                   onChange={e =>
                     updateItem(item.id, 'organization', e.target.value)
                   }
-                  placeholder="e.g. Debate Club, Red Cross, Habitat for Humanity"
+                  placeholder={t('formSteps.extracurricularsOrgPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Start date"
+                label={t('formSteps.extracurricularsStartLabel')}
                 required
                 error={errors?.[`extracurriculars.${index}.startDate`]}
               >
@@ -1783,7 +1795,7 @@ export const ExtracurricularStep: React.FC<{
                 />
               </InputGroup>
               <InputGroup
-                label="End date"
+                label={t('formSteps.extracurricularsEndLabel')}
                 required
                 error={errors?.[`extracurriculars.${index}.endDate`]}
               >
@@ -1794,12 +1806,12 @@ export const ExtracurricularStep: React.FC<{
                 />
               </InputGroup>
             </div>
-            <InputGroup label="What did you do here?" optional>
+            <InputGroup label={t('formSteps.extracurricularsDescLabel')} optional>
               <PromptList
                 prompts={[
-                  'What did you organize, lead, or coordinate?',
-                  'How many people, hours, or dollars were involved?',
-                  'What was the outcome — placements, funds raised, members trained?',
+                  t('formSteps.extracurricularsPrompt1'),
+                  t('formSteps.extracurricularsPrompt2'),
+                  t('formSteps.extracurricularsPrompt3'),
                 ]}
               />
               <PolishHint />
@@ -1809,7 +1821,7 @@ export const ExtracurricularStep: React.FC<{
                 onChange={e =>
                   updateItem(item.id, 'description', e.target.value)
                 }
-                placeholder="e.g. Ran weekly meetings for 30+ members, organized 3 community fundraisers that raised $8K total, and mentored 12 new members through their first year."
+                placeholder={t('formSteps.extracurricularsDescPlaceholder')}
               />
               <WritingChecklist text={item.description} />
             </InputGroup>
@@ -1817,7 +1829,7 @@ export const ExtracurricularStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add activity" />
+      <AddButton onClick={addItem} label={t('formSteps.extracurricularsAddCta')} />
     </div>
   );
 };
@@ -1827,6 +1839,7 @@ export const AwardsStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Award[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -1845,15 +1858,13 @@ export const AwardsStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Awards & honors"
-        desc="Scholarships, competitions, employee recognition, deans' lists — anything someone else decided to give you."
+        eyebrow={t('formSteps.awardsEyebrow')}
+        title={t('formSteps.awardsTitle')}
+        desc={t('formSteps.awardsDesc')}
       />
 
       <MiniGuide icon={<AwardIcon size={14} />}>
-        <strong>Even one belongs.</strong> External, recent, and named awards
-        carry the most weight. A Dean's List, an Employee of the Quarter, or a
-        scholarship you actually won is worth listing — informal kudos isn't.
+        <strong>{t('formSteps.awardsMiniPrefix')}</strong>{t('formSteps.awardsMiniBody')}
       </MiniGuide>
 
       {data.map((item, i) => {
@@ -1862,9 +1873,9 @@ export const AwardsStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<AwardIcon size={16} />}
-            indexLabel={`Award ${i + 1}`}
+            indexLabel={t('formSteps.awardsIndex', { n: i + 1 })}
             isFilled={filled}
-            summaryPrimary={item.title || 'Untitled award'}
+            summaryPrimary={item.title || t('formSteps.awardsUntitled')}
             summarySecondary={
               [item.issuer, formatMonth(item.date)].filter(Boolean).join(' · ')
             }
@@ -1872,7 +1883,7 @@ export const AwardsStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Award title"
+                label={t('formSteps.awardsTitleLabel')}
                 required
                 error={errors?.[`awards.${i}.title`]}
               >
@@ -1880,11 +1891,11 @@ export const AwardsStep: React.FC<{
                   error={errors?.[`awards.${i}.title`]}
                   value={item.title}
                   onChange={e => updateItem(item.id, 'title', e.target.value)}
-                  placeholder="e.g. Dean's List, Employee of the Year, Rising Star"
+                  placeholder={t('formSteps.awardsTitlePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Issuer"
+                label={t('formSteps.awardsIssuerLabel')}
                 required
                 error={errors?.[`awards.${i}.issuer`]}
               >
@@ -1892,11 +1903,11 @@ export const AwardsStep: React.FC<{
                   error={errors?.[`awards.${i}.issuer`]}
                   value={item.issuer}
                   onChange={e => updateItem(item.id, 'issuer', e.target.value)}
-                  placeholder="e.g. University, Hospital Board, Chamber of Commerce"
+                  placeholder={t('formSteps.awardsIssuerPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Date"
+                label={t('formSteps.awardsDateLabel')}
                 required
                 error={errors?.[`awards.${i}.date`]}
               >
@@ -1908,9 +1919,9 @@ export const AwardsStep: React.FC<{
               </InputGroup>
             </div>
             <InputGroup
-              label="Description"
+              label={t('formSteps.awardsDescLabel')}
               optional
-              helper="One short line about why it was awarded."
+              helper={t('formSteps.awardsDescHelper')}
             >
               <TextArea
                 rows={2}
@@ -1924,7 +1935,7 @@ export const AwardsStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add award" />
+      <AddButton onClick={addItem} label={t('formSteps.awardsAddCta')} />
     </div>
   );
 };
@@ -1934,6 +1945,7 @@ export const CertificationsStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Certification[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -1952,16 +1964,13 @@ export const CertificationsStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Certifications"
-        desc="Current professional certifications, licenses, and industry credentials. Relevant ones only — don't pad."
+        eyebrow={t('formSteps.certEyebrow')}
+        title={t('formSteps.certTitle')}
+        desc={t('formSteps.certDesc')}
       />
 
       <MiniGuide icon={<AwardIcon size={14} />}>
-        <strong>Active credentials only.</strong> If it's expired or
-        unrelated to the role you're targeting, leave it out. In regulated
-        fields (healthcare, accounting, law, cloud, security) one or two
-        right-fit certs can do real work.
+        <strong>{t('formSteps.certMiniPrefix')}</strong>{t('formSteps.certMiniBody')}
       </MiniGuide>
 
       {data.map((item, i) => {
@@ -1970,9 +1979,9 @@ export const CertificationsStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<AwardIcon size={16} />}
-            indexLabel={`Certification ${i + 1}`}
+            indexLabel={t('formSteps.certIndex', { n: i + 1 })}
             isFilled={filled}
-            summaryPrimary={item.name || 'Untitled certification'}
+            summaryPrimary={item.name || t('formSteps.certUntitled')}
             summarySecondary={
               [item.issuer, formatMonth(item.date)].filter(Boolean).join(' · ')
             }
@@ -1980,7 +1989,7 @@ export const CertificationsStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Certification name"
+                label={t('formSteps.certNameLabel')}
                 required
                 error={errors?.[`certifications.${i}.name`]}
               >
@@ -1988,11 +1997,11 @@ export const CertificationsStep: React.FC<{
                   error={errors?.[`certifications.${i}.name`]}
                   value={item.name}
                   onChange={e => updateItem(item.id, 'name', e.target.value)}
-                  placeholder="e.g. PMP, CPA, RN License, AWS Solutions Architect"
+                  placeholder={t('formSteps.certNamePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Issuer"
+                label={t('formSteps.certIssuerLabel')}
                 required
                 error={errors?.[`certifications.${i}.issuer`]}
               >
@@ -2000,11 +2009,11 @@ export const CertificationsStep: React.FC<{
                   error={errors?.[`certifications.${i}.issuer`]}
                   value={item.issuer}
                   onChange={e => updateItem(item.id, 'issuer', e.target.value)}
-                  placeholder="e.g. PMI, State Board, AICPA, AWS"
+                  placeholder={t('formSteps.certIssuerPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Issued"
+                label={t('formSteps.certIssuedLabel')}
                 required
                 error={errors?.[`certifications.${i}.date`]}
               >
@@ -2014,12 +2023,12 @@ export const CertificationsStep: React.FC<{
                   onChange={val => updateItem(item.id, 'date', val)}
                 />
               </InputGroup>
-              <InputGroup label="Verification link" optional>
+              <InputGroup label={t('formSteps.certLinkLabel')} optional>
                 <Input
                   type="url"
                   value={item.link || ''}
                   onChange={e => updateItem(item.id, 'link', e.target.value)}
-                  placeholder="https://…"
+                  placeholder={t('formSteps.certLinkPlaceholder')}
                 />
               </InputGroup>
             </div>
@@ -2027,7 +2036,7 @@ export const CertificationsStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add certification" />
+      <AddButton onClick={addItem} label={t('formSteps.certAddCta')} />
     </div>
   );
 };
@@ -2037,6 +2046,7 @@ export const AffiliationsStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Affiliation[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -2055,15 +2065,13 @@ export const AffiliationsStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Professional affiliations"
-        desc="Active memberships in professional bodies — bar associations, nursing boards, industry societies."
+        eyebrow={t('formSteps.affilEyebrow')}
+        title={t('formSteps.affilTitle')}
+        desc={t('formSteps.affilDesc')}
       />
 
       <MiniGuide icon={<Building2 size={14} />}>
-        <strong>Real bodies only.</strong> Bar association, nursing board,
-        IEEE, AIGA, AMA — memberships that signal credibility in your field.
-        Skip clubs and informal groups (those belong in Activities, not here).
+        <strong>{t('formSteps.affilMiniPrefix')}</strong>{t('formSteps.affilMiniBody')}
       </MiniGuide>
 
       {data.map((item, i) => {
@@ -2072,7 +2080,7 @@ export const AffiliationsStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<Building2 size={16} />}
-            indexLabel={`Affiliation ${i + 1}`}
+            indexLabel={t('formSteps.affilIndex', { n: i + 1 })}
             isFilled={filled}
             summaryPrimary={
               item.role && item.organization
@@ -2084,7 +2092,7 @@ export const AffiliationsStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Organization"
+                label={t('formSteps.affilOrgLabel')}
                 required
                 error={errors?.[`affiliations.${i}.organization`]}
               >
@@ -2094,11 +2102,11 @@ export const AffiliationsStep: React.FC<{
                   onChange={e =>
                     updateItem(item.id, 'organization', e.target.value)
                   }
-                  placeholder="e.g. American Bar Association, ANA, IEEE, AIGA"
+                  placeholder={t('formSteps.affilOrgPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Role"
+                label={t('formSteps.affilRoleLabel')}
                 required
                 error={errors?.[`affiliations.${i}.role`]}
               >
@@ -2106,11 +2114,11 @@ export const AffiliationsStep: React.FC<{
                   error={errors?.[`affiliations.${i}.role`]}
                   value={item.role}
                   onChange={e => updateItem(item.id, 'role', e.target.value)}
-                  placeholder="e.g. Member, Board Member, Chair"
+                  placeholder={t('formSteps.affilRolePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Start date"
+                label={t('formSteps.affilStartLabel')}
                 required
                 error={errors?.[`affiliations.${i}.startDate`]}
               >
@@ -2121,7 +2129,7 @@ export const AffiliationsStep: React.FC<{
                 />
               </InputGroup>
               <InputGroup
-                label="End date"
+                label={t('formSteps.affilEndLabel')}
                 required
                 error={errors?.[`affiliations.${i}.endDate`]}
               >
@@ -2136,7 +2144,7 @@ export const AffiliationsStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add affiliation" />
+      <AddButton onClick={addItem} label={t('formSteps.affilAddCta')} />
     </div>
   );
 };
@@ -2146,6 +2154,7 @@ export const PublicationsStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Publication[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -2164,15 +2173,13 @@ export const PublicationsStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="Publications & presentations"
-        desc="Papers, articles, op-eds, case studies, conference talks, media features. Anything with a byline or a stage."
+        eyebrow={t('formSteps.pubsEyebrow')}
+        title={t('formSteps.pubsTitle')}
+        desc={t('formSteps.pubsDesc')}
       />
 
       <MiniGuide icon={<BookOpen size={14} />}>
-        <strong>Anything with a byline or a stage.</strong> Peer-reviewed
-        papers, op-eds, conference talks, podcast features, case studies on a
-        company blog. Skip personal social posts and short blog notes.
+        <strong>{t('formSteps.pubsMiniPrefix')}</strong>{t('formSteps.pubsMiniBody')}
       </MiniGuide>
 
       {data.map((item, i) => {
@@ -2181,9 +2188,9 @@ export const PublicationsStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<BookOpen size={16} />}
-            indexLabel={`Publication ${i + 1}`}
+            indexLabel={t('formSteps.pubsIndex', { n: i + 1 })}
             isFilled={filled}
-            summaryPrimary={item.title || 'Untitled publication'}
+            summaryPrimary={item.title || t('formSteps.pubsUntitled')}
             summarySecondary={
               [item.publisher, formatMonth(item.date)].filter(Boolean).join(' · ')
             }
@@ -2191,7 +2198,7 @@ export const PublicationsStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Title"
+                label={t('formSteps.pubsTitleLabel')}
                 required
                 error={errors?.[`publications.${i}.title`]}
               >
@@ -2199,11 +2206,11 @@ export const PublicationsStep: React.FC<{
                   error={errors?.[`publications.${i}.title`]}
                   value={item.title}
                   onChange={e => updateItem(item.id, 'title', e.target.value)}
-                  placeholder="e.g. Nursing Care Best Practices; The Future of B2B Marketing"
+                  placeholder={t('formSteps.pubsTitlePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Publisher / Conference"
+                label={t('formSteps.pubsPublisherLabel')}
                 required
                 error={errors?.[`publications.${i}.publisher`]}
               >
@@ -2213,11 +2220,11 @@ export const PublicationsStep: React.FC<{
                   onChange={e =>
                     updateItem(item.id, 'publisher', e.target.value)
                   }
-                  placeholder="e.g. Harvard Business Review, JAMA, Medium, NeurIPS"
+                  placeholder={t('formSteps.pubsPublisherPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Date"
+                label={t('formSteps.pubsDateLabel')}
                 required
                 error={errors?.[`publications.${i}.date`]}
               >
@@ -2227,12 +2234,12 @@ export const PublicationsStep: React.FC<{
                   onChange={val => updateItem(item.id, 'date', val)}
                 />
               </InputGroup>
-              <InputGroup label="Link" optional>
+              <InputGroup label={t('formSteps.pubsLinkLabel')} optional>
                 <Input
                   type="url"
                   value={item.link || ''}
                   onChange={e => updateItem(item.id, 'link', e.target.value)}
-                  placeholder="https://…"
+                  placeholder={t('formSteps.pubsLinkPlaceholder')}
                 />
               </InputGroup>
             </div>
@@ -2240,7 +2247,7 @@ export const PublicationsStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add publication" />
+      <AddButton onClick={addItem} label={t('formSteps.pubsAddCta')} />
     </div>
   );
 };
@@ -2257,6 +2264,14 @@ export const LanguagesStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Language[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
+  const proficiencyLabel: Record<LanguageProficiency, string> = {
+    Native: t('formSteps.profNative'),
+    Fluent: t('formSteps.profFluent'),
+    Professional: t('formSteps.profProfessional'),
+    Conversational: t('formSteps.profConversational'),
+    Basic: t('formSteps.profBasic'),
+  };
   const addItem = () =>
     update([
       ...data,
@@ -2269,16 +2284,13 @@ export const LanguagesStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Background"
-        title="Languages"
-        desc="Spoken and written languages with your proficiency level. Especially valued in Bangladesh, MNCs, and any role with international or client-facing scope."
+        eyebrow={t('formSteps.languagesEyebrow')}
+        title={t('formSteps.languagesTitle')}
+        desc={t('formSteps.languagesDesc')}
       />
 
       <MiniGuide icon={<LanguagesIcon size={14} />}>
-        <strong>List languages you can actually work in.</strong> Native = mother
-        tongue; Fluent = effortless speech and writing; Professional = comfortable
-        in business contexts; Conversational = day-to-day chat; Basic = greetings
-        and simple sentences. Don't list a language you can't hold a meeting in.
+        <strong>{t('formSteps.languagesMiniPrefix')}</strong>{t('formSteps.languagesMiniBody')}
       </MiniGuide>
 
       <div className="space-y-3">
@@ -2288,7 +2300,7 @@ export const LanguagesStep: React.FC<{
             className="grid grid-cols-1 md:grid-cols-[1fr_220px_auto] gap-3 items-end p-4 rounded-2xl border border-charcoal-200 bg-white"
           >
             <InputGroup
-              label="Language"
+              label={t('formSteps.languagesLanguageLabel')}
               required
               error={errors?.[`languages.${i}.name`]}
             >
@@ -2296,17 +2308,17 @@ export const LanguagesStep: React.FC<{
                 error={errors?.[`languages.${i}.name`]}
                 value={item.name}
                 onChange={e => updateItem(item.id, 'name', e.target.value)}
-                placeholder="e.g. Bengali, English, Hindi, Arabic"
+                placeholder={t('formSteps.languagesLanguagePlaceholder')}
               />
             </InputGroup>
-            <InputGroup label="Proficiency" required>
+            <InputGroup label={t('formSteps.languagesProficiencyLabel')} required>
               <select
                 value={item.proficiency}
                 onChange={e => updateItem(item.id, 'proficiency', e.target.value)}
                 className="w-full rounded-lg border border-charcoal-300 hover:border-charcoal-400 focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:border-accent-400 px-3.5 py-2.5 text-sm bg-white text-brand-800 focus:outline-none transition-colors"
               >
                 {LANGUAGE_PROFICIENCIES.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>{proficiencyLabel[p]}</option>
                 ))}
               </select>
             </InputGroup>
@@ -2314,7 +2326,7 @@ export const LanguagesStep: React.FC<{
               type="button"
               onClick={() => removeItem(item.id)}
               className="p-2 text-charcoal-500 hover:text-red-600 transition-colors"
-              aria-label="Remove language"
+              aria-label={t('formSteps.languagesRemoveAria')}
             >
               <Trash2 size={18} />
             </button>
@@ -2322,7 +2334,7 @@ export const LanguagesStep: React.FC<{
         ))}
       </div>
 
-      <AddButton onClick={addItem} label="Add language" />
+      <AddButton onClick={addItem} label={t('formSteps.languagesAddCta')} />
     </div>
   );
 };
@@ -2335,6 +2347,7 @@ export const ReferencesStep: React.FC<{
   errors?: Record<string, string>;
   update: (d: Reference[]) => void;
 }> = ({ data, errors, update }) => {
+  const t = useT();
   const addItem = () =>
     update([
       ...data,
@@ -2355,16 +2368,13 @@ export const ReferencesStep: React.FC<{
   return (
     <div className="space-y-5">
       <SectionHeader
-        eyebrow="Credentials"
-        title="References"
-        desc="Named referees with phone and email. Common on Bangladeshi CVs (banks, conglomerates, gov't); optional globally — most international resumes use 'References available upon request' instead."
+        eyebrow={t('formSteps.refsEyebrow')}
+        title={t('formSteps.refsTitle')}
+        desc={t('formSteps.refsDesc')}
       />
 
       <MiniGuide icon={<UserCheck size={14} />}>
-        <strong>2–3 referees, never close relatives.</strong> Pick people who've
-        seen your work — direct managers, professors, project supervisors. Always
-        ask permission before listing someone. Include role + organization so the
-        recruiter knows the relationship's weight.
+        <strong>{t('formSteps.refsMiniPrefix')}</strong>{t('formSteps.refsMiniBody')}
       </MiniGuide>
 
       {data.map((item, i) => {
@@ -2373,9 +2383,9 @@ export const ReferencesStep: React.FC<{
           <CollapsibleItem
             key={item.id}
             icon={<UserCheck size={16} />}
-            indexLabel={`Reference ${i + 1}`}
+            indexLabel={t('formSteps.refsIndex', { n: i + 1 })}
             isFilled={filled}
-            summaryPrimary={item.name || 'Unnamed reference'}
+            summaryPrimary={item.name || t('formSteps.refsUnnamed')}
             summarySecondary={
               [item.position, item.organization].filter(Boolean).join(' · ')
             }
@@ -2383,7 +2393,7 @@ export const ReferencesStep: React.FC<{
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputGroup
-                label="Full name"
+                label={t('formSteps.refsNameLabel')}
                 required
                 error={errors?.[`references.${i}.name`]}
               >
@@ -2391,11 +2401,11 @@ export const ReferencesStep: React.FC<{
                   error={errors?.[`references.${i}.name`]}
                   value={item.name}
                   onChange={e => updateItem(item.id, 'name', e.target.value)}
-                  placeholder="e.g. Dr. Tahmid Rahman"
+                  placeholder={t('formSteps.refsNamePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Position / Title"
+                label={t('formSteps.refsPositionLabel')}
                 required
                 error={errors?.[`references.${i}.position`]}
               >
@@ -2403,11 +2413,11 @@ export const ReferencesStep: React.FC<{
                   error={errors?.[`references.${i}.position`]}
                   value={item.position}
                   onChange={e => updateItem(item.id, 'position', e.target.value)}
-                  placeholder="e.g. Head of Engineering"
+                  placeholder={t('formSteps.refsPositionPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Organization"
+                label={t('formSteps.refsOrgLabel')}
                 required
                 error={errors?.[`references.${i}.organization`]}
               >
@@ -2415,11 +2425,11 @@ export const ReferencesStep: React.FC<{
                   error={errors?.[`references.${i}.organization`]}
                   value={item.organization}
                   onChange={e => updateItem(item.id, 'organization', e.target.value)}
-                  placeholder="e.g. BRAC Bank, Grameenphone, North South University"
+                  placeholder={t('formSteps.refsOrgPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Email"
+                label={t('formSteps.refsEmailLabel')}
                 required
                 error={errors?.[`references.${i}.email`]}
               >
@@ -2428,11 +2438,11 @@ export const ReferencesStep: React.FC<{
                   error={errors?.[`references.${i}.email`]}
                   value={item.email}
                   onChange={e => updateItem(item.id, 'email', e.target.value)}
-                  placeholder="name@company.com"
+                  placeholder={t('formSteps.refsEmailPlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Phone"
+                label={t('formSteps.refsPhoneLabel')}
                 required
                 error={errors?.[`references.${i}.phone`]}
               >
@@ -2440,18 +2450,18 @@ export const ReferencesStep: React.FC<{
                   error={errors?.[`references.${i}.phone`]}
                   value={item.phone}
                   onChange={e => updateItem(item.id, 'phone', e.target.value)}
-                  placeholder="+880 1XXX-XXXXXX"
+                  placeholder={t('formSteps.refsPhonePlaceholder')}
                 />
               </InputGroup>
               <InputGroup
-                label="Relationship"
+                label={t('formSteps.refsRelLabel')}
                 optional
-                helper="How they know you and over what period. One short line."
+                helper={t('formSteps.refsRelHelper')}
               >
                 <Input
                   value={item.relationship || ''}
                   onChange={e => updateItem(item.id, 'relationship', e.target.value)}
-                  placeholder="e.g. Direct manager at Northwind, 2023–present"
+                  placeholder={t('formSteps.refsRelPlaceholder')}
                 />
               </InputGroup>
             </div>
@@ -2459,7 +2469,7 @@ export const ReferencesStep: React.FC<{
         );
       })}
 
-      <AddButton onClick={addItem} label="Add reference" />
+      <AddButton onClick={addItem} label={t('formSteps.refsAddCta')} />
     </div>
   );
 };
@@ -2469,76 +2479,77 @@ export const SectionSelectionStep: React.FC<{
   update: (sections: string[]) => void;
   userType?: UserType;
 }> = ({ selected, update, userType }) => {
+  const t = useT();
   const sections = [
     {
       id: 'experience',
-      label: 'Experience',
+      label: t('formSteps.secExperienceLabel'),
       icon: <Briefcase size={18} />,
       hint: userType === 'experienced'
-        ? 'Recommended — your work history is the core of the resume.'
-        : 'Include if you have any paid roles to show.',
+        ? t('formSteps.secExperienceHintExp')
+        : t('formSteps.secExperienceHintGen'),
     },
     {
       id: 'education',
-      label: 'Education',
+      label: t('formSteps.secEducationLabel'),
       icon: <GraduationCap size={18} />,
-      hint: 'Almost always on. Skip only if you have 10+ years of experience and a filled-to-the-brim resume.',
+      hint: t('formSteps.secEducationHint'),
     },
     {
       id: 'projects',
-      label: 'Projects',
+      label: t('formSteps.secProjectsLabel'),
       icon: <FolderGit2 size={18} />,
       hint: userType === 'student'
-        ? 'Recommended — projects carry most of your resume.'
-        : 'Great for showing side work, research, or portfolio pieces.',
+        ? t('formSteps.secProjectsHintStudent')
+        : t('formSteps.secProjectsHintGen'),
     },
     {
       id: 'skills',
-      label: 'Skills',
+      label: t('formSteps.secSkillsLabel'),
       icon: <Sparkles size={18} />,
-      hint: 'Almost always on. Helps the ATS parser match keywords.',
+      hint: t('formSteps.secSkillsHint'),
     },
     {
       id: 'extracurriculars',
-      label: 'Activities',
+      label: t('formSteps.secActivitiesLabel'),
       icon: <Users size={18} />,
-      hint: 'Strongest when you have leadership roles; fine to skip if nothing stands out.',
+      hint: t('formSteps.secActivitiesHint'),
     },
     {
       id: 'awards',
-      label: 'Awards',
+      label: t('formSteps.secAwardsLabel'),
       icon: <AwardIcon size={18} />,
-      hint: 'Worth including if they\'re external and recent.',
+      hint: t('formSteps.secAwardsHint'),
     },
     {
       id: 'certifications',
-      label: 'Certifications',
+      label: t('formSteps.secCertsLabel'),
       icon: <AwardIcon size={18} />,
-      hint: 'Important in regulated fields — healthcare, accounting, law, cloud.',
+      hint: t('formSteps.secCertsHint'),
     },
     {
       id: 'affiliations',
-      label: 'Affiliations',
+      label: t('formSteps.secAffilsLabel'),
       icon: <Users size={18} />,
-      hint: 'Include only active memberships in well-known bodies.',
+      hint: t('formSteps.secAffilsHint'),
     },
     {
       id: 'publications',
-      label: 'Publications',
+      label: t('formSteps.secPubsLabel'),
       icon: <BookOpen size={18} />,
-      hint: 'Academic, clinical, or thought-leadership. Skip short blog posts.',
+      hint: t('formSteps.secPubsHint'),
     },
     {
       id: 'languages',
-      label: 'Languages',
+      label: t('formSteps.secLanguagesLabel'),
       icon: <LanguagesIcon size={18} />,
-      hint: 'Strongly recommended for Bangladesh, MNCs, or any client-facing role with international scope.',
+      hint: t('formSteps.secLanguagesHint'),
     },
     {
       id: 'references',
-      label: 'References',
+      label: t('formSteps.secRefsLabel'),
       icon: <UserCheck size={18} />,
-      hint: 'Common on Bangladeshi CVs (banks, conglomerates, gov\'t). Skip for most international resumes.',
+      hint: t('formSteps.secRefsHint'),
     },
   ];
 
@@ -2604,35 +2615,33 @@ export const SectionSelectionStep: React.FC<{
   return (
     <div>
       <SectionHeader
-        eyebrow="Your resume"
-        title="Which sections should we include?"
-        desc="Turn on only the sections you have real content for — empty sections hurt more than they help. You can always come back and add more."
+        eyebrow={t('formSteps.sectionsEyebrow')}
+        title={t('formSteps.sectionsTitle')}
+        desc={t('formSteps.sectionsDesc')}
       />
 
-      {/* Counter banner — ink-dark anchor for the page */}
       <div className="rounded-2xl bg-brand-700 text-charcoal-50 px-5 sm:px-6 py-5 mb-7 flex items-center justify-between gap-4">
         <div>
           <p className="text-[10px] uppercase tracking-[0.22em] text-accent-300 font-semibold">
-            On your resume
+            {t('formSteps.sectionsCounterEyebrow')}
           </p>
           <p className="font-display text-xl sm:text-2xl font-semibold leading-tight mt-0.5">
             <span className="text-accent-400">{selected.length}</span>{' '}
-            <span className="text-charcoal-300">of {sections.length} sections selected</span>
+            <span className="text-charcoal-300">{t('formSteps.sectionsCounterTextSuffix', { total: sections.length })}</span>
           </p>
         </div>
         <p className="hidden sm:block text-xs text-charcoal-300 max-w-[180px] text-right leading-relaxed">
-          Tap a card to toggle. You can change this anytime.
+          {t('formSteps.sectionsCounterHelp')}
         </p>
       </div>
 
-      {/* Core */}
       <div className="mb-7">
         <div className="flex items-baseline justify-between mb-3 gap-3">
           <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-            Core sections
+            {t('formSteps.sectionsCoreEyebrow')}
           </p>
           <p className="text-[11px] text-charcoal-500">
-            Almost every resume has these
+            {t('formSteps.sectionsCoreHelp')}
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2640,14 +2649,13 @@ export const SectionSelectionStep: React.FC<{
         </div>
       </div>
 
-      {/* Extras */}
       <div>
         <div className="flex items-baseline justify-between mb-3 gap-3">
           <p className="text-[11px] uppercase tracking-[0.22em] text-charcoal-500 font-semibold">
-            Extras
+            {t('formSteps.sectionsExtrasEyebrow')}
           </p>
           <p className="text-[11px] text-charcoal-500">
-            Add any you have real content for
+            {t('formSteps.sectionsExtrasHelp')}
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

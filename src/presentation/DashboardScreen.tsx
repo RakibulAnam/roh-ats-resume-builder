@@ -19,6 +19,8 @@ import { createResumeService, applicationRepository } from '../infrastructure/co
 import { Application } from '../domain/repositories/IApplicationRepository';
 import { ResumeService } from '../application/services/ResumeService';
 import { toast } from 'sonner';
+import { useT } from './i18n/LocaleContext';
+import { LanguageToggle } from './i18n/LanguageToggle';
 
 interface Props {
     onCreateNew: () => void;
@@ -36,24 +38,26 @@ const Wordmark = () => (
     </div>
 );
 
-const formatRelative = (iso?: string | null) => {
-    if (!iso) return null;
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return null;
-    const diffMs = Date.now() - d.getTime();
-    const sec = Math.round(diffMs / 1000);
-    if (sec < 60) return 'just now';
-    const min = Math.round(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.round(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    const days = Math.round(hr / 24);
-    if (days < 7) return `${days}d ago`;
-    return d.toLocaleDateString();
-};
-
 export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication, onOpenResume }: Props) => {
     const { user, signOut } = useAuth();
+    const t = useT();
+
+    const formatRelative = (iso?: string | null): string | null => {
+        if (!iso) return null;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return null;
+        const diffMs = Date.now() - d.getTime();
+        const sec = Math.round(diffMs / 1000);
+        if (sec < 60) return t('dashboard.relativeJustNow');
+        const min = Math.round(sec / 60);
+        if (min < 60) return t('dashboard.relativeMin', { n: min });
+        const hr = Math.round(min / 60);
+        if (hr < 24) return t('dashboard.relativeHr', { n: hr });
+        const days = Math.round(hr / 24);
+        if (days < 7) return t('dashboard.relativeDay', { n: days });
+        return d.toLocaleDateString();
+    };
+
     const [applications, setApplications] = useState<Application[]>([]);
     const [resumes, setResumes] = useState<ResumeListItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,15 +92,15 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
 
     const handleDeleteResume = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (!confirm('Delete this application toolkit? This cannot be undone.')) return;
+        if (!confirm(t('dashboard.confirmDelete'))) return;
         try {
             const resumeService = createResumeService();
             await resumeService.deleteGeneratedResume(id);
             setResumes(prev => prev.filter(r => r.id !== id));
-            toast.success('Deleted');
+            toast.success(t('dashboard.deleted'));
         } catch (error) {
             console.error('Failed to delete resume:', error);
-            toast.error('Failed to delete');
+            toast.error(t('dashboard.deleteFailed'));
         }
         setActiveMenuId(null);
     };
@@ -107,11 +111,11 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
         try {
             const resumeService = createResumeService();
             const id = await resumeService.generateGeneralResume(user.id);
-            toast.success('Master resume ready');
+            toast.success(t('dashboard.masterReady'));
             onOpenResume?.(id);
         } catch (error: any) {
             console.error(error);
-            toast.error(error?.message || 'Could not build master resume');
+            toast.error(error?.message || t('dashboard.masterError'));
             setBuildingMaster(false);
         }
     };
@@ -136,7 +140,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
 
     const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(' ')[0]
         ?? user?.email?.split('@')[0]
-        ?? 'there';
+        ?? t('dashboard.greetingFallbackName');
 
     const masterUpdatedAt = generalResume?.updatedAt ?? generalResume?.date;
 
@@ -147,11 +151,12 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <Wordmark />
                     <div className="relative flex items-center gap-2">
+                        <LanguageToggle />
                         <button
                             type="button"
                             onClick={() => setProfileMenuOpen(v => !v)}
                             className="inline-flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-white border border-charcoal-200 hover:border-charcoal-300 transition-colors"
-                            aria-label="Account menu"
+                            aria-label={t('dashboard.accountMenuLabel')}
                         >
                             <span className="w-7 h-7 rounded-full bg-brand-700 text-charcoal-50 text-xs font-semibold flex items-center justify-center">
                                 {firstName.charAt(0).toUpperCase()}
@@ -170,7 +175,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                 />
                                 <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-charcoal-200 py-1 z-40">
                                     <div className="px-4 py-3 border-b border-charcoal-100">
-                                        <p className="text-xs text-charcoal-500">Signed in as</p>
+                                        <p className="text-xs text-charcoal-500">{t('dashboard.signedInAs')}</p>
                                         <p className="text-sm font-medium text-brand-700 truncate">{user?.email}</p>
                                     </div>
                                     <button
@@ -181,7 +186,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                         }}
                                         className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm text-brand-700 hover:bg-charcoal-50 transition-colors"
                                     >
-                                        <User size={16} /> My profile
+                                        <User size={16} /> {t('dashboard.myProfile')}
                                     </button>
                                     <button
                                         type="button"
@@ -191,7 +196,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                         }}
                                         className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                     >
-                                        <LogOut size={16} /> Sign out
+                                        <LogOut size={16} /> {t('dashboard.signOut')}
                                     </button>
                                 </div>
                             </>
@@ -208,10 +213,10 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                     {/* Greeting */}
                     <div className="mb-8 lg:mb-10">
                         <h1 className="font-display text-3xl sm:text-4xl font-semibold leading-tight text-brand-700">
-                            Hi <span className="italic text-accent-500">{firstName}</span>. What are we working on?
+                            {t('dashboard.greetingPrefix')} <span className="italic text-accent-500">{firstName}</span>{t('dashboard.greetingSuffix')}
                         </h1>
                         <p className="mt-2 text-brand-500">
-                            Pick one of the two paths below.
+                            {t('dashboard.greetingHelp')}
                         </p>
                     </div>
 
@@ -224,17 +229,17 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             className="group text-left relative bg-brand-700 hover:bg-brand-800 transition-colors rounded-2xl p-7 sm:p-8 flex flex-col min-h-[260px]"
                         >
                             <span className="text-[11px] uppercase tracking-[0.22em] text-accent-400 font-semibold">
-                                Tailor for a job
+                                {t('dashboard.tailorEyebrow')}
                             </span>
                             <h2 className="mt-3 font-display text-2xl sm:text-[26px] font-semibold leading-snug text-charcoal-50">
-                                I have a job description
+                                {t('dashboard.tailorTitle')}
                             </h2>
                             <p className="mt-2 text-[15px] leading-relaxed text-charcoal-300">
-                                Paste the JD. We'll build a resume, cover letter, outreach email, LinkedIn note, and interview prep — all matched to that role.
+                                {t('dashboard.tailorBody')}
                             </p>
                             <div className="mt-auto pt-6 inline-flex items-center gap-2 self-start px-5 py-3 bg-accent-400 text-brand-800 rounded-full text-sm font-semibold group-hover:bg-accent-300 transition-colors">
                                 <Plus size={16} />
-                                Start new application
+                                {t('dashboard.tailorCta')}
                             </div>
                         </button>
 
@@ -247,25 +252,27 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             >
                                 <div className="flex items-center justify-between">
                                     <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-                                        Your master resume
+                                        {t('dashboard.masterEyebrow')}
                                     </span>
                                     <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-brand-600 bg-charcoal-50 border border-charcoal-200 rounded-full px-2.5 py-1">
                                         <CheckCircle2 size={12} className="text-accent-500" />
-                                        Ready
+                                        {t('dashboard.masterReadyBadge')}
                                     </span>
                                 </div>
                                 <h2 className="mt-3 font-display text-2xl sm:text-[26px] font-semibold leading-snug text-brand-700">
-                                    My one-size-fits-all resume
+                                    {t('dashboard.masterReadyTitle')}
                                 </h2>
                                 <p className="mt-2 text-[15px] leading-relaxed text-brand-500">
-                                    Built from your profile. Use it when you don't have a target role yet, or as a starting point.
+                                    {t('dashboard.masterReadyBody')}
                                 </p>
                                 <div className="mt-auto pt-6 flex items-center justify-between">
                                     <span className="text-xs text-charcoal-500">
-                                        {masterUpdatedAt ? `Updated ${formatRelative(masterUpdatedAt)}` : 'Up to date'}
+                                        {masterUpdatedAt
+                                            ? t('dashboard.masterUpdated', { when: formatRelative(masterUpdatedAt) ?? '' })
+                                            : t('dashboard.masterUpToDate')}
                                     </span>
                                     <span className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700 group-hover:text-accent-600 transition-colors">
-                                        Open resume
+                                        {t('dashboard.masterOpenCta')}
                                         <ArrowRight size={16} />
                                     </span>
                                 </div>
@@ -273,13 +280,13 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                         ) : (
                             <div className="relative bg-white border border-dashed border-charcoal-300 rounded-2xl p-7 sm:p-8 flex flex-col min-h-[260px]">
                                 <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-                                    Your master resume
+                                    {t('dashboard.masterEyebrow')}
                                 </span>
                                 <h2 className="mt-3 font-display text-2xl sm:text-[26px] font-semibold leading-snug text-brand-700">
-                                    Build your evergreen resume
+                                    {t('dashboard.masterEmptyTitle')}
                                 </h2>
                                 <p className="mt-2 text-[15px] leading-relaxed text-brand-500">
-                                    A one-size-fits-all resume built from your profile. Use it when you don't have a target role yet.
+                                    {t('dashboard.masterEmptyBody')}
                                 </p>
                                 <button
                                     type="button"
@@ -290,12 +297,12 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     {buildingMaster ? (
                                         <>
                                             <Loader2 size={16} className="animate-spin" />
-                                            Building…
+                                            {t('dashboard.masterBuilding')}
                                         </>
                                     ) : (
                                         <>
                                             <Sparkles size={16} />
-                                            Build it from my profile
+                                            {t('dashboard.masterBuildCta')}
                                         </>
                                     )}
                                 </button>
@@ -308,12 +315,14 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
                             <div>
                                 <h2 className="font-display text-2xl font-semibold text-brand-700 leading-tight">
-                                    Your applications
+                                    {t('dashboard.appsTitle')}
                                 </h2>
                                 <p className="text-sm text-brand-500 mt-1">
                                     {tailoredResumes.length === 0
-                                        ? 'Tailored toolkits show up here once you build them.'
-                                        : `${tailoredResumes.length} ${tailoredResumes.length === 1 ? 'application' : 'applications'} so far.`}
+                                        ? t('dashboard.appsEmpty')
+                                        : tailoredResumes.length === 1
+                                            ? t('dashboard.appsCountOne', { count: tailoredResumes.length })
+                                            : t('dashboard.appsCountMany', { count: tailoredResumes.length })}
                                 </p>
                             </div>
 
@@ -322,7 +331,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal-400" size={16} />
                                     <input
                                         type="text"
-                                        placeholder="Search by role or company"
+                                        placeholder={t('dashboard.appsSearchPlaceholder')}
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-9 pr-4 py-2.5 bg-white border border-charcoal-200 rounded-full text-sm focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:border-brand-500 transition-colors outline-none"
@@ -341,22 +350,24 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     <Briefcase className="text-accent-600" size={20} />
                                 </div>
                                 <h3 className="font-display text-lg font-semibold text-brand-700 mb-1.5">
-                                    No applications yet
+                                    {t('dashboard.appsEmptyStateTitle')}
                                 </h3>
                                 <p className="text-sm text-brand-500 max-w-md mx-auto">
-                                    Use <span className="font-semibold text-brand-700">Start new application</span> above to tailor a toolkit for a specific job.
+                                    {t('dashboard.appsEmptyStateBefore')}
+                                    <span className="font-semibold text-brand-700">{t('dashboard.appsEmptyStateCta')}</span>
+                                    {t('dashboard.appsEmptyStateAfter')}
                                 </p>
                             </div>
                         ) : filteredTailored.length === 0 ? (
                             <div className="bg-white rounded-2xl border border-charcoal-200 px-6 py-10 text-center">
                                 <p className="text-sm text-brand-500">
-                                    No applications match "{searchTerm}".
+                                    {t('dashboard.appsNoMatch', { query: searchTerm })}
                                 </p>
                             </div>
                         ) : (
                             <ul className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filteredTailored.map(resume => {
-                                    const displayTitle = resume.title.replace(/ Resume$/i, '').replace(/Resume$/i, '').trim() || 'Untitled role';
+                                    const displayTitle = resume.title.replace(/ Resume$/i, '').replace(/Resume$/i, '').trim() || t('dashboard.untitledRole');
                                     return (
                                         <li
                                             key={resume.id}
@@ -378,7 +389,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                                 <div className="relative">
                                                     <button
                                                         type="button"
-                                                        aria-label="Application actions"
+                                                        aria-label={t('dashboard.appActionsLabel')}
                                                         className="text-charcoal-400 hover:text-brand-700 p-1.5 -mr-1.5 rounded-full hover:bg-charcoal-50 transition-colors"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -396,7 +407,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                                                 onClick={(e) => handleDeleteResume(resume.id, e)}
                                                             >
                                                                 <Trash size={15} className="mr-2" />
-                                                                Delete
+                                                                {t('dashboard.delete')}
                                                             </button>
                                                         </div>
                                                     )}
@@ -405,10 +416,10 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
 
                                             <div className="mt-5 pt-4 border-t border-charcoal-100 flex items-center justify-between text-xs">
                                                 <span className="text-charcoal-500">
-                                                    Built {formatRelative(resume.updatedAt ?? resume.date)}
+                                                    {t('dashboard.builtOn', { when: formatRelative(resume.updatedAt ?? resume.date) ?? '' })}
                                                 </span>
                                                 <span className="inline-flex items-center gap-1 text-brand-600 font-semibold group-hover:text-accent-600 transition-colors">
-                                                    Open
+                                                    {t('dashboard.open')}
                                                     <ArrowRight size={13} />
                                                 </span>
                                             </div>
@@ -427,10 +438,10 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             </span>
                             <div>
                                 <p className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-                                    Coming soon
+                                    {t('dashboard.mockTeaserEyebrow')}
                                 </p>
                                 <p className="text-sm text-brand-700 font-medium mt-0.5">
-                                    Mock interviews with senior practitioners who actually do the hiring.
+                                    {t('dashboard.mockTeaserBody')}
                                 </p>
                             </div>
                         </div>
@@ -438,9 +449,9 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             type="button"
                             disabled
                             className="text-sm font-semibold text-charcoal-500 bg-charcoal-50 border border-charcoal-200 rounded-full px-4 py-2 cursor-not-allowed shrink-0"
-                            title="Booking opens soon"
+                            title={t('dashboard.mockTeaserTooltip')}
                         >
-                            Notify me
+                            {t('dashboard.mockTeaserCta')}
                         </button>
                     </aside>
 
@@ -448,7 +459,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                     {applications.length > 0 && (
                         <section className="mt-12">
                             <h2 className="font-display text-lg font-semibold text-brand-700 mb-4">
-                                Older tracked applications
+                                {t('dashboard.legacyTitle')}
                             </h2>
                             <ul className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {applications.map(app => (
@@ -475,7 +486,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
             <footer className="border-t border-charcoal-200 bg-charcoal-50 py-6">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-brand-500">
                     <Wordmark />
-                    <p>&copy; {new Date().getFullYear()} TOP CANDIDATE · The complete toolkit to land the job.</p>
+                    <p>{t('dashboard.footerLine', { year: new Date().getFullYear() })}</p>
                 </div>
             </footer>
         </div>
