@@ -75,7 +75,9 @@ No monorepo, no workspaces. Single Vite app.
 | Landing page | `src/presentation/LandingScreen.tsx` | shipped — rebranded, no gradients, Saffron/Ink palette |
 | Auth (email + password) | `src/presentation/LoginScreen.tsx`, `src/infrastructure/auth/AuthContext.tsx` | shipped (Supabase Auth) |
 | Profile setup (master profile) | `src/presentation/ProfileSetupScreen.tsx` | shipped — one-time profile capture used to seed future resumes |
+| Profile edit | `src/presentation/ProfileScreen.tsx` | shipped — view/edit saved master profile sections |
 | Dashboard (two-card action zone — Master vs. Tailor — + applications grid + slim consultant teaser) | `src/presentation/DashboardScreen.tsx` | shipped |
+| Internationalisation (en + bn) | `src/presentation/i18n/` — `LocaleContext.tsx`, `LanguageToggle.tsx`, `locales/en.ts`, `locales/bn.ts` | shipped — full UI in English and Bengali; AI output stays English |
 | Resume builder (multi-step form) | `src/presentation/BuilderScreen.tsx` | shipped |
 | Resume preview + templates | `src/presentation/components/Preview.tsx`, `src/presentation/templates/TemplateRegistry.ts` | shipped (4 ATS-safe templates) |
 | Cover letter generation + viewer | `src/infrastructure/ai/GeminiCoverLetterGenerator.ts`, viewer inside `Preview.tsx` | shipped |
@@ -268,6 +270,7 @@ src/presentation/LandingScreen.tsx      Rebranded landing (Editorial Ink + Saffr
 src/presentation/LoginScreen.tsx        Email/password auth
 src/presentation/DashboardScreen.tsx    List of generated resumes + job applications
 src/presentation/ProfileSetupScreen.tsx First-run profile capture
+src/presentation/ProfileScreen.tsx      Edit/view saved master profile (sections: experience, education, skills, etc.)
 src/presentation/BuilderScreen.tsx      Multi-step form + generate handler + loading UI
 src/presentation/components/Preview.tsx Resume/CL render + toolkit tabs sidebar
 src/presentation/components/Builder/ToolkitViewers.tsx
@@ -346,8 +349,8 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 
 The resume optimizer is provider-agnostic — `MultiProviderResumeOptimizer` routes calls in this priority:
 
-1. **Groq** — `llama-3.3-70b-versatile`, free tier 1,000 RPD / 30 RPM, ~5–8s latency. Configured via `VITE_GROQ_API_KEY`. OpenAI-compatible JSON mode (no schema enforcement → JSON shape spec embedded in user prompt + post-parse validation).
-2. **Gemini** — `gemini-2.5-flash`, free tier 20 RPD on 2.5-flash, ~25–40s latency, **strongest schema enforcement** via `responseSchema`. Configured via `VITE_GEMINI_API_KEY`.
+1. **Groq** — `llama-3.3-70b-versatile`, free tier 1,000 RPD / 30 RPM, ~5–8s latency. Configured via `GROQ_API_KEY` (server-only, never `VITE_`-prefixed). OpenAI-compatible JSON mode (no schema enforcement → JSON shape spec embedded in user prompt + post-parse validation).
+2. **Gemini** — `gemini-2.5-flash`, free tier 20 RPD on 2.5-flash, ~25–40s latency, **strongest schema enforcement** via `responseSchema`. Configured via `GEMINI_API_KEY` (server-only, never `VITE_`-prefixed).
 
 The router cools down a provider for 10 minutes when it returns 429/503/timeout, so a quota-exhausted Groq doesn't keep eating retries. If only one key is configured, the router uses just that one.
 
@@ -481,7 +484,6 @@ Agents: **do not build these unless the user asks.**
 - **Mock-interview marketplace** — consultant profiles, booking, payments. Surfaced on the landing page but intentionally unbuilt. Separate product scope.
 - **OAuth providers** — Supabase Auth is wired for email/password only.
 - **Unit / integration tests** — no test harness exists. Don't invent one without asking.
-- **General Resume toolkit generation** — the General Resume currently triggers the toolkit generators on a generic JD. Harmless but low-value. Consider short-circuiting for General Resume in a future pass.
 - **Code-splitting** — the bundle is ~1.7MB. Vite warns about it; acceptable for now.
 - **Legacy `applications` table** — exists in schema, unused by current code. Do not write to it; use `generated_resumes`.
 - **Languages / References in ProfileSetupScreen and ProfileScreen** — currently only wired into the BuilderScreen flow (and loaded from the profile sub-tables when prefilling). To capture in the master profile too, add: state vars + step entries in `ProfileSetupScreen.tsx`, save cases in its switch, and tab + section component in `ProfileScreen.tsx` (mirror `PublicationSection`).
