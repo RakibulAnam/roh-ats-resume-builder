@@ -1,6 +1,6 @@
 // Domain Use Case - Interview Question Preparation
 
-import { ResumeData, InterviewQuestion } from '../entities/Resume';
+import { ResumeData, InterviewQuestion } from '../entities/Resume.js';
 
 export interface IInterviewQuestionsGenerator {
   generate(data: ResumeData): Promise<InterviewQuestion[]>;

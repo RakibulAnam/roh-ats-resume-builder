@@ -5,8 +5,8 @@ import {
   ResumeData,
   InterviewQuestion,
   InterviewQuestionCategory,
-} from '../../domain/entities/Resume';
-import { IInterviewQuestionsGenerator } from '../../domain/usecases/GenerateInterviewQuestionsUseCase';
+} from '../../domain/entities/Resume.js';
+import { IInterviewQuestionsGenerator } from '../../domain/usecases/GenerateInterviewQuestionsUseCase.js';
 
 const VALID_CATEGORIES: InterviewQuestionCategory[] = [
   'Behavioral',

@@ -1,8 +1,8 @@
 // Infrastructure - Gemini AI LinkedIn Connection Note Generator
 
 import { GoogleGenAI } from '@google/genai';
-import { ResumeData } from '../../domain/entities/Resume';
-import { ILinkedInMessageGenerator } from '../../domain/usecases/GenerateLinkedInMessageUseCase';
+import { ResumeData } from '../../domain/entities/Resume.js';
+import { ILinkedInMessageGenerator } from '../../domain/usecases/GenerateLinkedInMessageUseCase.js';
 
 // LinkedIn's connection-note hard limit is 300 characters; we aim for 280 to
 // leave a buffer and because shorter notes get accepted more often.

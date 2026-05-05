@@ -9,18 +9,18 @@
 // Gemini-only (haven't been ported to a multi-provider yet — all Gemini SDK
 // uses are still server-only after this change, so still safe).
 
-import { GeminiResumeOptimizer } from '../../src/infrastructure/ai/GeminiResumeOptimizer';
-import { GroqResumeOptimizer } from '../../src/infrastructure/ai/GroqResumeOptimizer';
+import { GeminiResumeOptimizer } from '../../src/infrastructure/ai/GeminiResumeOptimizer.js';
+import { GroqResumeOptimizer } from '../../src/infrastructure/ai/GroqResumeOptimizer.js';
 import {
   MultiProviderResumeOptimizer,
   NamedOptimizer,
-} from '../../src/infrastructure/ai/MultiProviderResumeOptimizer';
-import { GeminiToolkitGenerator } from '../../src/infrastructure/ai/GeminiToolkitGenerator';
-import { GeminiCoverLetterGenerator } from '../../src/infrastructure/ai/GeminiCoverLetterGenerator';
-import { GeminiOutreachEmailGenerator } from '../../src/infrastructure/ai/GeminiOutreachEmailGenerator';
-import { GeminiLinkedInMessageGenerator } from '../../src/infrastructure/ai/GeminiLinkedInMessageGenerator';
-import { GeminiInterviewQuestionsGenerator } from '../../src/infrastructure/ai/GeminiInterviewQuestionsGenerator';
-import { GeminiResumeExtractor } from '../../src/infrastructure/ai/GeminiResumeExtractor';
+} from '../../src/infrastructure/ai/MultiProviderResumeOptimizer.js';
+import { GeminiToolkitGenerator } from '../../src/infrastructure/ai/GeminiToolkitGenerator.js';
+import { GeminiCoverLetterGenerator } from '../../src/infrastructure/ai/GeminiCoverLetterGenerator.js';
+import { GeminiOutreachEmailGenerator } from '../../src/infrastructure/ai/GeminiOutreachEmailGenerator.js';
+import { GeminiLinkedInMessageGenerator } from '../../src/infrastructure/ai/GeminiLinkedInMessageGenerator.js';
+import { GeminiInterviewQuestionsGenerator } from '../../src/infrastructure/ai/GeminiInterviewQuestionsGenerator.js';
+import { GeminiResumeExtractor } from '../../src/infrastructure/ai/GeminiResumeExtractor.js';
 
 const GROQ_KEY = process.env.GROQ_API_KEY ?? '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? '';

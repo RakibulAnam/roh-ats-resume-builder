@@ -10,9 +10,9 @@
 // 401 if not authenticated; 429 if user over daily cap; 503 if no AI provider configured.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticate } from './_lib/auth';
-import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit';
-import { resumeOptimizer, toolkitGenerator } from './_lib/aiFactory';
+import { authenticate } from './_lib/auth.js';
+import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit.js';
+import { resumeOptimizer, toolkitGenerator } from './_lib/aiFactory.js';
 import type { ResumeData, GeneratedToolkit, ToolkitErrors } from '../src/domain/entities/Resume';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

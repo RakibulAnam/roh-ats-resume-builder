@@ -1,6 +1,6 @@
 // Domain Use Case - Cover Letter Generation
 
-import { ResumeData } from '../entities/Resume';
+import { ResumeData } from '../entities/Resume.js';
 
 export interface ICoverLetterGenerator {
   generate(data: ResumeData): Promise<string>;

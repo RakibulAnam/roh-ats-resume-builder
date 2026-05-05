@@ -14,7 +14,7 @@
 // can spam-fail forever without hitting the cap. Mitigation: provider-side
 // rate limits on Groq/Gemini will cap them.)
 
-import { userClient } from './auth';
+import { userClient } from './auth.js';
 
 export const DEFAULT_DAILY_CAP = 20;
 

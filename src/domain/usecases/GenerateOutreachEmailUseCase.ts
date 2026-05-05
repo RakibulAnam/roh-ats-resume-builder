@@ -1,6 +1,6 @@
 // Domain Use Case - Hiring Manager Outreach Email
 
-import { ResumeData, OutreachEmail } from '../entities/Resume';
+import { ResumeData, OutreachEmail } from '../entities/Resume.js';
 
 export interface IOutreachEmailGenerator {
   generate(data: ResumeData): Promise<OutreachEmail>;

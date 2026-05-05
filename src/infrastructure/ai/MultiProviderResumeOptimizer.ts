@@ -12,8 +12,8 @@
 // Used for the resume optimizer hot path. Keeps the existing
 // `IResumeOptimizer` interface — callers don't change.
 
-import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume';
-import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase';
+import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume.js';
+import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase.js';
 
 export interface NamedOptimizer {
   name: string;          // e.g. "groq", "gemini" — for logs

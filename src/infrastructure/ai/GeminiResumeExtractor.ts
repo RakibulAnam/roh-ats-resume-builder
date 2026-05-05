@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
-import { ExtractedProfileData, IResumeExtractor } from '../../domain/usecases/ExtractResumeUseCase';
+import { ExtractedProfileData, IResumeExtractor } from '../../domain/usecases/ExtractResumeUseCase.js';
 
 export class GeminiResumeExtractor implements IResumeExtractor {
     private genAI: GoogleGenAI;

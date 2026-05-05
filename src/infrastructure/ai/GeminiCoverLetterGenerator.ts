@@ -1,8 +1,8 @@
 // Infrastructure - Gemini AI Cover Letter Generator
 
 import { GoogleGenAI } from '@google/genai';
-import { ResumeData } from '../../domain/entities/Resume';
-import { ICoverLetterGenerator } from '../../domain/usecases/GenerateCoverLetterUseCase';
+import { ResumeData } from '../../domain/entities/Resume.js';
+import { ICoverLetterGenerator } from '../../domain/usecases/GenerateCoverLetterUseCase.js';
 
 export class GeminiCoverLetterGenerator implements ICoverLetterGenerator {
   private genAI: GoogleGenAI;

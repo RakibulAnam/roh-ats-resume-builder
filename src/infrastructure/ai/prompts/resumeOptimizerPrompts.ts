@@ -7,7 +7,7 @@
 // providers stay in lockstep on the rules — the rules are the product, not
 // the SDK.
 
-import { ResumeData, OptimizedResumeData } from '../../../domain/entities/Resume';
+import { ResumeData, OptimizedResumeData } from '../../../domain/entities/Resume.js';
 
 // ────────────────────────────────────────────────
 // 🔐 SYSTEM INSTRUCTION
