@@ -9,8 +9,8 @@
 // Free-tier sweet spot (May 2026): 1,000 RPD on llama-3.3-70b-versatile, 30 RPM,
 // ~5–8s latency per call. Massive upgrade over Gemini 2.5 Flash's 20 RPD ceiling.
 
-import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume';
-import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase';
+import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume.js';
+import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase.js';
 import {
   buildSystemInstruction,
   buildUserPrompt,
@@ -21,7 +21,7 @@ import {
   safeJsonParse,
   withTimeout,
   delay,
-} from './prompts/resumeOptimizerPrompts';
+} from './prompts/resumeOptimizerPrompts.js';
 
 interface GroqChatResponse {
   choices?: Array<{

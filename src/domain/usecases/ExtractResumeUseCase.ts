@@ -9,7 +9,7 @@ import {
     Affiliation,
     Publication,
     UserType
-} from '../entities/Resume';
+} from '../entities/Resume.js';
 
 export interface ExtractedProfileData {
     userType?: UserType;

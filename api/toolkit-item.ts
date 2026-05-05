@@ -8,14 +8,14 @@
 // Response: { result: <typed-by-kind> }
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticate } from './_lib/auth';
-import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit';
+import { authenticate } from './_lib/auth.js';
+import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit.js';
 import {
   coverLetterGenerator,
   outreachEmailGenerator,
   linkedInMessageGenerator,
   interviewQuestionsGenerator,
-} from './_lib/aiFactory';
+} from './_lib/aiFactory.js';
 import type { ResumeData } from '../src/domain/entities/Resume';
 
 type Kind = 'coverLetter' | 'outreachEmail' | 'linkedInMessage' | 'interviewQuestions';

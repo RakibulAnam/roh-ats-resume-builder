@@ -11,8 +11,8 @@ import {
   GeneratedToolkit,
   InterviewQuestion,
   InterviewQuestionCategory,
-} from '../../domain/entities/Resume';
-import { IToolkitGenerator } from '../../domain/usecases/GenerateToolkitUseCase';
+} from '../../domain/entities/Resume.js';
+import { IToolkitGenerator } from '../../domain/usecases/GenerateToolkitUseCase.js';
 
 const LINKEDIN_MAX = 280;
 

@@ -1,6 +1,6 @@
 // Domain Use Case - LinkedIn Connection Note
 
-import { ResumeData } from '../entities/Resume';
+import { ResumeData } from '../entities/Resume.js';
 
 export interface ILinkedInMessageGenerator {
   generate(data: ResumeData): Promise<string>;

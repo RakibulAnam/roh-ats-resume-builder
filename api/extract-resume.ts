@@ -6,9 +6,9 @@
 // large (PDFs); Vercel default body limit is 4.5MB which suits us.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticate } from './_lib/auth';
-import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit';
-import { resumeExtractor } from './_lib/aiFactory';
+import { authenticate } from './_lib/auth.js';
+import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit.js';
+import { resumeExtractor } from './_lib/aiFactory.js';
 
 export const config = {
   api: {

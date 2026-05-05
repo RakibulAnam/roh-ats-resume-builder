@@ -6,8 +6,8 @@
 // which is stricter than OpenAI-compatible JSON mode.
 
 import { GoogleGenAI, Type, Schema } from '@google/genai';
-import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume';
-import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase';
+import { ResumeData, OptimizedResumeData } from '../../domain/entities/Resume.js';
+import { IResumeOptimizer } from '../../domain/usecases/OptimizeResumeUseCase.js';
 import {
   buildSystemInstruction,
   buildUserPrompt,
@@ -18,7 +18,7 @@ import {
   safeJsonParse,
   withTimeout,
   delay,
-} from './prompts/resumeOptimizerPrompts';
+} from './prompts/resumeOptimizerPrompts.js';
 
 export class GeminiResumeOptimizer implements IResumeOptimizer {
   private readonly genAI: GoogleGenAI;

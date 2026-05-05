@@ -1,6 +1,6 @@
 // Domain Use Case - Resume Optimization
 
-import { ResumeData, OptimizedResumeData } from '../entities/Resume';
+import { ResumeData, OptimizedResumeData } from '../entities/Resume.js';
 
 export interface IResumeOptimizer {
   optimize(data: ResumeData): Promise<OptimizedResumeData>;

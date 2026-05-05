@@ -4,7 +4,7 @@
 // questions in ONE AI call instead of four parallel ones, so the initial
 // generation stays well inside Gemini's free-tier RPM budget.
 
-import { ResumeData, GeneratedToolkit } from '../entities/Resume';
+import { ResumeData, GeneratedToolkit } from '../entities/Resume.js';
 
 export interface IToolkitGenerator {
   generate(data: ResumeData): Promise<GeneratedToolkit>;

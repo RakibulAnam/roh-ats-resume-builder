@@ -1,8 +1,8 @@
 // Infrastructure - Gemini AI Outreach Email Generator
 
 import { GoogleGenAI, Type } from '@google/genai';
-import { ResumeData, OutreachEmail } from '../../domain/entities/Resume';
-import { IOutreachEmailGenerator } from '../../domain/usecases/GenerateOutreachEmailUseCase';
+import { ResumeData, OutreachEmail } from '../../domain/entities/Resume.js';
+import { IOutreachEmailGenerator } from '../../domain/usecases/GenerateOutreachEmailUseCase.js';
 
 export class GeminiOutreachEmailGenerator implements IOutreachEmailGenerator {
   private genAI: GoogleGenAI;
