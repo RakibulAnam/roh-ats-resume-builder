@@ -87,6 +87,7 @@ No monorepo, no workspaces. Single Vite app.
 | General Resume (profile-based, 24h regen cooldown) | `ResumeService.generateGeneralResume()` | shipped |
 | Export (Word + PDF) for resume & cover letter | `src/infrastructure/export/` | shipped |
 | Resume extract (from uploaded PDF/Word) | `src/infrastructure/ai/GeminiResumeExtractor.ts` | shipped |
+| **Toolkit credits + mock purchase** — paid tier gating tailored generations | `profiles.toolkit_credits`, `api/optimize.ts` (gate), `api/purchase.ts` (mock), `PurchaseModal.tsx` | shipped (mock) — replace `api/purchase.ts` with a real payment-gateway webhook before launch |
 
 ---
 
@@ -131,9 +132,14 @@ Four layers, dependencies flow inward.
                              │ HTTPS
  ┌───────────────────────────▼───────────────────────────────┐
  │           Vercel Functions  (server, /api/*)              │
- │  api/optimize          — runs optimizer + toolkit (2 AI)  │
- │  api/toolkit-item      — single-item regenerate           │
+ │  api/optimize          — runs optimizer + toolkit (2 AI), │
+ │                          GATES on toolkit_credits         │
+ │  api/optimize-general  — optimizer only (no toolkit, no   │
+ │                          credit) — General Resume path    │
+ │  api/toolkit-item      — single-item regenerate (free —   │
+ │                          retry of an already-paid gen)    │
  │  api/extract-resume    — PDF/Word extract                 │
+ │  api/purchase          — mock purchase (grants credits)   │
  │  api/_lib/auth         — Supabase JWT verifier            │
  │  api/_lib/rateLimit    — daily cap (ai_call_log)          │
  │  api/_lib/aiFactory    — constructs:                      │
@@ -162,6 +168,16 @@ Four layers, dependencies flow inward.
 - `emailValidator.ts` — signup gate using `validator.isEmail` for format, `disposable-email-domains` for known throwaways (lazy-imported, ~2 MB JSON kept out of the initial bundle), plus a local-part shape check. Async; only runs on signup, not login.
 
 When adding a new AI entry point: add a corresponding `assertContentIsReal`-style gate at the top of the service method, listing the user-supplied free-form fields that feed the prompt. Skip short structured fields (names, dates, locations) — too noisy to score and not where waste comes from.
+
+**Monetization & credit gate.** Tailored toolkit generation is the paid tier. The free tier is the General Resume (optimizer only, no toolkit). Splitting them is enforced at the endpoint layer:
+
+- **`/api/optimize`** — paid path. Atomically calls `consume_toolkit_credit()` (a SECURITY DEFINER Postgres function with `search_path = public, pg_temp`) before running AI. If `toolkit_credits = 0`, returns **402** with `code: 'insufficient_credits'`. If the optimizer call itself fails, calls `refund_toolkit_credit()` so the user is not charged for an empty generation. If the toolkit call fails but the optimizer succeeds, the credit is **kept** — the user got their resume, and per-item retries are free.
+- **`/api/optimize-general`** — free path. No credit check, no toolkit. Used exclusively by `ResumeService.generateGeneralResume()` and `regenerateGeneralResume()` via a separate `ProxyGeneralResumeOptimizer`. Daily AI-call cap (20/day) is the only backstop.
+- **`/api/purchase`** — mock for now. Calls `process_mock_purchase()` (one transaction: insert a row in `purchases` + `UPDATE profiles SET toolkit_credits = toolkit_credits + N`). When a real payment provider lands, this becomes a webhook receiver that verifies a signed payload before granting; the rest of the system stays unchanged.
+- Postage-stamp **race-safety**: `consume_toolkit_credit` is a single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`. Postgres row-locks serialise concurrent calls; the second request with `toolkit_credits = 0` updates 0 rows and the function raises `insufficient_credits`.
+- Client UX: `BuilderScreen` and `DashboardScreen` both fetch the balance via `IProfileRepository.getToolkitCredits()` and show "X generations remaining". `PurchaseModal` is shared between them. On a successful purchase, the modal returns the new balance via `onSuccess(newBalance)` so the caller can update its local state without re-fetching.
+
+**Adding a new paid feature?** If you ever monetise something else, do NOT introduce a generic "credits" abstraction — add a separate column (e.g. `interview_coach_credits`) and a sibling RPC. Reason: keeping each feature on its own integer is clearer for the user ("3 toolkit generations remaining") and avoids the "what else can I spend credits on?" UX trap.
 
 ---
 
@@ -216,6 +232,8 @@ OptimizedResumeData {                    // what GeminiResumeOptimizer returns
 
 ## 6. Application flow (happy path for a new tailored application)
 
+**Paid vs. free.** The tailored Builder flow below consumes 1 toolkit credit (server-enforced in `/api/optimize`). The General Resume — built from the user's saved profile via `DashboardScreen` "Build my master resume" — is the free path: it goes through `/api/optimize-general` (optimizer only, no toolkit, no credit) and is bounded by the existing 24h regeneration cooldown. See §4 for the credit-gate detail.
+
 ```
  User signs in ──► profileRepository.isProfileComplete() ──► ProfileSetupScreen (if incomplete)
                                                           └► DashboardScreen (if complete)
@@ -223,6 +241,7 @@ OptimizedResumeData {                    // what GeminiResumeOptimizer returns
  DashboardScreen ──► "New Application" ──► ResumeSourceDialog
                                           ├── "Use my profile" ──► prefill ResumeData from profileRepository
                                           └── "Start fresh"    ──► empty ResumeData
+                  ──► (credits bar above the action cards) ──► PurchaseModal (mock checkout) ──► /api/purchase
 
  BuilderScreen (multi-step form, driven by AppStep + getVisibleSteps())
    ── USER_TYPE  ── SECTIONS   ── TARGET_JOB    ── PERSONAL_INFO
@@ -231,19 +250,26 @@ OptimizedResumeData {                    // what GeminiResumeOptimizer returns
    ── LANGUAGES ── REFERENCES   (BD-aware additions; toggle in SECTIONS step)
 
  Final step → handleGenerate() → resumeService.optimizeResume(data):
-   0. assertContentIsReal(data) — pre-flight gibberish gate. Scans long free-form fields (job
-      description, summary, experience/project/extracurricular brain-dumps). Throws
-      GibberishContentError naming the offending field if any look like keyboard mashing.
-      Bengali script + romanized Banglish (`ami`, `naam`, `bhalo`, ...) pass via the
-      dictionary rescue layer in `application/validation/`. Goal: never spend AI tokens
-      on `"asdfdsjurbgnasdkjn"`.
+   0a. Client-side credit pre-check. If the locally-cached `toolkit_credits` is 0,
+       open PurchaseModal and queue an auto-resume after success. Server still
+       enforces the real check; this just avoids an obviously wasted round-trip.
+   0b. assertContentIsReal(data) — pre-flight gibberish gate. Scans long free-form fields (job
+       description, summary, experience/project/extracurricular brain-dumps). Throws
+       GibberishContentError naming the offending field if any look like keyboard mashing.
+       Bengali script + romanized Banglish (`ami`, `naam`, `bhalo`, ...) pass via the
+       dictionary rescue layer in `application/validation/`. Goal: never spend AI tokens
+       on `"asdfdsjurbgnasdkjn"`.
+   0c. Server: /api/optimize calls consume_toolkit_credit() — atomic decrement.
+       402 if balance was already 0 → BuilderScreen catches the ApiCallError(code:
+       'insufficient_credits') and opens PurchaseModal. Refunded if step 1 (optimizer)
+       rejects. Kept if optimizer succeeds (toolkit failures are retried free).
    1. Promise.allSettled([
         optimizeUseCase.execute(data),                       — tailors resume
         toolkitUseCase.execute(data),                        — one call for CL + outreach + LinkedIn + Qs
       ])                                                     — 2 Gemini calls total (RPM budget)
-   2. Optimizer failure → throws (core artifact).
+   2. Optimizer failure → throws (core artifact). Server refunds the credit.
       Toolkit failure → records same friendly error under all 4 toolkit keys so the user can retry
-      any one individually (per-item retry uses the single-artifact generators).
+      any one individually (per-item retry uses the single-artifact generators, free).
    3. Return OptimizedResumeData with { coverLetter, toolkit }
 
  BuilderScreen merges the optimized data, autosaves to Supabase (generated_resumes), routes to PREVIEW step.
@@ -276,6 +302,7 @@ src/presentation/components/Preview.tsx Resume/CL render + toolkit tabs sidebar
 src/presentation/components/Builder/ToolkitViewers.tsx
                                         Outreach email, LinkedIn note, Interview prep (copy-to-clipboard)
 src/presentation/components/FormSteps.tsx  All step forms (TargetJob, Experience, Projects, etc.)
+src/presentation/components/PurchaseModal.tsx  Mock checkout for the toolkit-credits pack (shared by Dashboard + Builder)
 src/presentation/templates/TemplateRegistry.ts  4 ATS-safe template definitions (all single-column)
 
 src/application/services/ResumeService.ts   Orchestrator — call this from presentation
@@ -303,10 +330,14 @@ src/infrastructure/ai/                  AI providers (run server-side) + client 
   └── Gemini{CoverLetter,Outreach,LinkedIn,InterviewQ,Toolkit,Extractor}Generator.ts (server-only)
 
 api/                                    Vercel Functions — server-side AI proxy
-  ├── optimize.ts                       POST — runs optimizer + toolkit (the 2-call hot path)
-  ├── toolkit-item.ts                   POST — single-item regenerate
+  ├── optimize.ts                       POST — runs optimizer + toolkit (paid: gates on toolkit_credits, refunds on optimizer failure)
+  ├── optimize-general.ts               POST — optimizer only, no toolkit, no credit gate (free General Resume path)
+  ├── toolkit-item.ts                   POST — single-item regenerate (free retry)
   ├── extract-resume.ts                 POST — PDF/Word extract (base64 + mimeType)
+  ├── purchase.ts                       POST — mock purchase; replaces with payment-gateway webhook for production
   └── _lib/                             auth.ts, rateLimit.ts, aiFactory.ts
+
+src/infrastructure/api/purchaseClient.ts  Typed client for /api/purchase — used by PurchaseModal
 src/infrastructure/auth/AuthContext.tsx Supabase Auth context/provider/hook
 src/infrastructure/config/dependencies.ts  DI container — call createResumeService() for a wired service
 src/infrastructure/export/              Word + PDF exporters (Composite pattern)
@@ -325,21 +356,29 @@ supabase/migrations/                    Incremental changes (run in SQL editor i
 
 All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 
-- `profiles` — user profile (linked 1:1 with `auth.users`), trigger `handle_new_user` auto-creates on signup
+- `profiles` — user profile (linked 1:1 with `auth.users`), trigger `handle_new_user` auto-creates on signup. Includes `toolkit_credits integer not null default 0` — current balance for paid tailored generations. **No client-facing UPDATE policy for that column**; mutations only via security-definer RPCs.
 - `experiences`, `educations`, `projects`, `skills`, `extracurriculars`, `awards`, `certifications`, `affiliations`, `publications`, `languages`, `references_list` — profile sub-tables. **Note:** the `references` table is named `references_list` because `references` is a reserved keyword in Postgres.
 - `applications` — legacy, partially unused (the current code persists generated output to `generated_resumes`)
 - `generated_resumes` — final snapshots
   - `id`, `user_id`, `title`, `created_at`, `updated_at`
   - `data jsonb` — `ResumeData` minus toolkit
   - `toolkit jsonb` — `JobToolkit` (outreach email / LinkedIn note / interview questions)
-- RPC `public.delete_user()` — deletes all user-owned rows then the auth user
+- `purchases` — audit trail for the monetization flow. One row per purchase event (`credits_granted`, `amount_taka`, `payment_reference`, `status`). RLS allows users to SELECT their own; INSERT only via the `process_mock_purchase` RPC (no direct INSERT policy).
+- `ai_call_log` — per-user daily-cap audit trail (existing).
+- RPC `public.delete_user()` — deletes all user-owned rows (including `purchases`) then the auth user
+
+**Credit-system RPCs** (all `SECURITY DEFINER` with `set search_path = public, pg_temp`; reachable via the user's JWT):
+- `consume_toolkit_credit()` — atomic decrement. Single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`; raises `insufficient_credits` if balance is 0.
+- `refund_toolkit_credit()` — increments by 1. Called server-side when the optimizer fails after a credit was consumed.
+- `process_mock_purchase(p_credits, p_amount_taka, p_reference)` — atomically inserts the `purchases` row + grants credits. Replaced by a payment-gateway webhook in production.
 
 **Migrations applied**
 - `supabase/migrations/001_add_toolkit_column.sql` — adds `toolkit jsonb` + partial index on `generated_resumes`
 - `supabase/migrations/002_add_languages_and_references.sql` — adds `languages` and `references_list` profile sub-tables with RLS
 - `supabase/migrations/003_add_ai_call_log.sql` — adds `ai_call_log` table for per-user daily-cap rate limiting at the `/api/*` layer
+- `supabase/migrations/004_add_toolkit_credits.sql` — adds `profiles.toolkit_credits`, `purchases` table, and the three credit-system RPCs (`consume_toolkit_credit`, `refund_toolkit_credit`, `process_mock_purchase`)
 
-**Running migrations**: open the Supabase SQL editor and paste the migration file contents. All migrations are idempotent (`add column if not exists`, `create index if not exists`).
+**Running migrations**: open the Supabase SQL editor and paste the migration file contents. All migrations are idempotent (`add column if not exists`, `create index if not exists`, `create or replace function`).
 
 ---
 
@@ -489,6 +528,7 @@ Agents: **do not build these unless the user asks.**
 - **Languages / References in ProfileSetupScreen and ProfileScreen** — currently only wired into the BuilderScreen flow (and loaded from the profile sub-tables when prefilling). To capture in the master profile too, add: state vars + step entries in `ProfileSetupScreen.tsx`, save cases in its switch, and tab + section component in `ProfileScreen.tsx` (mirror `PublicationSection`).
 - **AI output in Bengali** — the UI translates (en/bn), but the AI-generated resume bullets, cover letter, outreach email, LinkedIn note, and interview Q&A still come back in English. Most BD recruiters expect English CVs, so this is intentional. Adding a per-document "Generate in: English / বাংলা" toggle would mean: branching prompts in `prompts/resumeOptimizerPrompts.ts` and each toolkit generator + a UI affordance + a prompt-language pass-through in the optimize flow. Don't ship without an explicit ask.
 - **Locale persistence to Supabase** — locale is currently `localStorage`-only. Cross-device sync would need a `preferred_locale` column on `profiles` + a fetch on sign-in. Skipped for v1 because device-local is enough for a Bangladesh-first launch.
+- **Real payment integration** — `api/purchase.ts` is a mock that always succeeds (calls `process_mock_purchase` directly with the user's JWT, so a determined user could grant themselves credits via the RPC). Production switch: replace `api/purchase.ts` with a webhook receiver that (1) verifies the gateway's signed payload, (2) uses a Supabase service-role key (new env var `SUPABASE_SERVICE_ROLE_KEY`) to grant credits, (3) deletes or revokes `process_mock_purchase`. Likely gateways for the BD market: bKash, SSLCommerz, Nagad. UI (`PurchaseModal`, credit bars) does not need to change.
 
 ---
 

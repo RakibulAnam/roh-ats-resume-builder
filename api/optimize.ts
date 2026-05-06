@@ -7,10 +7,19 @@
 // Request:  { data: ResumeData }
 // Response: { optimized: OptimizedResumeData, toolkit: GeneratedToolkit, errors: ToolkitErrors }
 //
-// 401 if not authenticated; 429 if user over daily cap; 503 if no AI provider configured.
+// 401 if not authenticated; 402 if user has no toolkit credits;
+// 429 if user over daily cap; 503 if no AI provider configured.
+//
+// Credit flow:
+//   1. consume_toolkit_credit() — atomic decrement before AI runs.
+//      If balance was already 0, raises 'insufficient_credits' → 402.
+//   2. If the optimizer call fails → refund_toolkit_credit() so the user
+//      is not charged for a generation that produced nothing.
+//   3. If the optimizer succeeds but the toolkit call fails, the credit is
+//      kept — the user got their resume, and per-item retries are free.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { authenticate } from './_lib/auth.js';
+import { authenticate, userClient } from './_lib/auth.js';
 import { assertWithinLimit, logCall, RateLimitError } from './_lib/rateLimit.js';
 import { resumeOptimizer, toolkitGenerator } from './_lib/aiFactory.js';
 import type { ResumeData, GeneratedToolkit, ToolkitErrors } from '../src/domain/entities/Resume';
@@ -45,15 +54,46 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Two AI calls in parallel — same budget as the existing client-side
-  // ResumeService.optimizeResume(). Promise.allSettled so a toolkit failure
-  // doesn't kill the optimizer result.
+  // ── Credit gate ───────────────────────────────────────────────────────────
+  // Atomically decrement the user's toolkit_credits balance before running AI.
+  // The security-definer RPC enforces that balance cannot go below 0 and that
+  // the decrement is serialised at the row level (no race condition with a
+  // concurrent request).
+  const supabase = userClient(auth.jwt);
+  const { error: creditError } = await supabase.rpc('consume_toolkit_credit');
+
+  if (creditError) {
+    if (creditError.message?.includes('insufficient_credits')) {
+      res.status(402).json({
+        error: 'No toolkit credits remaining. Purchase a pack to continue.',
+        code: 'insufficient_credits',
+      });
+      return;
+    }
+    // Any other DB error: fail-open with a warning so a Supabase hiccup
+    // doesn't silently block all users. Log it for visibility.
+    console.warn('[optimize] Credit check failed (fail-open):', creditError.message);
+  }
+
+  const creditConsumed = !creditError;
+
+  // ── AI generation ─────────────────────────────────────────────────────────
+  // Two AI calls in parallel — optimizer + combined toolkit. Promise.allSettled
+  // so a toolkit failure doesn't kill the optimizer result.
   const [optimizedResult, toolkitResult] = await Promise.allSettled([
     resumeOptimizer.optimize(data),
     toolkitGenerator ? toolkitGenerator.generate(data) : Promise.reject(new Error('Toolkit generator not configured')),
   ]);
 
   if (optimizedResult.status === 'rejected') {
+    // Core artifact failed — refund the credit so the user isn't charged for
+    // a generation that produced nothing.
+    if (creditConsumed) {
+      const { error: refundError } = await supabase.rpc('refund_toolkit_credit');
+      if (refundError) {
+        console.error('[optimize] Credit refund failed:', refundError.message);
+      }
+    }
     const msg = optimizedResult.reason instanceof Error ? optimizedResult.reason.message : 'Optimizer failed';
     res.status(502).json({ error: msg });
     return;

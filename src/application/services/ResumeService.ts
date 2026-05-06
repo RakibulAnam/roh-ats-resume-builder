@@ -14,6 +14,7 @@ import { assertNotGibberish, FieldCheck } from '../validation/gibberishDetector'
 
 export class ResumeService {
   private optimizeUseCase: OptimizeResumeUseCase;
+  private generalOptimizeUseCase: OptimizeResumeUseCase;
   private exportUseCase: ExportResumeUseCase;
   private coverLetterUseCase: GenerateCoverLetterUseCase;
   private outreachEmailUseCase: GenerateOutreachEmailUseCase;
@@ -30,9 +31,13 @@ export class ResumeService {
     interviewQuestionsGenerator: IInterviewQuestionsGenerator,
     toolkitGenerator: IToolkitGenerator,
     private repository: IResumeRepository,
-    private profileRepository?: IProfileRepository
+    private profileRepository?: IProfileRepository,
+    generalResumeOptimizer?: IResumeOptimizer
   ) {
     this.optimizeUseCase = new OptimizeResumeUseCase(resumeOptimizer);
+    // Falls back to the regular optimizer if no dedicated general-resume
+    // optimizer is wired (e.g. in local dev without the new endpoint).
+    this.generalOptimizeUseCase = new OptimizeResumeUseCase(generalResumeOptimizer ?? resumeOptimizer);
     this.exportUseCase = new ExportResumeUseCase(resumeExporter);
     this.coverLetterUseCase = new GenerateCoverLetterUseCase(coverLetterGenerator);
     this.outreachEmailUseCase = new GenerateOutreachEmailUseCase(outreachEmailGenerator);
@@ -409,8 +414,13 @@ export class ResumeService {
       template: 'ats-classic',
     };
 
-    // Optimize via AI
-    const optimizedData = await this.optimizeResume(resumeData);
+    // Pre-flight gibberish gate — same one the paid path uses. Profile data
+    // can still contain keyboard-mashing in long-form fields (experience /
+    // project / activity descriptions) and we shouldn't spend AI tokens on it.
+    this.assertContentIsReal(resumeData);
+
+    // Optimize via the free general-resume path (no credit gate, no toolkit).
+    const optimizedData = await this.generalOptimizeUseCase.execute(resumeData);
     const mergedData = this.mergeOptimizedData(resumeData, optimizedData);
 
     // Save and return ID
@@ -488,8 +498,11 @@ export class ResumeService {
       template: 'ats-classic',
     };
 
-    // Optimize via AI
-    const optimizedData = await this.optimizeResume(resumeData);
+    // Pre-flight gibberish gate — same as the initial general-resume path.
+    this.assertContentIsReal(resumeData);
+
+    // Optimize via the free general-resume path (no credit gate, no toolkit).
+    const optimizedData = await this.generalOptimizeUseCase.execute(resumeData);
     const mergedData = this.mergeOptimizedData(resumeData, optimizedData);
 
     // Update existing resume

@@ -15,12 +15,13 @@ import {
     Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../infrastructure/auth/AuthContext';
-import { createResumeService, applicationRepository } from '../infrastructure/config/dependencies';
+import { createResumeService, applicationRepository, profileRepository } from '../infrastructure/config/dependencies';
 import { Application } from '../domain/repositories/IApplicationRepository';
 import { ResumeService } from '../application/services/ResumeService';
 import { toast } from 'sonner';
 import { useT } from './i18n/LocaleContext';
 import { LanguageToggle } from './i18n/LanguageToggle';
+import { PurchaseModal } from './components/PurchaseModal';
 
 interface Props {
     onCreateNew: () => void;
@@ -65,6 +66,10 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [buildingMaster, setBuildingMaster] = useState(false);
+    // Toolkit credits — null while loading. Refreshed after each successful
+    // purchase via the PurchaseModal's onSuccess callback.
+    const [credits, setCredits] = useState<number | null>(null);
+    const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -77,12 +82,18 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
         try {
             if (!user) return;
             const resumeService = createResumeService();
-            const [apps, resumeList] = await Promise.all([
+            const [apps, resumeList, creditBalance] = await Promise.all([
                 applicationRepository.getApplications(user.id),
                 resumeService.getGeneratedResumes(user.id),
+                // Wrap so a credit-fetch failure doesn't kill the dashboard.
+                profileRepository.getToolkitCredits(user.id).catch(err => {
+                    console.warn('Could not load toolkit credits', err);
+                    return null;
+                }),
             ]);
             setApplications(apps);
             setResumes(resumeList);
+            if (creditBalance !== null) setCredits(creditBalance);
         } catch (error) {
             console.error(error);
         } finally {
@@ -219,6 +230,32 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             {t('dashboard.greetingHelp')}
                         </p>
                     </div>
+
+                    {/* Toolkit credits bar — sits above the action cards so the user
+                        always knows their balance before opening the builder. */}
+                    {credits !== null && (
+                        <div className="mb-5 lg:mb-6 flex flex-wrap items-center justify-between gap-3 px-5 py-3 rounded-2xl border border-charcoal-200 bg-white">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold whitespace-nowrap">
+                                    {t('dashboard.creditsLabel')}
+                                </span>
+                                <span className="text-sm font-semibold text-brand-700 truncate">
+                                    {credits === 0
+                                        ? t('dashboard.creditsExhausted')
+                                        : credits === 1
+                                            ? t('dashboard.creditsRemainingOne')
+                                            : t('dashboard.creditsRemainingMany', { count: credits })}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setPurchaseModalOpen(true)}
+                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent-400 border border-accent-500 text-brand-800 text-xs font-semibold hover:bg-accent-300 transition-colors whitespace-nowrap"
+                            >
+                                {credits === 0 ? t('dashboard.buyPackCta') : t('dashboard.buyMoreCta')}
+                            </button>
+                        </div>
+                    )}
 
                     {/* Two-card primary action zone */}
                     <div className="grid lg:grid-cols-2 gap-4 lg:gap-5 mb-12 lg:mb-16">
@@ -489,6 +526,12 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                     <p>{t('dashboard.footerLine', { year: new Date().getFullYear() })}</p>
                 </div>
             </footer>
+
+            <PurchaseModal
+                isOpen={purchaseModalOpen}
+                onClose={() => setPurchaseModalOpen(false)}
+                onSuccess={(newBalance) => setCredits(newBalance)}
+            />
         </div>
     );
 };

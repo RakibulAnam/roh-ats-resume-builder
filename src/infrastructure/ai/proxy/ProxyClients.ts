@@ -37,8 +37,19 @@ async function getAccessToken(): Promise<string> {
 
 interface ApiError {
   error: string;
+  code?: string;
   used?: number;
   cap?: number;
+}
+
+// Carries the structured error payload from /api/* failures so callers can
+// switch on `code` (e.g. open the purchase modal on 'insufficient_credits')
+// without having to string-match the friendly message.
+export class ApiCallError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+    this.name = 'ApiCallError';
+  }
 }
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -58,9 +69,13 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     const friendly = errorBody?.error
       ?? `Request failed: ${res.status} ${res.statusText}`;
     if (res.status === 429 && errorBody?.used != null && errorBody?.cap != null) {
-      throw new Error(`Daily limit reached (${errorBody.used}/${errorBody.cap}). Try again tomorrow.`);
+      throw new ApiCallError(
+        `Daily limit reached (${errorBody.used}/${errorBody.cap}). Try again tomorrow.`,
+        res.status,
+        errorBody.code,
+      );
     }
-    throw new Error(friendly);
+    throw new ApiCallError(friendly, res.status, errorBody?.code);
   }
 
   return res.json() as Promise<T>;
@@ -103,6 +118,15 @@ function callOptimize(data: ResumeData): Promise<ApiOptimizeResponse> {
 export class ProxyResumeOptimizer implements IResumeOptimizer {
   async optimize(data: ResumeData): Promise<OptimizedResumeData> {
     const r = await callOptimize(data);
+    return r.optimized;
+  }
+}
+
+// Calls /api/optimize-general — free, no credit gate, optimizer only.
+// Used exclusively for the General Resume feature.
+export class ProxyGeneralResumeOptimizer implements IResumeOptimizer {
+  async optimize(data: ResumeData): Promise<OptimizedResumeData> {
+    const r = await postJson<{ optimized: OptimizedResumeData }>('/api/optimize-general', { data });
     return r.optimized;
   }
 }

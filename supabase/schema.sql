@@ -13,6 +13,7 @@ create table profiles (
   linkedin text,
   github text,
   website text,
+  toolkit_credits integer not null default 0,  -- paid tailored-resume generations remaining
   updated_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -395,6 +396,98 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- PURCHASES (monetization audit trail — one row per purchase event)
+create table purchases (
+  id                uuid    default uuid_generate_v4() primary key,
+  user_id           uuid    references profiles(id) not null,
+  credits_granted   integer not null,
+  amount_taka       integer not null,
+  payment_reference text,                       -- 'mock-<uuid>' now; real gateway txn ID later
+  status            text    not null default 'completed'
+    check (status in ('pending', 'completed', 'failed', 'refunded')),
+  created_at        timestamp with time zone default timezone('utc'::text, now())
+);
+
+create index purchases_user_id_idx on purchases(user_id, created_at desc);
+
+alter table purchases enable row level security;
+
+create policy "Users can view own purchases" on purchases
+  for select using (auth.uid() = user_id);
+
+-- No INSERT policy for users — writes go through server-side API only.
+
+-- Atomic decrement: raises 'insufficient_credits' if balance is already 0.
+-- SECURITY DEFINER + locked search_path so the user's JWT can call it without
+-- a direct UPDATE policy and a hostile object in another schema cannot
+-- shadow `profiles`.
+create or replace function consume_toolkit_credit()
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  new_balance integer;
+begin
+  update public.profiles
+  set    toolkit_credits = toolkit_credits - 1
+  where  id = auth.uid()
+    and  toolkit_credits > 0
+  returning toolkit_credits into new_balance;
+
+  if new_balance is null then
+    raise exception 'insufficient_credits'
+      using hint = 'User has no toolkit credits remaining.';
+  end if;
+
+  return new_balance;
+end;
+$$;
+
+-- Refund 1 credit — called server-side when the AI optimizer fails after
+-- a credit was already consumed.
+create or replace function refund_toolkit_credit()
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  update public.profiles
+  set    toolkit_credits = toolkit_credits + 1
+  where  id = auth.uid();
+end;
+$$;
+
+-- Mock purchase: atomically inserts the purchase record and grants credits.
+-- Called from api/purchase.ts via the user's JWT. Replaced by a real
+-- payment webhook in production.
+create or replace function process_mock_purchase(
+  p_credits     integer,
+  p_amount_taka integer,
+  p_reference   text
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  new_balance integer;
+begin
+  insert into public.purchases (user_id, credits_granted, amount_taka, payment_reference, status)
+  values (auth.uid(), p_credits, p_amount_taka, p_reference, 'completed');
+
+  update public.profiles
+  set    toolkit_credits = toolkit_credits + p_credits
+  where  id = auth.uid()
+  returning toolkit_credits into new_balance;
+
+  return new_balance;
+end;
+$$;
+
 -- RPC to delete a user and all their data
 create or replace function public.delete_user()
 returns void
@@ -414,7 +507,8 @@ begin
   delete from public.publications where user_id = auth.uid();
   delete from public.applications where user_id = auth.uid();
   delete from public.generated_resumes where user_id = auth.uid();
-  
+  delete from public.purchases where user_id = auth.uid();
+
   -- Delete the profile
   delete from public.profiles where id = auth.uid();
 
