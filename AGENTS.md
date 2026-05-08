@@ -160,6 +160,16 @@ Four layers, dependencies flow inward.
 
 **AI call budget:** initial generation runs exactly TWO concurrent Gemini calls — optimizer + combined toolkit (`GeminiToolkitGenerator`). Free-tier RPM is 5; historical 1-optimizer-plus-4-toolkit fan-out hit quota. Per-item regeneration still hits the single-artifact generators (one call per retry).
 
+**Optimizer prompt + post-pipeline.** `prompts/resumeOptimizerPrompts.ts` is shared by Groq and Gemini. Beyond the system + user prompt, every optimizer response runs through this deterministic post-pipeline (in order):
+1. `normalizeSkills` — dedupe flat `skills` and dedupe/clean `skillCategories` (drops empty buckets).
+2. `filterFabricatedSkills` — strips skills (and category items) the candidate never evidenced. Belt-and-braces against the SKILL HONESTY rule.
+3. `reorderLeadBulletByJDFit` — within each item, promote the most JD-aligned bullet to position 0 (the recruiter's highest-attention spot).
+4. `reorderProjectsByJDFit` — reorder *whole projects* by aggregate JD overlap. Stable; experience stays chronological because recruiters expect a timeline. `ResumeService.mergeOptimizedData` consumes the optimizer's output order for projects via `reorderProjectsByOptimizer`.
+5. `enforceBulletDensity` — items whose JD-fit score is below the median across the resume's items get trimmed to 2 bullets. Items at/above median keep up to 5. Pure deletion — never adds bullets.
+6. `validateOptimizedResponse` — id-presence + non-empty bullet check. Throws if violated (triggers an optimizer retry).
+
+The user prompt also injects a `SENIORITY` line (Junior / Mid / Senior / Senior+) inferred from total months of experience + `userType`, plus a `THINK FIRST` CoT block that asks the model to silently identify JD top requirements + candidate evidence before emitting JSON. Don't strip these — they tune verb choice and gap handling.
+
 **Adding a new AI generator:** add an interface + use case in `domain/usecases/`, a Gemini implementation in `infrastructure/ai/`, wire it into `dependencies.ts`, inject into `ResumeService`. For single-item ancillary output, call it from `regenerateToolkitItem()` — NOT from `optimizeResume()`, which is restricted to the 2-call hot path. If you need to expand the initial toolkit, extend `GeminiToolkitGenerator`'s schema/prompt instead of adding a parallel call.
 
 **Pre-flight content gates** live in `src/application/validation/` and run client-side before any AI call (in `ResumeService.optimizeResume`) and before signup (in `LoginScreen`). They are pure utilities — no SDK deps, no domain types — and exist to refuse work that would waste tokens or pollute the user pool. Two gates today:
@@ -194,7 +204,9 @@ ResumeData {
   experience: WorkExperience[]         // { id, company, role, dates, rawDescription, refinedBullets }
   projects: Project[]                  // { id, name, rawDescription, refinedBullets, technologies?, link? }
   education: Education[]
-  skills: string[]
+  skills: string[]                     // flat JD-ordered list (canonical, used by exporters)
+  skillCategories?: SkillCategory[]    // AI-grouped view (Languages / Frameworks / Tools / …);
+                                       //   regroups the flat list — never adds new skills.
   extracurriculars? | awards? | certifications? | affiliations? | publications?
   languages?: Language[]               // Bengali / English / etc. + proficiency
   references?: Reference[]             // 2–3 named referees w/ phone + email (BD-common)
@@ -220,8 +232,9 @@ InterviewQuestion {
 }
 
 OptimizedResumeData {                    // what GeminiResumeOptimizer returns
-  summary, skills, experience[].refinedBullets, projects[].refinedBullets,
-  extracurriculars[].refinedBullets, coverLetter?, toolkit?
+  summary, skills, skillCategories?, experience[].refinedBullets,
+  projects[].refinedBullets, extracurriculars[].refinedBullets,
+  coverLetter?, toolkit?
 }
 ```
 
@@ -396,6 +409,14 @@ The router cools down a provider for 10 minutes when it returns 429/503/timeout,
 **Adding a third provider** (Cerebras, OpenRouter, etc.): implement `IResumeOptimizer`, reuse `prompts/resumeOptimizerPrompts.ts`, push into the `optimizerProviders` array in `dependencies.ts`. The shared prompt module is the contract — never hardcode rules inside an optimizer.
 
 **Toolkit generators** (cover letter, outreach email, LinkedIn note, interview questions, resume extractor) are still Gemini-only. SDK: `@google/genai`. Free-tier RPM is the binding constraint. Initial generation = **2 calls only** (optimizer + combined `GeminiToolkitGenerator`). Do not re-fan the toolkit into N parallel calls.
+
+**Toolkit context + guards.** Every toolkit generator (the combined hot-path + the four single-artifact retry generators) shares `infrastructure/ai/prompts/toolkitContext.ts`:
+- `buildCandidateContext(data)` — full profile block (experience + raw-bullet voice excerpt + projects + raw-bullet voice + education + certifications + awards + publications + extracurriculars + affiliations + languages + skills + skill categories). Generators present this as CANDIDATE EVIDENCE *first*, then the JD as a *filter* — the candidate's evidence is the source of truth.
+- `assertNoFabricatedTools(output, data)` — scans output for a curated TECH_TOKEN dictionary (cloud, languages, frameworks, databases, devops, AI/ML, observability, big-tech). Any token in output not in the candidate's evidence corpus throws `ToolkitFabricationError`. The target company name is exempted (you may address them by name even though the candidate has no prior history there).
+- `assertOutreachSpecificity(output, data, mode)` — outreach email (`mode='both'`) must mention the target company AND ≥1 candidate proper noun (own company / role / project / certification / award / school). LinkedIn note (`mode='either'`) needs at least one because of the 280-char limit.
+- `assertInterviewAnchorCoverage(strategies, data)` — at least half of interview `answerStrategy` texts must reference a candidate proper noun by name. Vague "your relevant project" doesn't count.
+
+Guard failures throw, which the service-layer `withRetry` (1 retry) handles automatically. If both attempts fail, the toolkit's `errors` field is populated and the user can per-item retry from the UI (free).
 
 `GeminiResumeOptimizer` has internal retry/timeout (45s, 3 attempts). `GroqResumeOptimizer` mirrors the same. The toolkit generator gets one extra `withRetry` shot from the service layer. Optimizer + toolkit are wrapped in `Promise.allSettled` so one failure doesn't kill the other.
 

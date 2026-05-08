@@ -208,8 +208,16 @@ export class PdfResumeExporter {
 
     if (isVisible('skills') && data.skills.length > 0) {
       this.renderSectionHeading(doc, 'Skills', t, cursor);
-      // Comma-delimited — the most ATS-parseable skill layout.
-      this.renderParagraph(doc, data.skills.join(', '), t, cursor, contentWidth);
+      // Categorized layout when present (one line per bucket, ATS still
+      // parses comma-delimited within each); flat fallback otherwise.
+      if (data.skillCategories && data.skillCategories.length > 0) {
+        for (const cat of data.skillCategories) {
+          if (!cat.items || cat.items.length === 0) continue;
+          this.renderParagraph(doc, `${cat.category}: ${cat.items.join(', ')}`, t, cursor, contentWidth);
+        }
+      } else {
+        this.renderParagraph(doc, data.skills.join(', '), t, cursor, contentWidth);
+      }
     }
 
     if (

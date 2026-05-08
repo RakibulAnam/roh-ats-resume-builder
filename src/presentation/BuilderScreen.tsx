@@ -742,7 +742,12 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-paper flex flex-col">
-      <Navbar onDashboardClick={onExit} showExitBuilder={true} />
+      <Navbar
+        onDashboardClick={onExit}
+        showExitBuilder={true}
+        credits={credits}
+        onBuyCredits={() => setPurchaseModalOpen(true)}
+      />
       <BuilderStepper steps={visibleSteps} currentStep={step} />
 
       <main className="flex-1 max-w-3xl mx-auto w-full p-4 md:p-8">

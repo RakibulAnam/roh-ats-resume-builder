@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useT } from './i18n/LocaleContext';
 import { LanguageToggle } from './i18n/LanguageToggle';
 import { PurchaseModal } from './components/PurchaseModal';
+import { CreditsBadge } from './components/CreditsBadge';
 
 interface Props {
     onCreateNew: () => void;
@@ -162,6 +163,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                     <Wordmark />
                     <div className="relative flex items-center gap-2">
+                        <CreditsBadge credits={credits} onBuy={() => setPurchaseModalOpen(true)} />
                         <LanguageToggle />
                         <button
                             type="button"
@@ -231,32 +233,6 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                         </p>
                     </div>
 
-                    {/* Toolkit credits bar — sits above the action cards so the user
-                        always knows their balance before opening the builder. */}
-                    {credits !== null && (
-                        <div className="mb-5 lg:mb-6 flex flex-wrap items-center justify-between gap-3 px-5 py-3 rounded-2xl border border-charcoal-200 bg-white">
-                            <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold whitespace-nowrap">
-                                    {t('dashboard.creditsLabel')}
-                                </span>
-                                <span className="text-sm font-semibold text-brand-700 truncate">
-                                    {credits === 0
-                                        ? t('dashboard.creditsExhausted')
-                                        : credits === 1
-                                            ? t('dashboard.creditsRemainingOne')
-                                            : t('dashboard.creditsRemainingMany', { count: credits })}
-                                </span>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setPurchaseModalOpen(true)}
-                                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent-400 border border-accent-500 text-brand-800 text-xs font-semibold hover:bg-accent-300 transition-colors whitespace-nowrap"
-                            >
-                                {credits === 0 ? t('dashboard.buyPackCta') : t('dashboard.buyMoreCta')}
-                            </button>
-                        </div>
-                    )}
-
                     {/* Two-card primary action zone */}
                     <div className="grid lg:grid-cols-2 gap-4 lg:gap-5 mb-12 lg:mb-16">
                         {/* Card A — Tailor for a job (primary, dark) */}
@@ -265,16 +241,21 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             onClick={onCreateNew}
                             className="group text-left relative bg-brand-700 hover:bg-brand-800 transition-colors rounded-2xl p-7 sm:p-8 flex flex-col min-h-[260px]"
                         >
-                            <span className="text-[11px] uppercase tracking-[0.22em] text-accent-400 font-semibold">
-                                {t('dashboard.tailorEyebrow')}
-                            </span>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-[11px] uppercase tracking-[0.22em] text-accent-400 font-semibold">
+                                    {t('dashboard.tailorEyebrow')}
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand-800 bg-accent-400 rounded-full px-2.5 py-1">
+                                    {credits === 0 ? t('dashboard.tailorCostNoteZero') : t('dashboard.tailorCostNote')}
+                                </span>
+                            </div>
                             <h2 className="mt-3 font-display text-2xl sm:text-[26px] font-semibold leading-snug text-charcoal-50">
                                 {t('dashboard.tailorTitle')}
                             </h2>
                             <p className="mt-2 text-[15px] leading-relaxed text-charcoal-300">
                                 {t('dashboard.tailorBody')}
                             </p>
-                            <div className="mt-auto pt-6 inline-flex items-center gap-2 self-start px-5 py-3 bg-accent-400 text-brand-800 rounded-full text-sm font-semibold group-hover:bg-accent-300 transition-colors">
+                            <div className="mt-auto inline-flex items-center gap-2 self-start px-5 py-3 bg-accent-400 text-brand-800 rounded-full text-sm font-semibold group-hover:bg-accent-300 transition-colors">
                                 <Plus size={16} />
                                 {t('dashboard.tailorCta')}
                             </div>
@@ -287,10 +268,15 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                 onClick={() => onOpenResume?.(generalResume.id)}
                                 className="group text-left relative bg-white hover:border-brand-700 hover:shadow-md transition-all border border-charcoal-200 rounded-2xl p-7 sm:p-8 flex flex-col min-h-[260px]"
                             >
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-                                        {t('dashboard.masterEyebrow')}
-                                    </span>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
+                                            {t('dashboard.masterEyebrow')}
+                                        </span>
+                                        <span className="inline-flex items-center text-[11px] font-semibold text-brand-700 bg-charcoal-50 border border-charcoal-200 rounded-full px-2 py-0.5">
+                                            {t('dashboard.masterCostNote')}
+                                        </span>
+                                    </div>
                                     <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-brand-600 bg-charcoal-50 border border-charcoal-200 rounded-full px-2.5 py-1">
                                         <CheckCircle2 size={12} className="text-accent-500" />
                                         {t('dashboard.masterReadyBadge')}
@@ -316,9 +302,14 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             </button>
                         ) : (
                             <div className="relative bg-white border border-dashed border-charcoal-300 rounded-2xl p-7 sm:p-8 flex flex-col min-h-[260px]">
-                                <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
-                                    {t('dashboard.masterEyebrow')}
-                                </span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[11px] uppercase tracking-[0.22em] text-accent-600 font-semibold">
+                                        {t('dashboard.masterEyebrow')}
+                                    </span>
+                                    <span className="inline-flex items-center text-[11px] font-semibold text-brand-700 bg-charcoal-50 border border-charcoal-200 rounded-full px-2 py-0.5">
+                                        {t('dashboard.masterCostNote')}
+                                    </span>
+                                </div>
                                 <h2 className="mt-3 font-display text-2xl sm:text-[26px] font-semibold leading-snug text-brand-700">
                                     {t('dashboard.masterEmptyTitle')}
                                 </h2>
@@ -329,7 +320,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     type="button"
                                     onClick={handleBuildMaster}
                                     disabled={buildingMaster}
-                                    className="mt-auto pt-6 inline-flex items-center gap-2 self-start px-5 py-3 bg-brand-700 text-charcoal-50 rounded-full text-sm font-semibold hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                    className="mt-auto inline-flex items-center gap-2 self-start px-5 py-3 bg-brand-700 text-charcoal-50 rounded-full text-sm font-semibold hover:bg-brand-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
                                 >
                                     {buildingMaster ? (
                                         <>

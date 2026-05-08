@@ -292,6 +292,7 @@ export class ResumeService {
       ...originalData,
       summary: optimizedData.summary || originalData.summary,
       skills: optimizedData.skills || originalData.skills,
+      skillCategories: optimizedData.skillCategories ?? originalData.skillCategories,
       coverLetter: optimizedData.coverLetter || originalData.coverLetter,
       toolkit: optimizedData.toolkit || originalData.toolkit,
       experience: originalData.experience.length > 0
@@ -302,11 +303,11 @@ export class ResumeService {
             : exp;
         })
         : [], // Return empty array if no experience (for students)
+      // Projects follow the optimizer's order — reorderProjectsByJDFit may
+      // have moved the most JD-relevant project to the top. Fall back to the
+      // candidate's input order if the optimizer omitted any.
       projects: originalData.projects.length > 0
-        ? originalData.projects.map(proj => {
-          const refined = optimizedData.projects?.find(p => p.id === proj.id);
-          return refined ? { ...proj, refinedBullets: refined.refinedBullets } : proj;
-        })
+        ? reorderProjectsByOptimizer(originalData.projects, optimizedData.projects)
         : [],
       extracurriculars: originalData.extracurriculars && originalData.extracurriculars.length > 0
         ? originalData.extracurriculars.map(extra => {
@@ -509,5 +510,34 @@ export class ResumeService {
     await this.updateGeneratedResume(existingResumeId, mergedData, ResumeService.GENERAL_RESUME_TITLE);
     return mergedData;
   }
+}
+
+// Reorder the candidate's projects to match the optimizer's output order
+// (which has been JD-reordered by reorderProjectsByJDFit) while still
+// reattaching refinedBullets to the original input project. Any project
+// the optimizer omitted gets appended in original order so we don't lose
+// data on a partial response.
+function reorderProjectsByOptimizer<P extends { id: string }>(
+  inputs: P[],
+  optimized: { id: string; refinedBullets: string[] }[] | undefined
+): (P & { refinedBullets: string[] })[] {
+  if (!optimized || optimized.length === 0) {
+    return inputs.map(p => ({ ...p, refinedBullets: (p as P & { refinedBullets?: string[] }).refinedBullets ?? [] }));
+  }
+  const inputById = new Map(inputs.map(p => [p.id, p]));
+  const seen = new Set<string>();
+  const ordered: (P & { refinedBullets: string[] })[] = [];
+
+  for (const o of optimized) {
+    const original = inputById.get(o.id);
+    if (!original) continue;
+    seen.add(o.id);
+    ordered.push({ ...original, refinedBullets: o.refinedBullets });
+  }
+  for (const p of inputs) {
+    if (seen.has(p.id)) continue;
+    ordered.push({ ...p, refinedBullets: (p as P & { refinedBullets?: string[] }).refinedBullets ?? [] });
+  }
+  return ordered;
 }
 

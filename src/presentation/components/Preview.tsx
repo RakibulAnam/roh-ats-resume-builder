@@ -634,7 +634,16 @@ export const Preview: React.FC<PreviewProps> = ({
       {isVisible('skills') && data.skills.length > 0 && (
         <section style={sectionStyle}>
           <h3 style={sectionHeadingStyle}>Skills</h3>
-          <div style={bodyTextStyle}>{data.skills.join(', ')}</div>
+          {data.skillCategories && data.skillCategories.length > 0 ? (
+            data.skillCategories.map((cat) => (
+              <div key={cat.category} style={bodyTextStyle}>
+                <span style={{ fontWeight: 600 }}>{cat.category}:</span>{' '}
+                {cat.items.join(', ')}
+              </div>
+            ))
+          ) : (
+            <div style={bodyTextStyle}>{data.skills.join(', ')}</div>
+          )}
         </section>
       )}
 

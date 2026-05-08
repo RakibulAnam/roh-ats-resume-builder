@@ -15,6 +15,8 @@ import {
   normalizeSkills,
   filterFabricatedSkills,
   reorderLeadBulletByJDFit,
+  reorderProjectsByJDFit,
+  enforceBulletDensity,
   safeJsonParse,
   withTimeout,
   delay,
@@ -72,6 +74,8 @@ export class GeminiResumeOptimizer implements IResumeOptimizer {
           console.warn(`[gemini] stripped ${fabResult.fabricated.length} fabricated skill(s):`, fabResult.fabricated.join(', '));
         }
         reorderLeadBulletByJDFit(parsed, data.targetJob.description);
+        reorderProjectsByJDFit(parsed, data.targetJob.description);
+        enforceBulletDensity(parsed, data.targetJob.description);
         validateOptimizedResponse(data, parsed);
 
         return parsed;
@@ -103,6 +107,17 @@ export class GeminiResumeOptimizer implements IResumeOptimizer {
       properties: {
         summary: { type: Type.STRING },
         skills: { type: Type.ARRAY, items: { type: Type.STRING } },
+        skillCategories: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              category: { type: Type.STRING },
+              items: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ['category', 'items'],
+          },
+        },
         experience: {
           type: Type.ARRAY,
           items: {

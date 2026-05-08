@@ -178,6 +178,17 @@ export interface GeneratedToolkit {
   interviewQuestions: InterviewQuestion[];
 }
 
+// Categorized skills bucket (AI-generated). Each category groups related
+// items in JD casing (Languages, Frameworks, Tools, Cloud & Infra, Databases,
+// Testing, Methodologies, Domain). Renderers use skillCategories when present
+// and fall back to the flat skills[] for back-compat with older saved
+// resumes. The flat skills[] stays authoritative as well — JD-ordered, used
+// by exporters that need a single line.
+export interface SkillCategory {
+  category: string;
+  items: string[];
+}
+
 export interface ResumeData {
   userType?: UserType; // User type: experienced or student
   targetJob: TargetJob;
@@ -186,7 +197,8 @@ export interface ResumeData {
   experience: WorkExperience[];
   projects: Project[]; // Added Projects
   education: Education[];
-  skills: string[]; // User input -> AI Refined
+  skills: string[]; // User input -> AI Refined (JD-ordered flat list)
+  skillCategories?: SkillCategory[]; // AI-generated grouped view of skills
 
   // New Sections
   extracurriculars?: Extracurricular[];
@@ -217,6 +229,7 @@ export type ResumeTemplate =
 export interface OptimizedResumeData {
   summary: string;
   skills: string[];
+  skillCategories?: SkillCategory[];
   experience: {
     id: string;
     refinedBullets: string[];
