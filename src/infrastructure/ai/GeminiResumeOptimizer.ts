@@ -17,6 +17,7 @@ import {
   reorderLeadBulletByJDFit,
   reorderProjectsByJDFit,
   enforceBulletDensity,
+  stripBannedCliches,
   safeJsonParse,
   withTimeout,
   delay,
@@ -76,6 +77,7 @@ export class GeminiResumeOptimizer implements IResumeOptimizer {
         reorderLeadBulletByJDFit(parsed, data.targetJob.description);
         reorderProjectsByJDFit(parsed, data.targetJob.description);
         enforceBulletDensity(parsed, data.targetJob.description);
+        stripBannedCliches(parsed);
         validateOptimizedResponse(data, parsed);
 
         return parsed;

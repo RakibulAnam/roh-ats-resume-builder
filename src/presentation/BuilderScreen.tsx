@@ -679,14 +679,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     }
   };
 
-  const handlePurchaseSuccess = (newBalance: number) => {
-    setCredits(newBalance);
-    if (resumeGenerateAfterPurchase) {
-      setResumeGenerateAfterPurchase(false);
-      // Defer to the next tick so the modal close transition completes
-      // before the generating-overlay takes over the screen.
-      setTimeout(() => { void handleGenerate({ skipCreditCheck: true }); }, 0);
-    }
+  const handlePurchaseSuccess = () => {
+    // The bKash flow is asynchronous: the user has just submitted a pending
+    // purchase. Credits land later when the Flutter SMS-watcher confirms.
+    // We can't auto-resume generation here — the credits aren't there yet.
+    // The user will need to manually click Generate again once the credits
+    // arrive (the credit badge in the navbar updates on the next dashboard
+    // load / poll). Drop the queued auto-generate flag so we don't surprise
+    // them later.
+    setResumeGenerateAfterPurchase(false);
   };
 
   const handlePurchaseClose = () => {

@@ -183,11 +183,15 @@ When adding a new AI entry point: add a corresponding `assertContentIsReal`-styl
 
 - **`/api/optimize`** — paid path. Atomically calls `consume_toolkit_credit()` (a SECURITY DEFINER Postgres function with `search_path = public, pg_temp`) before running AI. If `toolkit_credits = 0`, returns **402** with `code: 'insufficient_credits'`. If the optimizer call itself fails, calls `refund_toolkit_credit()` so the user is not charged for an empty generation. If the toolkit call fails but the optimizer succeeds, the credit is **kept** — the user got their resume, and per-item retries are free.
 - **`/api/optimize-general`** — free path. No credit check, no toolkit. Used exclusively by `ResumeService.generateGeneralResume()` and `regenerateGeneralResume()` via a separate `ProxyGeneralResumeOptimizer`. Daily AI-call cap (20/day) is the only backstop.
-- **`/api/purchase`** — mock for now. Calls `process_mock_purchase()` (one transaction: insert a row in `purchases` + `UPDATE profiles SET toolkit_credits = toolkit_credits + N`). When a real payment provider lands, this becomes a webhook receiver that verifies a signed payload before granting; the rest of the system stays unchanged.
-- Postage-stamp **race-safety**: `consume_toolkit_credit` is a single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`. Postgres row-locks serialise concurrent calls; the second request with `toolkit_credits = 0` updates 0 rows and the function raises `insufficient_credits`.
-- Client UX: `BuilderScreen` and `DashboardScreen` both fetch the balance via `IProfileRepository.getToolkitCredits()` and show "X generations remaining". `PurchaseModal` is shared between them. On a successful purchase, the modal returns the new balance via `onSuccess(newBalance)` so the caller can update its local state without re-fetching.
+- **`/api/purchase`** — initiates a bKash purchase. Calls `initiate_purchase(p_package_id, p_transaction_id, p_sender_msisdn)` which records a row in `purchases` with `status = 'pending'`. **No credits are granted here** — confirmation happens out-of-band via the webhook below. Server-controlled package mapping (hardcoded in the SQL function) means users cannot fake the credit/amount values they're entitled to. Per-user 24h limit of 5 pending purchases (anti-spam).
+- **`/api/confirm-purchase`** — webhook called by the owner's Flutter SMS-watcher app. Authenticated via HMAC-SHA256 of the request body (shared secret `BKASH_WEBHOOK_SECRET`). On success connects to Supabase using `SUPABASE_SERVICE_ROLE_KEY` and calls `confirm_purchase(p_transaction_id, p_observed_sender_msisdn)` which atomically flips the matching pending row to `'completed'` and grants credits. Optionally cross-checks the SMS-extracted sender msisdn against the user-claimed one; mismatch → 409.
+- Postage-stamp **race-safety**: `consume_toolkit_credit` is a single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`. Postgres row-locks serialise concurrent calls; the second request with `toolkit_credits = 0` updates 0 rows and the function raises `insufficient_credits`. `confirm_purchase` uses `select … for update` for the same reason — duplicate webhook firings cannot double-grant.
+- **Column-level lockdown**: `profiles` UPDATE is restricted via `revoke update on profiles from authenticated; grant update (full_name, email, phone, …) on profiles to authenticated;` — RLS only restricts ROWS, not columns, so without these grants any signed-in user could direct-UPDATE `toolkit_credits`. The credit balance is mutated only via the SECURITY DEFINER functions.
+- Client UX: `BuilderScreen` and `DashboardScreen` both fetch the balance via `IProfileRepository.getToolkitCredits()` and show "X generations remaining". `PurchaseModal` is shared between them. After a successful pending submission, the modal calls `onSuccess()` (no balance arg, since the grant is asynchronous) so the caller can re-fetch / refresh state. The actual credit grant arrives later through the webhook; users see it on next dashboard load.
 
 **Adding a new paid feature?** If you ever monetise something else, do NOT introduce a generic "credits" abstraction — add a separate column (e.g. `interview_coach_credits`) and a sibling RPC. Reason: keeping each feature on its own integer is clearer for the user ("3 toolkit generations remaining") and avoids the "what else can I spend credits on?" UX trap.
+
+**Adding a new package?** Edit the `case p_package_id` block in the `initiate_purchase` SQL function (in both `schema.sql` and a new migration). The package mapping is server-side authoritative — any new pricing must ship as a SQL change, not a client constant.
 
 ---
 
@@ -380,16 +384,18 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 - `ai_call_log` — per-user daily-cap audit trail (existing).
 - RPC `public.delete_user()` — deletes all user-owned rows (including `purchases`) then the auth user
 
-**Credit-system RPCs** (all `SECURITY DEFINER` with `set search_path = public, pg_temp`; reachable via the user's JWT):
-- `consume_toolkit_credit()` — atomic decrement. Single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`; raises `insufficient_credits` if balance is 0.
-- `refund_toolkit_credit()` — increments by 1. Called server-side when the optimizer fails after a credit was consumed.
-- `process_mock_purchase(p_credits, p_amount_taka, p_reference)` — atomically inserts the `purchases` row + grants credits. Replaced by a payment-gateway webhook in production.
+**Credit-system RPCs** (all `SECURITY DEFINER` with `set search_path = public, pg_temp`):
+- `consume_toolkit_credit()` — atomic decrement. Reachable via user JWT. Single `UPDATE … WHERE toolkit_credits > 0 RETURNING …`; raises `insufficient_credits` if balance is 0.
+- `refund_toolkit_credit()` — increments by 1. Reachable via user JWT. Called server-side when the optimizer fails after a credit was consumed.
+- `initiate_purchase(p_package_id, p_transaction_id, p_sender_msisdn)` — reachable via user JWT. Records a `pending` purchase. Validates package id (server-side mapping), txn id shape (≥6 chars), uniqueness, and per-user pending cap (≤5 in 24h). Returns the new purchase UUID.
+- `confirm_purchase(p_transaction_id, p_observed_sender_msisdn)` — **service-role only** (EXECUTE revoked from anon + authenticated). Called by `/api/confirm-purchase` webhook. Locks the matching pending row, optionally verifies the sender msisdn matches, flips status to 'completed', and grants credits.
 
 **Migrations applied**
 - `supabase/migrations/001_add_toolkit_column.sql` — adds `toolkit jsonb` + partial index on `generated_resumes`
 - `supabase/migrations/002_add_languages_and_references.sql` — adds `languages` and `references_list` profile sub-tables with RLS
 - `supabase/migrations/003_add_ai_call_log.sql` — adds `ai_call_log` table for per-user daily-cap rate limiting at the `/api/*` layer
-- `supabase/migrations/004_add_toolkit_credits.sql` — adds `profiles.toolkit_credits`, `purchases` table, and the three credit-system RPCs (`consume_toolkit_credit`, `refund_toolkit_credit`, `process_mock_purchase`)
+- `supabase/migrations/004_add_toolkit_credits.sql` — adds `profiles.toolkit_credits`, `purchases` table, and the original credit-system RPCs (`consume_toolkit_credit`, `refund_toolkit_credit`, `process_mock_purchase`)
+- `supabase/migrations/005_lock_toolkit_credits_and_bkash_pending.sql` — column-level GRANT lockdown on `profiles` (closes the toolkit_credits self-grant exploit), drops `process_mock_purchase`, adds `initiate_purchase` + `confirm_purchase` for the bKash + Flutter-SMS-watcher flow, adds `purchases.sender_msisdn` + unique index on `payment_reference`
 
 **Running migrations**: open the Supabase SQL editor and paste the migration file contents. All migrations are idempotent (`add column if not exists`, `create index if not exists`, `create or replace function`).
 
@@ -412,7 +418,7 @@ The router cools down a provider for 10 minutes when it returns 429/503/timeout,
 
 **Toolkit context + guards.** Every toolkit generator (the combined hot-path + the four single-artifact retry generators) shares `infrastructure/ai/prompts/toolkitContext.ts`:
 - `buildCandidateContext(data)` — full profile block (experience + raw-bullet voice excerpt + projects + raw-bullet voice + education + certifications + awards + publications + extracurriculars + affiliations + languages + skills + skill categories). Generators present this as CANDIDATE EVIDENCE *first*, then the JD as a *filter* — the candidate's evidence is the source of truth.
-- `assertNoFabricatedTools(output, data)` — scans output for a curated TECH_TOKEN dictionary (cloud, languages, frameworks, databases, devops, AI/ML, observability, big-tech). Any token in output not in the candidate's evidence corpus throws `ToolkitFabricationError`. The target company name is exempted (you may address them by name even though the candidate has no prior history there).
+- `assertNoFabricatedTools(output, data)` — scans output against the `FABRICATION_TOKEN_DICTIONARY`, the union of seven industry buckets curated for the BD market: TECH (cloud, languages, frameworks, databases, devops, AI/ML, observability, big-tech), BANKING (Murex, Finacle, Avaloq, T24, Bloomberg, IFRS 9, CFA, Bangladesh Bank, …), PHARMA (Veeva, IQVIA, Square, Beximco, Pfizer, …), GARMENTS (WFX, FastReact, H&M, Inditex, BGMEA, DBL Group, …), FMCG (Unilever, Reckitt, P&G, BAT, ALEFA, RouteIQ, …), NGO (USAID, World Bank, BMGF, BRAC, Kobo Toolbox, DHIS2, …), TELECOM (Ericsson, Huawei, Grameenphone, Robi, BTRC, …). Any token in output not in the candidate's evidence corpus throws `ToolkitFabricationError`. The target company name is exempted (you may address them by name even though the candidate has no prior history there). When adding a new industry bucket, include named PROPER NOUNS only — generic methodology phrases ("primary sales", "lesson plan") would create false positives because legitimate output describes them without the candidate writing the exact phrase in their input.
 - `assertOutreachSpecificity(output, data, mode)` — outreach email (`mode='both'`) must mention the target company AND ≥1 candidate proper noun (own company / role / project / certification / award / school). LinkedIn note (`mode='either'`) needs at least one because of the 280-char limit.
 - `assertInterviewAnchorCoverage(strategies, data)` — at least half of interview `answerStrategy` texts must reference a candidate proper noun by name. Vague "your relevant project" doesn't count.
 
@@ -528,6 +534,14 @@ GEMINI_API_KEY           # https://aistudio.google.com/app/apikey  (20 RPD free)
 # Supabase — client-visible (anon key is public-by-design, RLS-gated)
 VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
+
+# Supabase service role — server-only. Bypasses RLS. Used ONLY by the
+# /api/confirm-purchase webhook (which is HMAC-gated by the Flutter app).
+SUPABASE_SERVICE_ROLE_KEY
+
+# bKash purchase flow (no traditional payment gateway)
+VITE_BKASH_PAYMENT_NUMBER  # owner's bKash number, shown to users in PurchaseModal
+BKASH_WEBHOOK_SECRET       # 32-byte hex secret shared with the Flutter SMS-watcher
 ```
 
 **Vercel deployment notes:**
@@ -549,7 +563,11 @@ Agents: **do not build these unless the user asks.**
 - **Languages / References in ProfileSetupScreen and ProfileScreen** — currently only wired into the BuilderScreen flow (and loaded from the profile sub-tables when prefilling). To capture in the master profile too, add: state vars + step entries in `ProfileSetupScreen.tsx`, save cases in its switch, and tab + section component in `ProfileScreen.tsx` (mirror `PublicationSection`).
 - **AI output in Bengali** — the UI translates (en/bn), but the AI-generated resume bullets, cover letter, outreach email, LinkedIn note, and interview Q&A still come back in English. Most BD recruiters expect English CVs, so this is intentional. Adding a per-document "Generate in: English / বাংলা" toggle would mean: branching prompts in `prompts/resumeOptimizerPrompts.ts` and each toolkit generator + a UI affordance + a prompt-language pass-through in the optimize flow. Don't ship without an explicit ask.
 - **Locale persistence to Supabase** — locale is currently `localStorage`-only. Cross-device sync would need a `preferred_locale` column on `profiles` + a fetch on sign-in. Skipped for v1 because device-local is enough for a Bangladesh-first launch.
-- **Real payment integration** — `api/purchase.ts` is a mock that always succeeds (calls `process_mock_purchase` directly with the user's JWT, so a determined user could grant themselves credits via the RPC). Production switch: replace `api/purchase.ts` with a webhook receiver that (1) verifies the gateway's signed payload, (2) uses a Supabase service-role key (new env var `SUPABASE_SERVICE_ROLE_KEY`) to grant credits, (3) deletes or revokes `process_mock_purchase`. Likely gateways for the BD market: bKash, SSLCommerz, Nagad. UI (`PurchaseModal`, credit bars) does not need to change.
+- **Flutter SMS-watcher app** for bKash purchase confirmation. Server-side endpoint `/api/confirm-purchase` is implemented and HMAC-gated; the matching client (a small Flutter app the owner runs on their bKash-receiving phone) is not yet built. The app needs to: (1) request the SMS-receive permission, (2) parse incoming bKash money-received SMS for `transactionId`, `senderMsisdn`, `amountTaka`, (3) HMAC-SHA256-sign the JSON body with `BKASH_WEBHOOK_SECRET`, (4) POST to `/api/confirm-purchase` with `X-Bkash-Webhook-Signature` header, (5) retry with exponential backoff on 5xx, never on 4xx, (6) persist locally so a flaky network doesn't replay confirmed SMS. Until this app is built, pending purchases sit in the `purchases` table and the owner has to be granted credits manually (`select confirm_purchase('<txn id>');` from the Supabase SQL editor under service-role).
+
+- **Dev mock-confirm scaffolding** — `api/dev-mock-confirm.ts` + the `mockConfirm()` auto-trigger inside `PurchaseModal.tsx`. These exist solely so the buy → pending → credits flow can be exercised end-to-end during development before the Flutter app is built. Gated by `VITE_BKASH_MOCK_AUTOCONFIRM=true` (client) + `BKASH_MOCK_AUTOCONFIRM=true` (server). **Delete the endpoint file, the modal's `mockConfirm` block, the two env vars, and the matching `purchaseModal.mockBadge` / `verifying` / `confirmedToast` locale strings once the Flutter app is shipping confirmations.**
+
+- **`refund_toolkit_credit()` is user-callable** and increments by 1 unconditionally. Same shape of exploit as the now-closed direct-UPDATE: a signed-in user can call `await supabase.rpc('refund_toolkit_credit')` from any browser console and self-grant 1 credit per call. The current `consume_toolkit_credit` / `refund_toolkit_credit` design assumes only `/api/optimize` calls them, but the EXECUTE privilege is wide-open to the `authenticated` role. Fix path: refactor `/api/optimize` to use `SUPABASE_SERVICE_ROLE_KEY` for the consume/refund calls, then `revoke execute on function consume_toolkit_credit, refund_toolkit_credit from authenticated, anon`. Same model the bKash flow already uses for `confirm_purchase`.
 
 ---
 

@@ -2,6 +2,11 @@
 // a purchase is not an AI call — it doesn't implement any of the domain's
 // generator interfaces. Reuses ApiCallError so callers see consistent error
 // shapes across all server endpoints.
+//
+// Flow (no payment gateway): the user sends bKash to the owner's number
+// out-of-band, then submits the transaction ID through this client. The
+// server records a 'pending' purchase; credits are granted asynchronously
+// when the owner's Flutter SMS-watcher app confirms the SMS arrived.
 
 import { supabase } from '../supabase/client';
 import { ApiCallError } from '../ai/proxy/ProxyClients';
@@ -10,9 +15,9 @@ export type PackageId = 'five-pack';
 
 export interface PurchaseResult {
   success: true;
-  creditsGranted: number;
-  newBalance: number;
-  label: string;
+  purchaseId: string;
+  status: 'pending';
+  message: string;
 }
 
 interface ApiError {
@@ -20,7 +25,13 @@ interface ApiError {
   code?: string;
 }
 
-export async function purchasePackage(packageId: PackageId): Promise<PurchaseResult> {
+export interface PurchaseSubmission {
+  packageId: PackageId;
+  transactionId: string;
+  senderMsisdn?: string;
+}
+
+export async function purchasePackage(submission: PurchaseSubmission): Promise<PurchaseResult> {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new ApiCallError('Not authenticated. Please sign in.', 401);
@@ -31,7 +42,7 @@ export async function purchasePackage(packageId: PackageId): Promise<PurchaseRes
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ packageId }),
+    body: JSON.stringify(submission),
   });
 
   if (!res.ok) {

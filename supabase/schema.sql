@@ -29,6 +29,27 @@ create policy "Users can update own profile" on profiles
 create policy "Users can insert own profile" on profiles
   for insert with check (auth.uid() = id);
 
+-- Column-level lockdown — RLS only restricts ROWS; without these GRANTS a
+-- user with the row-level UPDATE policy above could directly write to
+-- `toolkit_credits` from any signed-in browser console (verified during the
+-- 2026-05-08 audit). Restrict updates to user-editable columns; the credits
+-- balance is mutated only via the SECURITY DEFINER functions further down.
+revoke update on profiles from authenticated;
+revoke update on profiles from anon;
+
+grant update (
+  full_name,
+  email,
+  phone,
+  location,
+  linkedin,
+  github,
+  website,
+  user_type,
+  onboarding_complete,
+  updated_at
+) on profiles to authenticated;
+
 -- EXPERIENCES
 create table experiences (
   id uuid default uuid_generate_v4() primary key,
@@ -397,18 +418,28 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- PURCHASES (monetization audit trail — one row per purchase event)
+-- Status starts at 'pending' when the user submits a bKash transaction ID
+-- and flips to 'completed' when the Flutter SMS-watcher webhook confirms
+-- the payment. `sender_msisdn` is the bKash phone number of the user who
+-- sent the payment (extracted by the Flutter app from the SMS); used to
+-- prevent users from claiming someone else's transaction.
 create table purchases (
   id                uuid    default uuid_generate_v4() primary key,
   user_id           uuid    references profiles(id) not null,
   credits_granted   integer not null,
   amount_taka       integer not null,
-  payment_reference text,                       -- 'mock-<uuid>' now; real gateway txn ID later
-  status            text    not null default 'completed'
+  payment_reference text,                       -- bKash transaction ID
+  sender_msisdn     text,                       -- bKash phone number that sent the payment
+  status            text    not null default 'pending'
     check (status in ('pending', 'completed', 'failed', 'refunded')),
   created_at        timestamp with time zone default timezone('utc'::text, now())
 );
 
 create index purchases_user_id_idx on purchases(user_id, created_at desc);
+
+-- Unique txn ID prevents (a) two users claiming the same payment and
+-- (b) duplicate confirmations doubling the credit grant.
+create unique index purchases_payment_reference_key on purchases(payment_reference);
 
 alter table purchases enable row level security;
 
@@ -460,33 +491,129 @@ begin
 end;
 $$;
 
--- Mock purchase: atomically inserts the purchase record and grants credits.
--- Called from api/purchase.ts via the user's JWT. Replaced by a real
--- payment webhook in production.
-create or replace function process_mock_purchase(
-  p_credits     integer,
-  p_amount_taka integer,
-  p_reference   text
+-- Initiate a purchase: user-callable. The user has already (claims to have)
+-- sent a bKash payment to the owner's number; they paste the transaction ID
+-- and (optionally) their bKash phone number, and this function records a
+-- pending row. NO credits are granted here — that happens out-of-band via
+-- confirm_purchase below.
+--
+-- The package mapping is hardcoded server-side so users cannot fake the
+-- credit count or amount they're entitled to. Add new packages by editing
+-- the `case` block.
+create or replace function initiate_purchase(
+  p_package_id     text,
+  p_transaction_id text,
+  p_sender_msisdn  text default null
 )
-returns integer
+returns uuid
 language plpgsql
 security definer
 set search_path = public, pg_temp
 as $$
 declare
-  new_balance integer;
+  v_credits       integer;
+  v_amount_taka   integer;
+  v_purchase_id   uuid;
+  v_pending_count integer;
 begin
-  insert into public.purchases (user_id, credits_granted, amount_taka, payment_reference, status)
-  values (auth.uid(), p_credits, p_amount_taka, p_reference, 'completed');
+  case p_package_id
+    when 'five-pack' then v_credits := 5; v_amount_taka := 200;
+    else
+      raise exception 'unknown_package_id'
+        using hint = 'Valid packages: five-pack.';
+  end case;
 
-  update public.profiles
-  set    toolkit_credits = toolkit_credits + p_credits
-  where  id = auth.uid()
-  returning toolkit_credits into new_balance;
+  if length(coalesce(p_transaction_id, '')) < 6 then
+    raise exception 'invalid_transaction_id'
+      using hint = 'bKash transaction ID is required and must be at least 6 characters.';
+  end if;
 
-  return new_balance;
+  if exists (
+    select 1 from public.purchases where payment_reference = p_transaction_id
+  ) then
+    raise exception 'duplicate_transaction_id'
+      using hint = 'This bKash transaction ID has already been submitted.';
+  end if;
+
+  -- Anti-spam: cap pending purchases per user in the rolling 24h window.
+  select count(*) into v_pending_count
+  from public.purchases
+  where user_id = auth.uid()
+    and status = 'pending'
+    and created_at > now() - interval '24 hours';
+
+  if v_pending_count >= 5 then
+    raise exception 'too_many_pending'
+      using hint = 'Too many pending purchases. Wait for confirmation or contact support.';
+  end if;
+
+  insert into public.purchases (
+    user_id, credits_granted, amount_taka, payment_reference, sender_msisdn, status
+  ) values (
+    auth.uid(), v_credits, v_amount_taka, p_transaction_id, p_sender_msisdn, 'pending'
+  )
+  returning id into v_purchase_id;
+
+  return v_purchase_id;
 end;
 $$;
+
+-- Confirm a purchase: service-role-only. Called by the /api/confirm-purchase
+-- webhook, which is in turn called by the owner's Flutter app after it
+-- detects a matching bKash SMS on the owner's phone. Atomically flips the
+-- pending row to 'completed' and grants credits.
+create or replace function confirm_purchase(
+  p_transaction_id        text,
+  p_observed_sender_msisdn text default null
+)
+returns table (user_id uuid, new_balance integer, credits_granted integer)
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_purchase public.purchases%rowtype;
+  v_balance  integer;
+begin
+  select * into v_purchase
+  from public.purchases
+  where payment_reference = p_transaction_id
+    and status = 'pending'
+  for update;
+
+  if not found then
+    raise exception 'no_pending_purchase'
+      using hint = 'No pending purchase matches the given transaction ID.';
+  end if;
+
+  if v_purchase.sender_msisdn is not null
+     and p_observed_sender_msisdn is not null
+     and v_purchase.sender_msisdn <> p_observed_sender_msisdn
+  then
+    raise exception 'msisdn_mismatch'
+      using hint = format(
+        'Pending purchase claims sender %s but observed SMS came from %s.',
+        v_purchase.sender_msisdn, p_observed_sender_msisdn
+      );
+  end if;
+
+  update public.purchases
+  set status = 'completed'
+  where id = v_purchase.id;
+
+  update public.profiles
+  set toolkit_credits = toolkit_credits + v_purchase.credits_granted
+  where id = v_purchase.user_id
+  returning toolkit_credits into v_balance;
+
+  return query select v_purchase.user_id, v_balance, v_purchase.credits_granted;
+end;
+$$;
+
+-- Lock down confirm_purchase: only service_role can run it.
+revoke execute on function public.confirm_purchase(text, text) from public;
+revoke execute on function public.confirm_purchase(text, text) from anon;
+revoke execute on function public.confirm_purchase(text, text) from authenticated;
 
 -- RPC to delete a user and all their data
 create or replace function public.delete_user()

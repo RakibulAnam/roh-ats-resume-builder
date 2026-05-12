@@ -521,7 +521,11 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
             <PurchaseModal
                 isOpen={purchaseModalOpen}
                 onClose={() => setPurchaseModalOpen(false)}
-                onSuccess={(newBalance) => setCredits(newBalance)}
+                // Pending purchases credit asynchronously when the bKash SMS is
+                // verified. Re-fetch on close so the latest balance shows next
+                // time the user opens the dashboard; the actual grant lands
+                // out-of-band via the /api/confirm-purchase webhook.
+                onSuccess={() => { void loadData(); }}
             />
         </div>
     );

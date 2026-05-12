@@ -38,7 +38,7 @@ RULES:
 
 4. PER-JD BULLET ORDERING — The first bullet under the current role is the recruiter's highest-attention spot. Within each role/project, order bullets so the most JD-aligned achievement is FIRST. The same role can surface different lead bullets across different JD targets — that's the point. Reorder and rephrase only what the candidate actually did; never invent.
 
-5. SKILLS — Emit BOTH a flat JD-ordered list (`skills`) AND a grouped view (`skillCategories`).
+5. SKILLS — Emit BOTH a flat JD-ordered list ("skills") AND a grouped view ("skillCategories").
    FLAT: Clean, deduped (case-insensitive). JD-matched FIRST in JD casing, then remainder. Canonical forms ("CI/CD", "REST API", "PostgreSQL"). 1–3 words each, no soft skills.
    CATEGORIES: Group the same items into role-appropriate buckets so a recruiter scanning by topic finds them fast. Pick category names from this taxonomy where they fit, but use only the categories the candidate actually has items for — never fabricate empty buckets:
      • Languages (programming or natural — e.g. "Python", "TypeScript", "Bengali" only if language proficiencies exist)
@@ -49,7 +49,7 @@ RULES:
      • Testing & Quality
      • Methodologies (Agile, Scrum, Code Review, etc.)
      • Domain (industry / vertical knowledge — e.g. "Payment Systems", "B2B SaaS")
-   For non-tech fields, substitute fitting category names ("Clinical Skills", "Research Methods", "Design Tools", "Legal Domains"). Every item in `skillCategories` MUST also exist in the flat `skills` array (categories regroup; they don't introduce new skills). Order categories so the JD-most-relevant bucket is first. Within a bucket, JD-matched items first.
+   For non-tech fields, substitute fitting category names ("Clinical Skills", "Research Methods", "Design Tools", "Legal Domains"). Every item in "skillCategories" MUST also exist in the flat "skills" array (categories regroup; they don't introduce new skills). Order categories so the JD-most-relevant bucket is first. Within a bucket, JD-matched items first.
 
 6. SUMMARY — 2–4 sentences, ~50–90 words, no first-person, no clichés.
    GOAL: a positioning statement that earns the recruiter's next 5 seconds AND scores high on LLM auto-rankers. Recruiters read 200+ resumes for one role; LLMs rank them. The summary is what differentiates this candidate from the rest of the applicant pool — NOT a recap of their bullets.
@@ -201,6 +201,58 @@ REQUIRED OUTPUT JSON SHAPE (return EXACTLY this shape)
 
 ID PRESERVATION: every id above must appear EXACTLY once in the corresponding output array, in the same casing.
 Empty arrays ARE allowed when there were zero input items in that section.`;
+}
+
+// ────────────────────────────────────────────────
+// 🧼 BANNED-CLICHÉ STRIP (summary post-pipeline)
+// ────────────────────────────────────────────────
+//
+// The system prompt's RULE 6 lists hard-banned summary clichés ("results-driven",
+// "passionate", "team player", "proven track record", …). Empirically, providers
+// (especially Groq) slip these through anyway — the live audit (2026-05-08) saw
+// "Proven track record" land in 3/3 persona summaries. This deterministic
+// post-step rewrites the offending phrases. Pure regex; no model call.
+//
+// Strategy: replace the cliché with a tighter (but still neutral) substitute,
+// or delete it outright when the surrounding sentence reads fine without it.
+// We keep the rewrites conservative — leaving slightly awkward prose is fine;
+// what isn't fine is shipping a banned phrase. Cleanup steps at the end fix
+// double spaces, dangling commas, and lowercase sentence starts caused by
+// deletion.
+const BANNED_CLICHE_PATTERNS: Array<[RegExp, string]> = [
+  // Most common — drop "of/in/for" connector if present so sentence still flows.
+  [/\bproven track record of\s+/gi, ''],
+  [/\bproven track record in\s+/gi, ''],
+  [/\bproven track record\b/gi, 'consistent record'],
+  [/\bresults-driven\s+/gi, ''],
+  [/\bpassionate about\s+/gi, 'focused on '],
+  [/\bpassionate\s+/gi, ''],
+  [/\bteam player\b/gi, 'collaborative contributor'],
+  [/\bgo-getter\b/gi, ''],
+  [/\binnovative\s+/gi, ''],
+  [/\bdynamic\s+/gi, ''],
+  [/\bself-starter\b/gi, ''],
+  [/\bsynergy\b/gi, ''],
+  [/\bvalue-add\b/gi, ''],
+  [/\bthought leader\b/gi, 'practitioner'],
+  [/\bhighly motivated\s+/gi, ''],
+  [/\bdetail-oriented\s+/gi, ''],
+  [/\bstrong communication skills\b/gi, 'clear written and spoken communication'],
+];
+
+export function stripBannedCliches(parsed: OptimizedResumeData): void {
+  if (typeof parsed.summary !== 'string' || !parsed.summary) return;
+  let s = parsed.summary;
+  for (const [re, repl] of BANNED_CLICHE_PATTERNS) {
+    s = s.replace(re, repl);
+  }
+  // Cleanup pass — collapse internal double spaces, fix " ." / " ," artifacts,
+  // re-capitalize sentence starts that lost their leading word, trim.
+  s = s.replace(/\s{2,}/g, ' ')
+       .replace(/\s+([.,;:!?])/g, '$1')
+       .replace(/(^|\.\s+)([a-z])/g, (_, pre, ch) => pre + ch.toUpperCase())
+       .trim();
+  parsed.summary = s;
 }
 
 // ────────────────────────────────────────────────

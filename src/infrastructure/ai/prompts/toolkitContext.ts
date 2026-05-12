@@ -274,67 +274,250 @@ export function buildCandidateAnchors(data: ResumeData): string[] {
 }
 
 // ────────────────────────────────────────────────────────────────────
-// 🛡 FABRICATION GUARD — TECH TOKENS
+// 🛡 FABRICATION GUARD — INDUSTRY TOKEN DICTIONARIES
 // ────────────────────────────────────────────────────────────────────
 //
-// Curated dictionary of high-signal tech / product / company tokens that
-// resume readers expect to be backed by evidence. If a generator's output
-// mentions any of these tokens AND the candidate's evidence corpus does
-// not contain it, that is fabrication. Triggers a retry.
+// Curated dictionaries of high-signal tools / products / employers / regulators
+// across the industries this product targets in the BD market: software/cloud,
+// banking & finance, pharma, garments / RMG, FMCG, NGO / development,
+// telecom. If a generator's output mentions any of these tokens AND the
+// candidate's evidence corpus does not contain it, that is fabrication —
+// triggers a retry.
 //
-// The dictionary is intentionally NOT exhaustive — false negatives (rare
+// All dictionaries are scanned for every candidate (the union — one common
+// token list). This is correct because the guard fires only when a token
+// appears in OUTPUT but not in EVIDENCE: a banking candidate's output
+// won't contain "PyTorch" unless the model fabricated it; a pharma rep's
+// output won't contain "Murex" unless the model fabricated it. Industry
+// dispatch would be redundant.
+//
+// The dictionaries are intentionally NOT exhaustive — false negatives (rare
 // tools the model invents) are acceptable. The goal is to catch the
-// common, embarrassing case: model adds "AWS" or "Stripe" to make the
-// candidate sound more impressive than their actual data supports.
+// common, embarrassing case: model adds "AWS" / "Murex" / "Veeva" / "WFX"
+// to make the candidate sound more impressive than their actual data
+// supports. Tokens use the canonical casing recruiters expect; the matcher
+// is case-insensitive against output and against evidence.
 //
-// Tokens use the canonical casing recruiters expect; the matcher is case-
-// insensitive against output and against evidence.
+// Curation principle: include named PROPER NOUNS (specific software, vendors,
+// regulators, big-name buyers / employers, formal certifications). EXCLUDE
+// generic methodology phrases ("primary sales", "trade marketing", "lesson
+// plan") — those legitimately describe what a candidate does without
+// requiring the candidate to have written that exact phrase in their
+// rawDescription, and would produce false positives.
 
+// Curation principle for this list: avoid single-word tokens that collide
+// with common English words under case-insensitive whole-word matching.
+// During the 2026-05-08 audit, `Next` (UK retailer, formerly here) and
+// `Express` (the Node framework) both false-positived on legitimate output
+// like "next steps" / "express interest" — same shape of bug. Tokens
+// removed for the same reason are flagged in the comments below; their
+// multi-word equivalents are preserved when one exists. Net trade-off:
+// we lose detection of fabricated single-word tools (rare in practice —
+// candidates and models tend to use the canonical multi-word form) in
+// exchange for never blocking a legitimate cover letter.
 const TECH_TOKENS: string[] = [
   // Cloud & infrastructure
-  'AWS', 'Amazon Web Services', 'GCP', 'Google Cloud', 'Azure',
+  // Removed: 'Render' (verb), 'Railway' (noun), 'Azure' (color)
+  'AWS', 'Amazon Web Services', 'GCP', 'Google Cloud',
   'Cloudflare', 'Vercel', 'Netlify', 'Heroku', 'DigitalOcean', 'Linode',
-  'Fly.io', 'Render', 'Railway',
+  'Fly.io', 'Render.com',
   // Programming languages
-  'Python', 'JavaScript', 'TypeScript', 'Java', 'Kotlin', 'Swift',
-  'Objective-C', 'Go', 'Golang', 'Rust', 'C++', 'C#', 'Ruby', 'PHP',
-  'Scala', 'Elixir', 'Erlang', 'Dart', 'R', 'MATLAB', 'Perl', 'Lua',
+  // Removed: 'Go' (verb — kept 'Golang'), 'Rust' (noun/verb), 'Swift' (adj —
+  // covered by 'SwiftUI' below for iOS context), 'R' (single letter, useless),
+  // 'Dart' (verb), 'Ruby' (gem/name — kept Ruby on Rails), 'Elixir' (potion),
+  // 'Java' (also island; kept because the language is overwhelmingly more
+  // common in resume context).
+  'Python', 'JavaScript', 'TypeScript', 'Java', 'Kotlin',
+  'Objective-C', 'Golang', 'C++', 'C#', 'PHP',
+  'Scala', 'Erlang', 'MATLAB', 'Perl', 'Lua',
   // Web frameworks & libraries
-  'React', 'Vue', 'Angular', 'Svelte', 'Next.js', 'Nuxt', 'Remix',
+  // Removed: 'Express' (verb — kept 'Express.js'), 'Spring' (season —
+  // kept 'Spring Boot' / 'Spring Framework'), 'Flask' (object —
+  // very low fabrication value), 'Phoenix' (city/myth), 'Remix' (verb),
+  // 'Bootstrap' (verb — kept 'Bootstrap CSS' for clarity), 'Rails' (train
+  // rails — kept 'Ruby on Rails'), 'Vue' (French/noun — kept 'Vue.js').
+  'React', 'Vue.js', 'Angular', 'Svelte', 'Next.js', 'Nuxt',
   'Gatsby', 'Astro', 'SolidJS',
-  'Express', 'FastAPI', 'Django', 'Flask', 'Spring', 'Spring Boot',
-  'Rails', 'Ruby on Rails', 'Laravel', 'NestJS', 'AdonisJS', 'Phoenix',
-  'Tailwind', 'Bootstrap', 'Material-UI', 'Chakra UI',
+  'Express.js', 'ExpressJS',
+  'FastAPI', 'Django',
+  'Spring Boot', 'Spring Framework',
+  'Ruby on Rails', 'Laravel', 'NestJS', 'AdonisJS',
+  'Tailwind', 'Bootstrap CSS', 'Material-UI', 'Chakra UI',
   // Mobile
-  'iOS', 'Android', 'Flutter', 'React Native', 'SwiftUI', 'Jetpack Compose',
-  'Xamarin', 'Ionic',
+  // Removed: 'Flutter' (verb — fabrication of Flutter without evidence is
+  // rare and the false-positive risk on "fluttered" is real),
+  // 'Ionic' (chemistry term — also a framework but minor risk).
+  'iOS', 'Android', 'React Native', 'SwiftUI', 'Jetpack Compose',
+  'Xamarin',
   // Databases
+  // Removed: 'Cassandra' (proper name), 'Snowflake' (natural object),
+  // 'Pinecone' (botany), 'Neon' (color — kept 'Neon DB').
   'PostgreSQL', 'Postgres', 'MySQL', 'MariaDB', 'SQLite', 'Oracle DB',
-  'MongoDB', 'Redis', 'Memcached', 'Cassandra', 'DynamoDB', 'CosmosDB',
-  'Snowflake', 'BigQuery', 'Databricks', 'Redshift',
-  'Elasticsearch', 'OpenSearch', 'Algolia', 'Pinecone', 'Weaviate',
-  'Firestore', 'Supabase', 'PlanetScale', 'Neon',
+  'Oracle Database',
+  'MongoDB', 'Redis', 'Memcached', 'DynamoDB', 'CosmosDB',
+  'BigQuery', 'Databricks', 'Redshift',
+  'Elasticsearch', 'OpenSearch', 'Algolia', 'Weaviate',
+  'Firestore', 'Supabase', 'PlanetScale', 'Neon DB',
   // DevOps / IaC / CI
+  // Removed: 'Chef' (occupation — kept 'Chef Configuration Management'),
+  // 'Puppet' (toy — kept 'Puppet Configuration Management'),
+  // 'Helm' (ship's helm).
   'Docker', 'Kubernetes', 'K8s', 'Terraform', 'Pulumi', 'Ansible',
-  'Chef', 'Puppet', 'Jenkins', 'GitHub Actions', 'GitLab CI', 'CircleCI',
-  'Travis CI', 'ArgoCD', 'Helm', 'Istio',
+  'Chef Configuration Management', 'Puppet Configuration Management',
+  'Jenkins', 'GitHub Actions', 'GitLab CI', 'CircleCI',
+  'Travis CI', 'ArgoCD', 'Istio',
   // AI / ML
+  // Removed: 'Claude' (common name).
   'TensorFlow', 'PyTorch', 'JAX', 'Keras', 'scikit-learn', 'XGBoost',
-  'OpenAI', 'Anthropic', 'Claude', 'ChatGPT', 'GPT-4', 'GPT-5',
+  'OpenAI', 'Anthropic', 'ChatGPT', 'GPT-4', 'GPT-5',
   'Gemini', 'LangChain', 'LlamaIndex', 'Hugging Face',
   // Observability / SaaS infra
-  'Datadog', 'Grafana', 'Prometheus', 'Splunk', 'Sentry', 'PagerDuty',
-  'New Relic', 'Honeycomb', 'Lightstep',
+  // Removed: 'Sentry' (occupation), 'Prometheus' (myth — Prometheus the
+  // monitoring tool is a real fabrication risk but the false positive on
+  // mythological references in cover-letter writing is non-trivial; drop).
+  // 'Honeycomb' (natural object — keep `Honeycomb.io` for tighter match).
+  'Datadog', 'Grafana', 'Splunk', 'PagerDuty',
+  'New Relic', 'Honeycomb.io', 'Lightstep',
   // Payments / comms / SaaS
-  'Stripe', 'Plaid', 'Twilio', 'SendGrid', 'Mailchimp', 'Auth0',
-  'Okta', 'Firebase', 'Algolia',
+  // Removed: 'Plaid' (fabric pattern), 'Stripe' (pattern — fabrication
+  // risk for Stripe-the-payments-co is meaningful but the FP on "the
+  // candidate has a strong stripe of independence" or "yellow stripe" or
+  // "stripe of accomplishments" is too broad. Replaced with `Stripe.com`).
+  'Stripe.com', 'Twilio', 'SendGrid', 'Mailchimp', 'Auth0',
+  'Okta', 'Firebase',
   // Big tech / common fabrication targets
-  'Google', 'Microsoft', 'Amazon', 'Apple', 'Meta', 'Facebook',
-  'Netflix', 'Tesla', 'Uber', 'Airbnb', 'Lyft', 'Spotify',
-  'Salesforce', 'Adobe', 'Oracle', 'IBM', 'Intel', 'NVIDIA',
-  'Shopify', 'Square', 'Block',
-  // Methodologies (fabrication is rarer here, but keep flagged)
-  'Scrum', 'Kanban', 'TDD', 'BDD',
+  // Removed: 'Apple' (fruit — kept 'Apple Inc'), 'Amazon' (rainforest —
+  // kept 'Amazon.com'), 'Meta' (prefix — kept 'Meta Platforms'),
+  // 'Tesla' (name / SI unit), 'Uber' (German prefix), 'Adobe' (mud brick —
+  // kept 'Adobe Inc'), 'Oracle' (fortune-teller — kept 'Oracle Corporation'),
+  // 'Intel' (slang for information — kept 'Intel Corporation'), 'Square'
+  // (shape — kept 'Square Inc' / 'Block Inc'), 'Block' (verb).
+  'Google', 'Microsoft', 'Apple Inc', 'Amazon.com', 'Meta Platforms', 'Facebook',
+  'Netflix', 'Airbnb', 'Lyft', 'Spotify',
+  'Salesforce', 'Adobe Inc', 'Oracle Corporation', 'IBM', 'Intel Corporation', 'NVIDIA',
+  'Shopify', 'Square Inc', 'Block Inc',
+  // Methodologies — kept tight to avoid common-word collisions.
+  // Removed: 'Scrum' (rugby formation — fabrication is uncommon and FP
+  // is real on rugby / metaphorical usage).
+  'Kanban', 'TDD', 'BDD',
+];
+
+// Banking & finance — core systems, market-data terminals, regulators,
+// well-known certifications. Curated for the BD market (BRAC Bank, City Bank,
+// EBL, Standard Chartered BD, HSBC BD, DBBL, Prime Bank, etc.) plus the
+// global vendor stack BD banks actually run on.
+//
+// Excluded for false-positive risk: 'SWIFT' (matches the adjective "swift"
+// in any cover letter); 'CAMS' (matches "cams" plural noun); 'CIB', 'NPL',
+// 'CMSME', 'KYC', 'AML' (short BD-banking acronyms that candidates and the
+// JD use loosely). 'CFA' is kept because the case-insensitive regex matches
+// only the 3-letter token and "cfa" rarely appears in any other context.
+const BANKING_TOKENS: string[] = [
+  'Murex', 'Finacle', 'Avaloq', 'Temenos', 'T24', 'Oracle Flexcube',
+  'Misys', 'Calypso', 'Sungard',
+  'Bloomberg Terminal', 'Bloomberg', 'Reuters Eikon', 'Refinitiv',
+  'IFRS 9', 'Basel III', 'Basel IV',
+  'CFA', 'CIMA', 'FRM', 'CISA', 'ACCA', 'ICAB',
+  'Bangladesh Bank', 'BFIU',
+];
+
+// Pharma / life sciences — sales-force enablement systems, market-data
+// providers, big BD/global pharma houses.
+const PHARMA_TOKENS: string[] = [
+  'Veeva', 'Veeva CRM', 'Veeva Vault', 'IQVIA', 'IMS Health',
+  'Salesforce Health Cloud', 'OneKey',
+  'Square Pharmaceuticals', 'Beximco Pharma', 'Incepta', 'Renata',
+  'Eskayef', 'ACI Limited', 'Healthcare Pharmaceuticals',
+  'Pfizer', 'Novartis', 'GlaxoSmithKline', 'GSK', 'Sanofi', 'Roche',
+  'AstraZeneca', 'Abbott', 'Sun Pharma', 'Cipla',
+];
+
+// Garments / RMG — merchandising software, big global buyers, BD-side
+// large-group employers, BD trade-association acronyms.
+//
+// Curation note: tokens that are also common English words ("Next" the
+// retailer, "Stage" the software, "Target" the retailer, "Mango" the
+// retailer, "Kohl's" the retailer, "Gap" the retailer, "Care" — see NGO)
+// are EXCLUDED from this list because the matcher uses simple word-boundary
+// regex and would false-positive on legitimate sentence-level usage
+// ("next steps", "stage of the project", "target market", "care about").
+// We accept the false-negative risk of missing a fabricated retailer
+// reference in exchange for not breaking ordinary English in the output.
+const GARMENTS_TOKENS: string[] = [
+  // Merchandising / production software
+  'WFX', 'FastReact', 'BlueCherry', 'Coats Digital', 'Methods Workshop',
+  // Big global buyers BD merchandisers actually liaise with — only those
+  // whose names are unambiguous in resume / cover-letter context.
+  'H&M', 'Inditex', 'Zara', 'Marks & Spencer', "Marks and Spencer",
+  'Walmart', 'Primark', "Levi's", 'Levis',
+  'Tesco', 'Decathlon', 'Uniqlo', 'C&A',
+  'Aldi', 'Lidl', 'Carrefour', 'Costco',
+  // BD-side big employers
+  'DBL Group', 'Hameem Group', 'Beximco Textiles',
+  'Pacific Jeans', 'Square Textiles', 'Mohammadi Group',
+  'Ha-Meem', 'Ananta Group', 'Epyllion Group',
+  // BD trade-association regulators
+  'BGMEA', 'BKMEA',
+];
+
+// FMCG — global brand houses with BD presence, named POS / DMS systems.
+//
+// Excluded for false-positive risk: 'BAT' (matches the animal "bat" /
+// the cricket bat). Use the full "British American Tobacco" instead.
+const FMCG_TOKENS: string[] = [
+  'Unilever', 'Nestlé', 'Nestle', 'Reckitt', 'Reckitt Benckiser',
+  'Procter & Gamble', 'P&G', 'Colgate', 'Colgate-Palmolive',
+  'Coca-Cola', 'Pepsi', 'PepsiCo', 'British American Tobacco',
+  'Japan Tobacco International', 'JTI',
+  'Marico', 'Dabur', 'GSK Consumer', 'Mondelez',
+  // Distributor / route-to-market software
+  'ALEFA', 'RouteIQ', 'BIQ', 'Salesforce Consumer Goods',
+  'Salesforce CG', 'SAP Customer Activity Repository',
+];
+
+// NGO / international development — donor agencies, M&E platforms,
+// well-known BD-active INGOs.
+//
+// Curation note: 'CARE' the INGO is excluded because "care" is a common
+// English verb ("care about", "patient care") and case-insensitive matching
+// would false-positive. Use 'CARE International' (the formal name) only.
+// 'IRC' is also excluded — too short / too generic; use 'International
+// Rescue Committee'.
+const NGO_TOKENS: string[] = [
+  // Major donors active in BD
+  'USAID', 'DFID', 'FCDO', 'GIZ', 'JICA', 'KOICA', 'SIDA',
+  'World Bank', 'ADB', 'Asian Development Bank', 'IFC',
+  'BMGF', 'Bill and Melinda Gates Foundation',
+  'UNICEF', 'UNHCR', 'WFP', 'UNDP', 'UNFPA',
+  'OXFAM', 'Save the Children', 'Plan International',
+  'CARE International', 'World Vision',
+  'International Rescue Committee', 'MSF',
+  'BRAC', 'Grameen', 'Grameen Bank', 'Friendship NGO',
+  'icddr,b', 'icddrb',
+  // M&E and field-data tools
+  'Kobo Toolbox', 'KoboToolbox', 'ODK', 'Open Data Kit',
+  'ActivityInfo', 'DHIS2', 'OpenMRS', 'CommCare', 'PowerBI',
+];
+
+// Telecom — global vendors, BD operators.
+const TELECOM_TOKENS: string[] = [
+  'Ericsson', 'Huawei', 'Nokia', 'Nokia Siemens', 'ZTE',
+  'Cisco', 'Juniper', 'Samsung Networks',
+  'Grameenphone', 'Robi', 'Robi Axiata', 'Banglalink',
+  'Teletalk', 'Airtel', 'Axiata', 'Telenor',
+  'BTRC',
+];
+
+// Combined dictionary scanned by the fabrication guard. Order does not
+// matter for correctness; we dedupe + lowercase in the matcher.
+const FABRICATION_TOKEN_DICTIONARY: string[] = [
+  ...TECH_TOKENS,
+  ...BANKING_TOKENS,
+  ...PHARMA_TOKENS,
+  ...GARMENTS_TOKENS,
+  ...FMCG_TOKENS,
+  ...NGO_TOKENS,
+  ...TELECOM_TOKENS,
 ];
 
 export class ToolkitFabricationError extends Error {
@@ -359,10 +542,11 @@ const FABRICATION_SAFELIST = new Set<string>([
   'backend', 'fullstack', 'mobile', 'web', 'cloud',
 ]);
 
-// Look for each TECH_TOKEN as a whole-word, case-insensitive match in the
-// generator's output. For any hit, confirm the same token (or a known
-// alias) appears in evidence. Aliases handle the AWS/Amazon Web Services
-// pair, plus a few JS/TS-style abbreviations.
+// Look for each token in the FABRICATION_TOKEN_DICTIONARY as a whole-word,
+// case-insensitive match in the generator's output. For any hit, confirm the
+// same token (or a known alias) appears in evidence. Aliases handle common
+// abbreviation pairs (AWS / Amazon Web Services; H&M / Hennes & Mauritz; ICDDR,B
+// punctuation; etc.).
 const TECH_TOKEN_ALIASES: Record<string, string[]> = {
   'aws': ['amazon web services'],
   'amazon web services': ['aws'],
@@ -378,6 +562,49 @@ const TECH_TOKEN_ALIASES: Record<string, string[]> = {
   'gpt-4': ['openai', 'chatgpt'],
   'gpt-5': ['openai', 'chatgpt'],
   'chatgpt': ['openai'],
+  // Banking / finance
+  'bloomberg terminal': ['bloomberg'],
+  'bloomberg': ['bloomberg terminal'],
+  'reuters eikon': ['refinitiv', 'reuters'],
+  'refinitiv': ['reuters eikon'],
+  't24': ['temenos'],
+  'temenos': ['t24'],
+  // Pharma
+  'gsk': ['glaxosmithkline'],
+  'glaxosmithkline': ['gsk'],
+  'p&g': ['procter & gamble'],
+  'procter & gamble': ['p&g'],
+  'veeva crm': ['veeva'],
+  'veeva vault': ['veeva'],
+  // Garments — buyers
+  "marks and spencer": ['marks & spencer', 'm&s'],
+  'marks & spencer': ['marks and spencer', 'm&s'],
+  'm&s': ['marks & spencer', 'marks and spencer'],
+  'levis': ["levi's"],
+  "levi's": ['levis'],
+  // FMCG
+  'reckitt benckiser': ['reckitt'],
+  'reckitt': ['reckitt benckiser'],
+  'pepsi': ['pepsico'],
+  'pepsico': ['pepsi'],
+  'nestle': ['nestlé'],
+  'nestlé': ['nestle'],
+  'bat': ['british american tobacco'],
+  'british american tobacco': ['bat'],
+  // NGO
+  'world bank': ['ibrd', 'ida'],
+  'asian development bank': ['adb'],
+  'adb': ['asian development bank'],
+  'bmgf': ['bill and melinda gates foundation', 'gates foundation'],
+  'bill and melinda gates foundation': ['bmgf'],
+  'icddr,b': ['icddrb', 'icddr b'],
+  'icddrb': ['icddr,b'],
+  'kobotoolbox': ['kobo toolbox'],
+  'kobo toolbox': ['kobotoolbox'],
+  // Telecom
+  'robi axiata': ['robi'],
+  'robi': ['robi axiata'],
+  'nokia siemens': ['nokia'],
 };
 
 export function detectFabricatedTokens(output: string, evidence: string): string[] {
@@ -386,7 +613,7 @@ export function detectFabricatedTokens(output: string, evidence: string): string
   const fabricated: string[] = [];
   const seen = new Set<string>();
 
-  for (const token of TECH_TOKENS) {
+  for (const token of FABRICATION_TOKEN_DICTIONARY) {
     const lcToken = token.toLowerCase();
     if (FABRICATION_SAFELIST.has(lcToken)) continue;
     if (seen.has(lcToken)) continue;

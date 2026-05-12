@@ -1,26 +1,25 @@
 // POST /api/purchase
 //
-// Mock purchase endpoint. In production this will be replaced by a payment
-// gateway webhook (bKash, SSLCommerz, etc.) that verifies a signed payload
-// before granting credits. For now it always succeeds — the purchase flow
-// can be wired up end-to-end without a real payment provider.
+// User clicks "Buy" → enters bKash transaction ID after sending payment to
+// the owner's bKash number → this endpoint records a PENDING purchase.
+// Credits are NOT granted here. Confirmation happens out-of-band when the
+// owner's Flutter app reads the bKash SMS and calls /api/confirm-purchase.
 //
-// Request:  { packageId: 'five-pack' }
-// Response: { success: true, creditsGranted: 5, newBalance: N }
+// Request:  { packageId: 'five-pack', transactionId: 'AB12CD34EF', senderMsisdn?: '01XXXXXXXXX' }
+// Response: { success: true, purchaseId: '<uuid>', status: 'pending', message: '...' }
 //
-// 401 if not authenticated; 400 if packageId is unknown.
-//
-// Credit grant is handled by the process_mock_purchase() security-definer
-// RPC which atomically inserts the purchase record AND increments
-// profiles.toolkit_credits in a single transaction.
+// 401 if not authenticated; 400 if packageId or transactionId is invalid;
+// 409 if the transactionId has already been submitted; 429 if user has
+// >= 5 pending purchases in the last 24h.
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { authenticate, userClient } from './_lib/auth.js';
-import { randomUUID } from 'crypto';
 
-const PACKAGES: Record<string, { credits: number; amountTaka: number; label: string }> = {
-  'five-pack': { credits: 5, amountTaka: 200, label: '5 Toolkit Generations' },
-};
+interface PurchaseBody {
+  packageId?: string;
+  transactionId?: string;
+  senderMsisdn?: string;
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -31,32 +30,64 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const auth = await authenticate(req, res);
   if (!auth) return;
 
-  const { packageId } = req.body as { packageId?: string };
-  const pkg = packageId ? PACKAGES[packageId] : undefined;
-  if (!pkg) {
-    res.status(400).json({ error: `Unknown package: "${packageId}". Valid options: ${Object.keys(PACKAGES).join(', ')}` });
+  const { packageId, transactionId, senderMsisdn } = (req.body ?? {}) as PurchaseBody;
+
+  if (!packageId || typeof packageId !== 'string') {
+    res.status(400).json({ error: 'Missing packageId' });
+    return;
+  }
+  if (!transactionId || typeof transactionId !== 'string' || transactionId.trim().length < 6) {
+    res.status(400).json({
+      error: 'A valid bKash transaction ID is required (at least 6 characters).',
+      code: 'invalid_transaction_id',
+    });
     return;
   }
 
-  const reference = `mock-${randomUUID()}`;
   const supabase = userClient(auth.jwt);
-
-  const { data: newBalance, error } = await supabase.rpc('process_mock_purchase', {
-    p_credits: pkg.credits,
-    p_amount_taka: pkg.amountTaka,
-    p_reference: reference,
+  const { data: purchaseId, error } = await supabase.rpc('initiate_purchase', {
+    p_package_id: packageId,
+    p_transaction_id: transactionId.trim(),
+    p_sender_msisdn: senderMsisdn?.trim() || null,
   });
 
   if (error) {
-    console.error('[purchase] process_mock_purchase RPC failed:', error.message);
-    res.status(500).json({ error: 'Purchase could not be processed. Please try again.' });
+    // Map known error names to status codes; everything else is 500.
+    const msg = error.message ?? '';
+    if (msg.includes('unknown_package_id')) {
+      res.status(400).json({ error: 'Unknown package.', code: 'unknown_package_id' });
+      return;
+    }
+    if (msg.includes('invalid_transaction_id')) {
+      res.status(400).json({
+        error: 'A valid bKash transaction ID is required.',
+        code: 'invalid_transaction_id',
+      });
+      return;
+    }
+    if (msg.includes('duplicate_transaction_id')) {
+      res.status(409).json({
+        error: 'That bKash transaction ID has already been submitted.',
+        code: 'duplicate_transaction_id',
+      });
+      return;
+    }
+    if (msg.includes('too_many_pending')) {
+      res.status(429).json({
+        error: 'Too many pending purchases. Please wait for confirmation or contact support.',
+        code: 'too_many_pending',
+      });
+      return;
+    }
+    console.error('[purchase] initiate_purchase RPC failed:', msg);
+    res.status(500).json({ error: 'Purchase could not be recorded. Please try again.' });
     return;
   }
 
   res.status(200).json({
     success: true,
-    creditsGranted: pkg.credits,
-    newBalance,
-    label: pkg.label,
+    purchaseId,
+    status: 'pending',
+    message: 'Payment recorded. We\'ll verify your bKash transaction and credit your account within a few minutes.',
   });
 }
