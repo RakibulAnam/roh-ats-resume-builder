@@ -16,7 +16,10 @@
 //    so generated copy sounds more like the candidate and less like a
 //    flattened Gemini voice.
 // 4. Deterministic guards — three post-generation checks that throw when
-//    triggered, so the service-layer withRetry retries the call:
+//    triggered. The combined GeminiToolkitGenerator catches per-artifact and
+//    records the message in errors[<item>] so one weak slot doesn't drag
+//    the whole toolkit down; the single-artifact generators still let the
+//    throw propagate so /api/toolkit-item returns a clean failure.
 //      • assertNoFabricatedTools — high-signal tech tokens that appear in
 //        output must also exist in the candidate's evidence corpus.
 //      • assertOutreachSpecificity — outreach + LinkedIn output must
@@ -241,6 +244,110 @@ export function buildToolkitEvidenceCorpus(data: ResumeData): string {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// 🎚️ FIT MODE — match vs. stretch
+// ────────────────────────────────────────────────────────────────────
+//
+// Some candidates apply for roles squarely in their lane; others are pivoting
+// industries. The toolkit needs to behave differently for each:
+//
+//   match   — candidate evidence covers the JD's key requirements. Strict
+//             fabrication guard, anchor specificity required. Keeps the AI
+//             from inflating an already-strong CV.
+//
+//   stretch — career switcher / industry pivot / junior reaching up. The
+//             AI is allowed to acknowledge the gap honestly, lean on
+//             transferable skills, and reference JD-named tools as growth
+//             targets rather than claimed experience. The fabrication guard
+//             relaxes to allow JD-named tokens in output (the candidate
+//             chose this JD; mentioning what it asks for is not fabrication).
+//             Anchor specificity becomes "either / or" — one anchor is
+//             enough rather than requiring both target company AND a
+//             candidate proper noun.
+//
+// Detection is a token-overlap heuristic between JD vocabulary and the
+// candidate's evidence corpus. Below the threshold = stretch. We intentionally
+// pick a low threshold (~20%) because even modest overlap means at least
+// some skill transfer; "stretch" should be reserved for genuine pivots
+// where almost nothing in the evidence speaks to the JD.
+
+export type FitMode = 'match' | 'stretch';
+
+export interface FitClassification {
+  mode: FitMode;
+  /** 0..1 ratio of JD vocab tokens that also appear in evidence. */
+  overlap: number;
+  /** Total JD vocab size after stopword + length filtering. */
+  jdVocabSize: number;
+  /** How many JD vocab tokens were found in evidence. */
+  matched: number;
+}
+
+// 10% overlap floor. Calibrated against two real cases:
+//   - Banking credit analyst → SCB SME RM (same field, thin profile): ~16% → match ✓
+//   - Banking credit analyst → Linear Product Designer (industry pivot): ~0% → stretch ✓
+// 20% was too aggressive — same-field candidates with thin profiles fell into
+// stretch when they shouldn't have. 10% leaves headroom for short JDs and
+// sparse profiles while still catching genuine industry pivots cleanly.
+const FIT_STRETCH_THRESHOLD = 0.10;
+
+const FIT_STOPWORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'with', 'for', 'to', 'of', 'in', 'on', 'at', 'by',
+  'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+  'will', 'would', 'should', 'could', 'may', 'might', 'must', 'shall', 'can',
+  'as', 'we', 'you', 'your', 'our', 'their', 'this', 'that', 'these', 'those',
+  'it', 'its', 'they', 'them', 'i', 'me', 'my', 'us', 'who', 'what', 'where', 'when', 'why', 'how',
+  'all', 'any', 'each', 'every', 'no', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very',
+  'just', 'also', 'into', 'about', 'from', 'such', 'including', 'across',
+  'work', 'role', 'team', 'teams', 'company', 'years', 'year',
+  'job', 'experience', 'requirements', 'responsibilities', 'qualifications',
+  'looking', 'looking', 'role', 'position', 'candidate', 'candidates', 'preferred',
+  'plus', 'bonus', 'nice', 'offer', 'benefits',
+]);
+
+function fitTokenize(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9+./#-]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+export function classifyFitMode(data: ResumeData): FitClassification {
+  const jdText = data.targetJob?.description ?? '';
+  const evidence = buildToolkitEvidenceCorpus(data);
+
+  const jdVocab = new Set<string>();
+  for (const t of fitTokenize(jdText)) {
+    if (t.length < 3) continue;
+    if (FIT_STOPWORDS.has(t)) continue;
+    jdVocab.add(t);
+  }
+
+  // Tokenize evidence into a Set for O(1) lookup. Reuse the same filter
+  // so we don't count stopword matches as overlap.
+  const evidenceSet = new Set<string>();
+  for (const t of fitTokenize(evidence)) {
+    if (t.length < 3) continue;
+    if (FIT_STOPWORDS.has(t)) continue;
+    evidenceSet.add(t);
+  }
+
+  let matched = 0;
+  for (const t of jdVocab) {
+    if (evidenceSet.has(t)) matched++;
+  }
+
+  const overlap = jdVocab.size === 0 ? 1 : matched / jdVocab.size;
+  // When JD vocab is too small to be reliable (e.g. a one-line description),
+  // default to 'match' rather than risk classifying every short JD as stretch.
+  const reliable = jdVocab.size >= 20;
+  const mode: FitMode =
+    reliable && overlap < FIT_STRETCH_THRESHOLD ? 'stretch' : 'match';
+
+  return { mode, overlap, jdVocabSize: jdVocab.size, matched };
+}
+
+// ────────────────────────────────────────────────────────────────────
 // 🎯 PROPER-NOUN HOOKS
 // ────────────────────────────────────────────────────────────────────
 //
@@ -412,12 +519,28 @@ const TECH_TOKENS: string[] = [
 // 'CMSME', 'KYC', 'AML' (short BD-banking acronyms that candidates and the
 // JD use loosely). 'CFA' is kept because the case-insensitive regex matches
 // only the 3-letter token and "cfa" rarely appears in any other context.
+// Environmental regulations (Basel III, IFRS 9, Basel IV) used to live in
+// this dictionary alongside vendor products and certifications. They were
+// removed during the 2026-05-14 bilingual-prep audit — bank-side candidates
+// repeatedly tripped the guard because the AI legitimately referenced the
+// regulatory environment ("aligned with Basel III capital adequacy", "IFRS 9
+// ECL staging discipline") which is true of any BD bank by definition.
+// The distinction we keep is: CLAIMED ASSETS stay in the dictionary
+// (software the candidate used, terminals they had access to, certifications
+// they hold, employers they worked at — any of which could be fabricated to
+// look more impressive). ENVIRONMENTAL REGULATIONS do not — every BD bank
+// operates under Basel III; saying so is descriptive, not boastful.
 const BANKING_TOKENS: string[] = [
+  // Vendor software (claimed-asset class — keep strict)
   'Murex', 'Finacle', 'Avaloq', 'Temenos', 'T24', 'Oracle Flexcube',
   'Misys', 'Calypso', 'Sungard',
+  // Market-data terminals (claimed-asset class — either you had a seat or
+  // you didn't; keep strict)
   'Bloomberg Terminal', 'Bloomberg', 'Reuters Eikon', 'Refinitiv',
-  'IFRS 9', 'Basel III', 'Basel IV',
+  // Certifications (claimed-asset class — either you hold it or you don't)
   'CFA', 'CIMA', 'FRM', 'CISA', 'ACCA', 'ICAB',
+  // Regulators (claimed-asset class — claiming direct work with a regulator
+  // you never engaged is fabrication)
   'Bangladesh Bank', 'BFIU',
 ];
 
@@ -633,13 +756,32 @@ export function detectFabricatedTokens(output: string, evidence: string): string
   return fabricated;
 }
 
-export function assertNoFabricatedTools(output: string, data: ResumeData): void {
+export interface FabricationGuardOptions {
+  /**
+   * Include the JD text in the allowed-evidence corpus. Use for interview
+   * questions: the JD dictates what the interviewer probes, and naming a
+   * JD-listed regulator / framework / tool in answer-strategy text is
+   * legitimate prep, not fabrication. Do NOT enable for cover letter /
+   * outreach / LinkedIn — those represent the candidate's pitch and must
+   * not import unsupported claims from the JD.
+   */
+  allowJD?: boolean;
+}
+
+export function assertNoFabricatedTools(
+  output: string,
+  data: ResumeData,
+  options: FabricationGuardOptions = {}
+): void {
   const evidence = buildToolkitEvidenceCorpus(data);
   // Always allow the target company name in output even if the candidate
   // never worked there — outreach to a target IS the whole point.
-  const augmented = data.targetJob.company
+  let augmented = data.targetJob.company
     ? `${evidence} ${data.targetJob.company.toLowerCase()}`
     : evidence;
+  if (options.allowJD && data.targetJob.description) {
+    augmented = `${augmented} ${data.targetJob.description.toLowerCase()}`;
+  }
   const fabricated = detectFabricatedTokens(output, augmented);
   if (fabricated.length > 0) {
     throw new ToolkitFabricationError(fabricated);
@@ -720,8 +862,13 @@ export function assertInterviewAnchorCoverage(
 ): void {
   if (strategies.length === 0) return;
   const anchored = countAnchoredStrategies(strategies, data);
-  // Require at least half to anchor in a candidate proper noun.
-  if (anchored * 2 < strategies.length) {
+  // Require at least a third to anchor in a candidate proper noun. The
+  // previous 50% bar was too strict given 6–8 questions span 5 categories
+  // (Behavioral / Technical / Role-specific / Values & Culture / Situational)
+  // and not every category naturally maps to a literal candidate proper noun —
+  // e.g. broad behavioural questions, values fit. 50% was the single biggest
+  // source of "toolkit failed entirely on initial generation" in practice.
+  if (anchored * 3 < strategies.length) {
     throw new ToolkitSpecificityError(
       `interview answerStrategies are mostly generic — only ${anchored}/${strategies.length} reference a candidate proper noun`
     );

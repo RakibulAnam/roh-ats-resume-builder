@@ -6,6 +6,7 @@ import { ICoverLetterGenerator } from '../../domain/usecases/GenerateCoverLetter
 import {
   buildCandidateContext,
   assertNoFabricatedTools,
+  classifyFitMode,
 } from './prompts/toolkitContext.js';
 
 export class GeminiCoverLetterGenerator implements ICoverLetterGenerator {
@@ -19,14 +20,16 @@ export class GeminiCoverLetterGenerator implements ICoverLetterGenerator {
   }
 
   async generate(data: ResumeData): Promise<string> {
-    const prompt = this.buildPrompt(data);
+    const fit = classifyFitMode(data);
+    console.info(`[cover-letter-gen] fit=${fit.mode} overlap=${fit.overlap.toFixed(2)} matched=${fit.matched}/${fit.jdVocabSize}`);
+    const prompt = this.buildPrompt(data, fit.mode);
 
     try {
       const result = await this.genAI.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
-          temperature: 0.4,
+          temperature: fit.mode === 'stretch' ? 0.55 : 0.4,
           systemInstruction: `You are a senior cover-letter writer specializing in applications that pass BOTH ATS keyword screening AND human hiring-manager review.
 
 GROUND YOUR WRITING IN THE CANDIDATE'S EVIDENCE — the prompt provides the candidate's full profile (experience, projects, education, certifications, awards, publications, extracurriculars, languages, skills) FIRST, and the JD SECOND. Your job is to choose the most JD-relevant slices of the candidate's actual evidence and arrange them. The JD orders and filters; the candidate's own work is the source of truth.
@@ -51,7 +54,10 @@ HONESTY — Do not fabricate metrics, employers, outcomes, tools, or credentials
       }
 
       const cleaned = this.cleanResponse(responseText.trim(), data);
-      assertNoFabricatedTools(cleaned, data);
+      // Stretch mode lets the AI reference JD-named tools as growth targets,
+      // so the fabrication guard must allow JD-text into the evidence corpus.
+      // Match mode keeps the strict corpus.
+      assertNoFabricatedTools(cleaned, data, { allowJD: fit.mode === 'stretch' });
       return cleaned;
     } catch (error) {
       console.error('Cover letter generation failed:', error);
@@ -127,12 +133,24 @@ HONESTY — Do not fabricate metrics, employers, outcomes, tools, or credentials
       .trim();
   }
 
-  private buildPrompt(data: ResumeData): string {
+  private buildPrompt(data: ResumeData, mode: 'match' | 'stretch' = 'match'): string {
     const isStudent = data.userType === 'student';
     const candidateContext = buildCandidateContext(data);
+    const stretchPreamble = mode === 'stretch' ? `
+═══════════════════════════════════════════════
+STRETCH MODE — CAREER SWITCH
+═══════════════════════════════════════════════
+This is a career-switch application: the candidate's evidence does NOT closely match the JD's field. Make the strongest HONEST case anyway:
+- Lean on TRANSFERABLE SKILLS (analysis, structured thinking, stakeholder management, communication, learning velocity, domain rigor) — bridge them concretely to the JD.
+- ACKNOWLEDGE the pivot in the opener: "Coming from <past field> into <target field>". Don't disguise it.
+- JD-named tools / frameworks the candidate has NOT used may appear as GROWTH TARGETS or ramp areas — never as past experience. "I'd be excited to ramp on X" is honest; "I have X experience" is fabrication.
+- Tone: confident-but-curious, eager-not-desperate.
+- Never invent past employers, credentials, or metrics — that rule never relaxes.
+` : '';
 
     return `
 Write the 3–4 body paragraphs of a cover letter (no date, no addresses, no greeting, no closing, no signature — those are rendered separately).
+${stretchPreamble}
 
 ═══════════════════════════════════════════════
 CANDIDATE EVIDENCE (source of truth — use ONLY what's here)
@@ -175,7 +193,9 @@ HARD CONSTRAINTS
 - No salutation. No closing. No signature. No date. No contact info.
 - No markdown, no bullets, no headings, no code fences.
 - 250–400 words total.
-- Do NOT mention any tool / framework / cloud / company that does not appear in the CANDIDATE EVIDENCE block above (target company exempt — you may name it as the recipient).
+- ${mode === 'stretch'
+  ? 'You may reference JD-named tools / frameworks the candidate has not used, but ONLY as growth targets / learning intent — never phrased as past experience. Never invent past employers, credentials, or metrics.'
+  : 'Do NOT mention any tool / framework / cloud / company that does not appear in the CANDIDATE EVIDENCE block above (target company exempt — you may name it as the recipient).'}
 - Mirror JD hard-skill keywords verbatim ONLY when truthful for this candidate.
 - Avoid clichés: "I am writing to express my interest", "proven track record" (as standalone), "team player", "think outside the box", "hit the ground running".
 `;

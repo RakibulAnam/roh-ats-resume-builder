@@ -7,6 +7,7 @@ import {
   buildCandidateContext,
   assertNoFabricatedTools,
   assertOutreachSpecificity,
+  classifyFitMode,
 } from './prompts/toolkitContext.js';
 
 export class GeminiOutreachEmailGenerator implements IOutreachEmailGenerator {
@@ -21,11 +22,13 @@ export class GeminiOutreachEmailGenerator implements IOutreachEmailGenerator {
   }
 
   async generate(data: ResumeData): Promise<OutreachEmail> {
+    const fit = classifyFitMode(data);
+    console.info(`[outreach-gen] fit=${fit.mode} overlap=${fit.overlap.toFixed(2)} matched=${fit.matched}/${fit.jdVocabSize}`);
     const result = await this.genAI.models.generateContent({
       model: this.model,
-      contents: this.buildPrompt(data),
+      contents: this.buildPrompt(data, fit.mode),
       config: {
-        temperature: 0.45,
+        temperature: fit.mode === 'stretch' ? 0.55 : 0.45,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -70,18 +73,24 @@ OUTPUT — Return valid JSON with exactly { "subject": string, "body": string }.
     const subject = parsed.subject.trim();
     const body = parsed.body.trim();
 
-    assertNoFabricatedTools(`${subject}\n${body}`, data);
-    assertOutreachSpecificity(`${subject}\n${body}`, data, 'both');
+    assertNoFabricatedTools(`${subject}\n${body}`, data, { allowJD: fit.mode === 'stretch' });
+    assertOutreachSpecificity(`${subject}\n${body}`, data, fit.mode === 'stretch' ? 'either' : 'both');
 
     return { subject, body };
   }
 
-  private buildPrompt(data: ResumeData): string {
+  private buildPrompt(data: ResumeData, mode: 'match' | 'stretch' = 'match'): string {
     const candidateContext = buildCandidateContext(data);
+    const stretchPreamble = mode === 'stretch' ? `
+═══════════════════════════════════════════════
+STRETCH MODE — CAREER SWITCH
+═══════════════════════════════════════════════
+The candidate's evidence does not closely match the JD's field. Frame the email as an honest pivot: lead with a transferable-skill bridge, acknowledge the career switch openly ("Coming from <past field>, drawn to <target>"), and reference JD-named tools as ramp areas — never as past experience. Never invent past employers, credentials, or metrics.
+` : '';
 
     return `
 Write the subject line and body for a cold outreach email from this candidate to the hiring manager for the role below.
-
+${stretchPreamble}
 ═══════════════════════════════════════════════
 CANDIDATE EVIDENCE (source of truth — use ONLY what's here)
 ═══════════════════════════════════════════════
@@ -101,9 +110,12 @@ RULES
 ═══════════════════════════════════════════════
 - Subject: ≤ 60 chars, specific to the role${data.targetJob.title ? ` (${data.targetJob.title})` : ''}, no "Re:" / "Fwd:" prefixes, no emojis.
 - Body: 110–170 words, 3 short paragraphs, no greeting, no signoff.
-- Body MUST mention "${data.targetJob.company || 'the target company'}" by name.
-- Body MUST reference at least one specific item from the CANDIDATE EVIDENCE above — by name (a real company / project / certification / award / school).
-- Do not mention any tool / framework / cloud / employer that isn't in the CANDIDATE EVIDENCE (the target company is exempt).
+- ${mode === 'stretch'
+  ? `Body MUST reference EITHER "${data.targetJob.company || 'the target company'}" by name OR at least one candidate proper noun. One anchor is enough in stretch mode.`
+  : `Body MUST mention "${data.targetJob.company || 'the target company'}" by name AND reference at least one specific item from the CANDIDATE EVIDENCE above — by name (a real company / project / certification / award / school).`}
+- ${mode === 'stretch'
+  ? 'JD-named tools may appear as growth targets / ramp areas — never as past experience. Never invent past employers, credentials, or metrics.'
+  : 'Do not mention any tool / framework / cloud / employer that isn\'t in the CANDIDATE EVIDENCE (the target company is exempt).'}
 - Mirror 1–2 JD keywords verbatim where truthful.
 `;
   }

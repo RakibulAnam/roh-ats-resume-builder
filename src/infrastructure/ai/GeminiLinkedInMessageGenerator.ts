@@ -7,6 +7,7 @@ import {
   buildCandidateContext,
   assertNoFabricatedTools,
   assertOutreachSpecificity,
+  classifyFitMode,
 } from './prompts/toolkitContext.js';
 
 // LinkedIn's connection-note hard limit is 300 characters; we aim for 280 to
@@ -25,11 +26,13 @@ export class GeminiLinkedInMessageGenerator implements ILinkedInMessageGenerator
   }
 
   async generate(data: ResumeData): Promise<string> {
+    const fit = classifyFitMode(data);
+    console.info(`[linkedin-gen] fit=${fit.mode} overlap=${fit.overlap.toFixed(2)} matched=${fit.matched}/${fit.jdVocabSize}`);
     const result = await this.genAI.models.generateContent({
       model: this.model,
-      contents: this.buildPrompt(data),
+      contents: this.buildPrompt(data, fit.mode),
       config: {
-        temperature: 0.45,
+        temperature: fit.mode === 'stretch' ? 0.55 : 0.45,
         systemInstruction: `You write short LinkedIn connection notes that earn the accept from a hiring manager or recruiter.
 
 GROUND IN THE CANDIDATE — the prompt presents the candidate's full profile FIRST and the JD SECOND. Lead with the candidate's single strongest credential that maps to the role — drawn from a specific item in the evidence (a real company, role, project, certification, award, or school). Generic phrases like "my background" or "my experience" do NOT count.
@@ -71,19 +74,25 @@ HONESTY — Do not invent employers, tools, or metrics. Use only what the provid
       cleaned = (cut > 0 ? slice.slice(0, cut) : slice).trim();
     }
 
-    assertNoFabricatedTools(cleaned, data);
+    assertNoFabricatedTools(cleaned, data, { allowJD: fit.mode === 'stretch' });
+    // LinkedIn always uses 'either' specificity regardless of mode (280 chars
+    // rarely fits both anchors).
     assertOutreachSpecificity(cleaned, data, 'either');
 
     return cleaned;
   }
 
-  private buildPrompt(data: ResumeData): string {
+  private buildPrompt(data: ResumeData, mode: 'match' | 'stretch' = 'match'): string {
     // Voice reference is omitted — there isn't enough room in 280 chars to
     // benefit, and tone of a connection note is constrained anyway.
     const candidateContext = buildCandidateContext(data, { includeVoiceSignature: false });
+    const stretchHint = mode === 'stretch'
+      ? '\nSTRETCH MODE — the candidate is pivoting careers. The note may openly acknowledge the pivot ("Coming from <past field>, drawn to <target> because…") and frame interest as wanting to learn. Reference JD-named tools only as growth targets, never as past experience.\n'
+      : '';
 
     return `
 Write a LinkedIn connection note from this candidate to a hiring manager or recruiter at the target company.
+${stretchHint}
 
 ═══════════════════════════════════════════════
 CANDIDATE EVIDENCE

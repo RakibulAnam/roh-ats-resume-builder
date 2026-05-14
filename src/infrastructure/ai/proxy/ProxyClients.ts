@@ -13,7 +13,6 @@ import {
   ResumeData,
   OptimizedResumeData,
   GeneratedToolkit,
-  ToolkitErrors,
   OutreachEmail,
   InterviewQuestion,
 } from '../../../domain/entities/Resume';
@@ -54,6 +53,8 @@ export class ApiCallError extends Error {
 
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const token = await getAccessToken();
+  const t0 = performance.now();
+  console.info(`[proxy] POST ${path}`);
   const res = await fetch(path, {
     method: 'POST',
     headers: {
@@ -63,11 +64,17 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 
+  const elapsed = Math.round(performance.now() - t0);
+  // Server-side handlers stamp x-request-id on every response — surface it
+  // so client logs can be correlated against Vercel function logs.
+  const rid = res.headers.get('x-request-id') ?? '-';
+
   if (!res.ok) {
     let errorBody: ApiError | null = null;
     try { errorBody = await res.json() as ApiError; } catch { /* leave null */ }
     const friendly = errorBody?.error
       ?? `Request failed: ${res.status} ${res.statusText}`;
+    console.error(`[proxy] ${path} ${res.status} rid=${rid} ${elapsed}ms code=${errorBody?.code ?? '-'} msg="${friendly}"`);
     if (res.status === 429 && errorBody?.used != null && errorBody?.cap != null) {
       throw new ApiCallError(
         `Daily limit reached (${errorBody.used}/${errorBody.cap}). Try again tomorrow.`,
@@ -78,6 +85,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     throw new ApiCallError(friendly, res.status, errorBody?.code);
   }
 
+  console.info(`[proxy] ${path} 200 rid=${rid} ${elapsed}ms`);
   return res.json() as Promise<T>;
 }
 
@@ -95,22 +103,34 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 // Cache key: the ResumeData reference. Cleared after both halves resolve or
 // either errors. ResumeService calls them inside the same allSettled, so the
 // references are identical and cache hits.
+//
+// `toolkit` is always present in the response since per-artifact validation
+// landed — even when every slot failed validation, the server returns the
+// errors map so the client can render four "failed" cards rather than
+// surfacing a single bundle-level failure.
 type ApiOptimizeResponse = {
   optimized: OptimizedResumeData;
-  toolkit?: GeneratedToolkit;
-  errors?: ToolkitErrors;
+  toolkit: GeneratedToolkit;
 };
 
 const inflight = new WeakMap<ResumeData, Promise<ApiOptimizeResponse>>();
 function callOptimize(data: ResumeData): Promise<ApiOptimizeResponse> {
   let p = inflight.get(data);
   if (!p) {
+    console.info('[proxy] callOptimize cache MISS — issuing /api/optimize');
     p = postJson<ApiOptimizeResponse>('/api/optimize', { data })
       .finally(() => {
         // Best-effort cleanup; WeakMap entries also get GC'd naturally.
         inflight.delete(data);
       });
     inflight.set(data, p);
+  } else {
+    // Critical for the credit-double-charge guarantee: when both halves
+    // (optimizer + toolkit) of ResumeService.optimizeResume hit callOptimize
+    // with the SAME ResumeData reference, the second one MUST cache-hit. If
+    // you ever see two MISS lines for a single Generate click, something
+    // upstream is cloning the data and the server will charge twice.
+    console.info('[proxy] callOptimize cache HIT — reusing in-flight /api/optimize');
   }
   return p;
 }
@@ -134,12 +154,10 @@ export class ProxyGeneralResumeOptimizer implements IResumeOptimizer {
 export class ProxyToolkitGenerator implements IToolkitGenerator {
   async generate(data: ResumeData): Promise<GeneratedToolkit> {
     const r = await callOptimize(data);
-    if (!r.toolkit) {
-      // Toolkit failed server-side — surface the recorded error so the
-      // service layer's allSettled marks all 4 items in `errors`.
-      const msg = r.errors?.coverLetter ?? r.errors?.outreachEmail ?? 'Toolkit generation failed';
-      throw new Error(msg);
-    }
+    // Server always returns a toolkit object now: either populated, or with
+    // an `errors` map describing why each slot failed validation. The service
+    // layer merges partial artifacts + errors into `JobToolkit` and the UI
+    // renders per-card "failed" states with retry buttons.
     return r.toolkit;
   }
 }

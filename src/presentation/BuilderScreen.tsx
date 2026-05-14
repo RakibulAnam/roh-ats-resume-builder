@@ -604,6 +604,8 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       return;
     }
 
+    console.info(`[builder] handleGenerate clicked creditsBefore=${credits ?? 'loading'} skipCreditCheck=${!!opts?.skipCreditCheck}`);
+
     // Client-side credit gate. The server enforces the real check (atomic in
     // /api/optimize); this just avoids a wasted round-trip when we already
     // know the user is at zero. If `credits` is null (still loading), let the
@@ -612,6 +614,7 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     // still has the stale credits=0, so without the override we'd loop the
     // user back into the modal.
     if (!opts?.skipCreditCheck && credits === 0) {
+      console.info('[builder] credit pre-check refused (credits=0), opening purchase modal');
       setResumeGenerateAfterPurchase(true);
       setPurchaseModalOpen(true);
       return;
@@ -626,16 +629,24 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
       setStep(AppStep.PREVIEW);
 
       // Server consumed one credit on success — keep the local count in sync.
-      setCredits(prev => (prev === null ? prev : Math.max(0, prev - 1)));
+      setCredits(prev => {
+        if (prev === null) return prev;
+        const next = Math.max(0, prev - 1);
+        console.info(`[builder] credit decrement local: ${prev} -> ${next}`);
+        return next;
+      });
 
       // With the combined toolkit call, success is all-or-nothing on the
       // initial generation — either every toolkit item is present or every
       // one is in the failed state. The warning-card retry path lives on
       // each tab, so we just tell the user where to look.
-      const toolkitFailed = Object.keys(mergedData.toolkit?.errors ?? {}).length > 0;
+      const errorKeys = Object.keys(mergedData.toolkit?.errors ?? {});
+      const toolkitFailed = errorKeys.length > 0;
       if (!toolkitFailed) {
+        console.info('[builder] generation success — full toolkit');
         toast.success(t('builder.toolkitReady'));
       } else {
+        console.warn(`[builder] generation success — partial toolkit, failed slots=${errorKeys.join(',')}`);
         toast.warning(t('builder.toolkitPartial'));
       }
 
@@ -658,7 +669,11 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         }
       }
     } catch (err) {
-      console.error('Resume generation failed:', err);
+      const errCode = err instanceof ApiCallError ? err.code : undefined;
+      const errStatus = err instanceof ApiCallError ? err.status : undefined;
+      const errName = err instanceof Error ? err.name : 'Unknown';
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[builder] generation failed name=${errName} status=${errStatus ?? '-'} code=${errCode ?? '-'} msg="${errMsg}"`);
       // Server says no credits left — open the purchase modal instead of
       // showing an error. Covers the race where the local count was stale
       // (e.g. user bought credits in another tab and they ran out, or the
