@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     Plus,
     FileText,
@@ -13,6 +13,8 @@ import {
     CheckCircle2,
     Sparkles,
     Briefcase,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '../infrastructure/auth/AuthContext';
 import { createResumeService, applicationRepository, profileRepository } from '../infrastructure/config/dependencies';
@@ -60,47 +62,84 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
         return d.toLocaleDateString();
     };
 
+    const PAGE_SIZE = 9;
+
     const [applications, setApplications] = useState<Application[]>([]);
-    const [resumes, setResumes] = useState<ResumeListItem[]>([]);
+    const [generalResume, setGeneralResume] = useState<ResumeListItem | null>(null);
+    const [tailored, setTailored] = useState<ResumeListItem[]>([]);
+    const [tailoredTotal, setTailoredTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [tailoredLoading, setTailoredLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
     const [profileMenuOpen, setProfileMenuOpen] = useState(false);
     const [buildingMaster, setBuildingMaster] = useState(false);
-    // Toolkit credits — null while loading. Refreshed after each successful
-    // purchase via the PurchaseModal's onSuccess callback.
     const [credits, setCredits] = useState<number | null>(null);
     const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
 
-    useEffect(() => {
-        if (user) {
-            loadData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user]);
+    const totalPages = Math.ceil(tailoredTotal / PAGE_SIZE);
 
-    const loadData = async () => {
-        try {
-            if (!user) return;
-            const resumeService = createResumeService();
-            const [apps, resumeList, creditBalance] = await Promise.all([
-                applicationRepository.getApplications(user.id),
-                resumeService.getGeneratedResumes(user.id),
-                // Wrap so a credit-fetch failure doesn't kill the dashboard.
-                profileRepository.getToolkitCredits(user.id).catch(err => {
-                    console.warn('Could not load toolkit credits', err);
-                    return null;
-                }),
-            ]);
+    // Debounce search input: reset to page 1 and fire query after 350 ms idle.
+    useEffect(() => {
+        const t = setTimeout(() => {
+            setDebouncedSearch(searchTerm.trim());
+            setPage(1);
+        }, 350);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    // Load static data once on mount: General Resume, applications, credits.
+    useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+        setLoading(true);
+        const resumeService = createResumeService();
+        Promise.all([
+            applicationRepository.getApplications(user.id),
+            resumeService.getGeneratedResumes(user.id),
+            profileRepository.getToolkitCredits(user.id).catch(err => {
+                console.warn('Could not load toolkit credits', err);
+                return null;
+            }),
+        ]).then(([apps, allResumes, creditBalance]) => {
+            if (cancelled) return;
             setApplications(apps);
-            setResumes(resumeList);
+            setGeneralResume(allResumes.find(r => r.title === ResumeService.GENERAL_RESUME_TITLE) ?? null);
             if (creditBalance !== null) setCredits(creditBalance);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        }).catch(err => {
+            if (!cancelled) console.error(err);
+        }).finally(() => {
+            if (!cancelled) setLoading(false);
+        });
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
+
+    // Load the paginated tailored list whenever page, search, or refreshKey changes.
+    useEffect(() => {
+        if (!user) return;
+        let cancelled = false;
+        setTailoredLoading(true);
+        const resumeService = createResumeService();
+        resumeService.getGeneratedResumesPaginated(user.id, {
+            page,
+            pageSize: PAGE_SIZE,
+            search: debouncedSearch || undefined,
+        }).then(({ items, total }) => {
+            if (cancelled) return;
+            setTailored(items);
+            setTailoredTotal(total);
+        }).catch(err => {
+            if (!cancelled) console.error(err);
+        }).finally(() => {
+            if (!cancelled) setTailoredLoading(false);
+        });
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id, page, debouncedSearch, refreshKey]);
 
     const handleDeleteResume = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -108,8 +147,17 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
         try {
             const resumeService = createResumeService();
             await resumeService.deleteGeneratedResume(id);
-            setResumes(prev => prev.filter(r => r.id !== id));
             toast.success(t('dashboard.deleted'));
+
+            // Recalculate pages after removal: if the current page would become
+            // empty, retreat to the last non-empty page first, then refresh.
+            const newTotal = tailoredTotal - 1;
+            const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE));
+            if (page > newTotalPages) {
+                setPage(newTotalPages); // effect re-runs automatically
+            } else {
+                setRefreshKey(k => k + 1);
+            }
         } catch (error) {
             console.error('Failed to delete resume:', error);
             toast.error(t('dashboard.deleteFailed'));
@@ -124,6 +172,12 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
             const resumeService = createResumeService();
             const id = await resumeService.generateGeneralResume(user.id);
             toast.success(t('dashboard.masterReady'));
+            setGeneralResume({
+                id,
+                title: ResumeService.GENERAL_RESUME_TITLE,
+                date: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            });
             onOpenResume?.(id);
         } catch (error: any) {
             console.error(error);
@@ -132,29 +186,25 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
         }
     };
 
-    const generalResume = useMemo(
-        () => resumes.find(r => r.title === ResumeService.GENERAL_RESUME_TITLE) ?? null,
-        [resumes],
-    );
-    const tailoredResumes = useMemo(
-        () => resumes.filter(r => r.title !== ResumeService.GENERAL_RESUME_TITLE),
-        [resumes],
-    );
-
-    const filteredTailored = useMemo(() => {
-        const q = searchTerm.trim().toLowerCase();
-        if (!q) return tailoredResumes;
-        return tailoredResumes.filter(r =>
-            r.title.toLowerCase().includes(q) ||
-            (r.company ?? '').toLowerCase().includes(q),
-        );
-    }, [tailoredResumes, searchTerm]);
-
     const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(' ')[0]
         ?? user?.email?.split('@')[0]
         ?? t('dashboard.greetingFallbackName');
 
     const masterUpdatedAt = generalResume?.updatedAt ?? generalResume?.date;
+
+    // Pagination page-number array: always show first, last, and up to 3 around
+    // current page, with null as an ellipsis sentinel.
+    const pageNumbers = (() => {
+        if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+        const pages: (number | null)[] = [];
+        const addPage = (n: number) => { if (!pages.includes(n)) pages.push(n); };
+        addPage(1);
+        if (page > 3) pages.push(null);
+        for (let p = Math.max(2, page - 1); p <= Math.min(totalPages - 1, page + 1); p++) addPage(p);
+        if (page < totalPages - 2) pages.push(null);
+        addPage(totalPages);
+        return pages;
+    })();
 
     return (
         <div className="min-h-screen bg-paper flex flex-col">
@@ -346,15 +396,15 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     {t('dashboard.appsTitle')}
                                 </h2>
                                 <p className="text-sm text-brand-500 mt-1">
-                                    {tailoredResumes.length === 0
+                                    {tailoredTotal === 0 && !debouncedSearch
                                         ? t('dashboard.appsEmpty')
-                                        : tailoredResumes.length === 1
-                                            ? t('dashboard.appsCountOne', { count: tailoredResumes.length })
-                                            : t('dashboard.appsCountMany', { count: tailoredResumes.length })}
+                                        : tailoredTotal === 1
+                                            ? t('dashboard.appsCountOne', { count: tailoredTotal })
+                                            : t('dashboard.appsCountMany', { count: tailoredTotal })}
                                 </p>
                             </div>
 
-                            {tailoredResumes.length > 0 && (
+                            {(tailoredTotal > 0 || debouncedSearch) && (
                                 <div className="relative sm:w-72">
                                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal-400" size={16} />
                                     <input
@@ -372,7 +422,7 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                             <div className="flex justify-center py-16">
                                 <Loader2 className="animate-spin text-brand-600" size={28} />
                             </div>
-                        ) : tailoredResumes.length === 0 ? (
+                        ) : tailoredTotal === 0 && !debouncedSearch ? (
                             <div className="bg-white rounded-2xl border border-charcoal-200 px-6 py-12 text-center">
                                 <div className="w-12 h-12 mx-auto rounded-full bg-accent-50 border border-accent-100 flex items-center justify-center mb-4">
                                     <Briefcase className="text-accent-600" size={20} />
@@ -386,75 +436,144 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                                     {t('dashboard.appsEmptyStateAfter')}
                                 </p>
                             </div>
-                        ) : filteredTailored.length === 0 ? (
-                            <div className="bg-white rounded-2xl border border-charcoal-200 px-6 py-10 text-center">
-                                <p className="text-sm text-brand-500">
-                                    {t('dashboard.appsNoMatch', { query: searchTerm })}
-                                </p>
-                            </div>
                         ) : (
-                            <ul className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filteredTailored.map(resume => {
-                                    const displayTitle = resume.title.replace(/ Resume$/i, '').replace(/Resume$/i, '').trim() || t('dashboard.untitledRole');
-                                    return (
-                                        <li
-                                            key={resume.id}
-                                            className="relative bg-white rounded-2xl border border-charcoal-200 p-5 hover:border-brand-700 hover:shadow-md transition-all cursor-pointer group"
-                                            onClick={() => onOpenResume?.(resume.id)}
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-charcoal-50 border border-charcoal-200 text-brand-700 flex items-center justify-center shrink-0 group-hover:bg-accent-50 group-hover:border-accent-200 group-hover:text-accent-600 transition-colors">
-                                                    <FileText size={18} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-display text-[17px] font-semibold text-brand-700 leading-snug line-clamp-2">
-                                                        {displayTitle}
-                                                    </h3>
-                                                    {resume.company && (
-                                                        <p className="text-sm text-charcoal-500 mt-0.5 line-clamp-1">{resume.company}</p>
-                                                    )}
-                                                </div>
-                                                <div className="relative">
-                                                    <button
-                                                        type="button"
-                                                        aria-label={t('dashboard.appActionsLabel')}
-                                                        className="text-charcoal-400 hover:text-brand-700 p-1.5 -mr-1.5 rounded-full hover:bg-charcoal-50 transition-colors"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setActiveMenuId(activeMenuId === resume.id ? null : resume.id);
-                                                        }}
-                                                    >
-                                                        <MoreVertical size={18} />
-                                                    </button>
+                            <div className="relative">
+                                {/* Spinner overlay while paginating (keeps layout stable) */}
+                                {tailoredLoading && (
+                                    <div className="absolute inset-0 bg-paper/60 flex items-center justify-center z-10 rounded-2xl">
+                                        <Loader2 className="animate-spin text-brand-600" size={28} />
+                                    </div>
+                                )}
 
-                                                    {activeMenuId === resume.id && (
-                                                        <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-lg border border-charcoal-200 py-1 z-20">
+                                {tailored.length === 0 && !tailoredLoading ? (
+                                    <div className="bg-white rounded-2xl border border-charcoal-200 px-6 py-10 text-center">
+                                        <p className="text-sm text-brand-500">
+                                            {t('dashboard.appsNoMatch', { query: searchTerm })}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <ul className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {tailored.map(resume => {
+                                            const displayTitle = resume.title.replace(/ Resume$/i, '').replace(/Resume$/i, '').trim() || t('dashboard.untitledRole');
+                                            return (
+                                                <li
+                                                    key={resume.id}
+                                                    className="relative bg-white rounded-2xl border border-charcoal-200 p-5 hover:border-brand-700 hover:shadow-md transition-all cursor-pointer group"
+                                                    onClick={() => onOpenResume?.(resume.id)}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="w-10 h-10 rounded-xl bg-charcoal-50 border border-charcoal-200 text-brand-700 flex items-center justify-center shrink-0 group-hover:bg-accent-50 group-hover:border-accent-200 group-hover:text-accent-600 transition-colors">
+                                                            <FileText size={18} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h3 className="font-display text-[17px] font-semibold text-brand-700 leading-snug line-clamp-2">
+                                                                {displayTitle}
+                                                            </h3>
+                                                            {resume.company && (
+                                                                <p className="text-sm text-charcoal-500 mt-0.5 line-clamp-1">{resume.company}</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="relative">
                                                             <button
                                                                 type="button"
-                                                                className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                                                onClick={(e) => handleDeleteResume(resume.id, e)}
+                                                                aria-label={t('dashboard.appActionsLabel')}
+                                                                className="text-charcoal-400 hover:text-brand-700 p-1.5 -mr-1.5 rounded-full hover:bg-charcoal-50 transition-colors"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setActiveMenuId(activeMenuId === resume.id ? null : resume.id);
+                                                                }}
                                                             >
-                                                                <Trash size={15} className="mr-2" />
-                                                                {t('dashboard.delete')}
+                                                                <MoreVertical size={18} />
                                                             </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
 
-                                            <div className="mt-5 pt-4 border-t border-charcoal-100 flex items-center justify-between text-xs">
-                                                <span className="text-charcoal-500">
-                                                    {t('dashboard.builtOn', { when: formatRelative(resume.updatedAt ?? resume.date) ?? '' })}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 text-brand-600 font-semibold group-hover:text-accent-600 transition-colors">
-                                                    {t('dashboard.open')}
-                                                    <ArrowRight size={13} />
-                                                </span>
-                                            </div>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                                                            {activeMenuId === resume.id && (
+                                                                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-lg border border-charcoal-200 py-1 z-20">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                                                        onClick={(e) => handleDeleteResume(resume.id, e)}
+                                                                    >
+                                                                        <Trash size={15} className="mr-2" />
+                                                                        {t('dashboard.delete')}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-5 pt-4 border-t border-charcoal-100 flex items-center justify-between text-xs">
+                                                        <span className="text-charcoal-500">
+                                                            {t('dashboard.builtOn', { when: formatRelative(resume.updatedAt ?? resume.date) ?? '' })}
+                                                        </span>
+                                                        <span className="inline-flex items-center gap-1 text-brand-600 font-semibold group-hover:text-accent-600 transition-colors">
+                                                            {t('dashboard.open')}
+                                                            <ArrowRight size={13} />
+                                                        </span>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+
+                                {/* Pagination controls */}
+                                {totalPages > 1 && (
+                                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                        <p className="text-xs text-charcoal-500 order-2 sm:order-1">
+                                            {t('dashboard.appsPageRange', {
+                                                from: (page - 1) * PAGE_SIZE + 1,
+                                                to: Math.min(page * PAGE_SIZE, tailoredTotal),
+                                                total: tailoredTotal,
+                                            })}
+                                        </p>
+
+                                        <div className="flex items-center gap-1 order-1 sm:order-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                                disabled={page <= 1 || tailoredLoading}
+                                                aria-label={t('dashboard.appsPrevPage')}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-charcoal-200 text-charcoal-600 hover:border-brand-700 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <ChevronLeft size={16} />
+                                            </button>
+
+                                            {pageNumbers.map((n, i) =>
+                                                n === null ? (
+                                                    <span key={`ellipsis-${i}`} className="w-8 h-8 flex items-center justify-center text-xs text-charcoal-400 select-none">
+                                                        …
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        key={n}
+                                                        type="button"
+                                                        onClick={() => setPage(n)}
+                                                        disabled={tailoredLoading}
+                                                        aria-current={n === page ? 'page' : undefined}
+                                                        className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition-colors disabled:cursor-not-allowed ${
+                                                            n === page
+                                                                ? 'bg-brand-700 text-charcoal-50 border border-brand-700'
+                                                                : 'border border-charcoal-200 text-charcoal-600 hover:border-brand-700 hover:text-brand-700'
+                                                        }`}
+                                                    >
+                                                        {n}
+                                                    </button>
+                                                )
+                                            )}
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                                disabled={page >= totalPages || tailoredLoading}
+                                                aria-label={t('dashboard.appsNextPage')}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg border border-charcoal-200 text-charcoal-600 hover:border-brand-700 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                <ChevronRight size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </section>
 

@@ -384,6 +384,10 @@ create table generated_resumes (
   title text,
   data jsonb,
   toolkit jsonb,
+  -- Stored generated column extracted from data->targetJob->company.
+  -- Added in migration 006. Enables efficient server-side search without
+  -- scanning the full JSONB payload.
+  company text generated always as ((data -> 'targetJob' ->> 'company')) stored,
   updated_at timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );

@@ -66,6 +66,13 @@ export class ResumeService {
     return this.repository.getGeneratedResumes(userId);
   }
 
+  async getGeneratedResumesPaginated(
+    userId: string,
+    params: { page: number; pageSize: number; search?: string },
+  ) {
+    return this.repository.getGeneratedResumesPaginated(userId, params);
+  }
+
   async getGeneratedResume(id: string): Promise<ResumeData | null> {
     return this.repository.getGeneratedResume(id);
   }

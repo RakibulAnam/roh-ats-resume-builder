@@ -21,6 +21,8 @@ import {
 import { Preview } from './components/Preview';
 import { ResumeService } from '../application/services/ResumeService';
 import { isGibberish } from '../application/validation/gibberishDetector';
+import { isValidEmail } from './components/ui/EmailInput';
+import { isValidPhone } from './components/ui/PhoneInput';
 import { useAuth } from '../infrastructure/auth/AuthContext';
 import { ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { Navbar } from './components/Layout/Navbar';
@@ -294,6 +296,13 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     };
 
     switch (currentStepId) {
+      case AppStep.SECTIONS:
+        if (!resumeData.visibleSections || resumeData.visibleSections.length === 0) {
+          if (showToast) toast.error(t('builder.selectAtLeastOneSection'));
+          isValid = false;
+        }
+        break;
+
       case AppStep.TARGET_JOB:
         if (!(resumeData.targetJob?.title || '').trim()) {
           newErrors['targetJob.title'] = t('builder.errJobTitle');
@@ -318,6 +327,13 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
         }
         if (!(resumeData.personalInfo.email || '').trim()) {
           newErrors['personalInfo.email'] = t('builder.errEmail');
+          isValid = false;
+        } else if (!isValidEmail(resumeData.personalInfo.email)) {
+          newErrors['personalInfo.email'] = t('builder.errEmailInvalid');
+          isValid = false;
+        }
+        if ((resumeData.personalInfo.phone || '').trim() && !isValidPhone(resumeData.personalInfo.phone)) {
+          newErrors['personalInfo.phone'] = t('builder.errPhoneInvalid');
           isValid = false;
         }
         break;
@@ -530,9 +546,15 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
           if (!(item.email || '').trim()) {
             newErrors[`references.${index}.email`] = t('builder.errEmail');
             isValid = false;
+          } else if (!isValidEmail(item.email)) {
+            newErrors[`references.${index}.email`] = t('builder.errEmailInvalid');
+            isValid = false;
           }
           if (!(item.phone || '').trim()) {
             newErrors[`references.${index}.phone`] = t('builder.errPhone');
+            isValid = false;
+          } else if (!isValidPhone(item.phone)) {
+            newErrors[`references.${index}.phone`] = t('builder.errPhoneInvalid');
             isValid = false;
           }
           flagIfGibberish(`references.${index}.position`, item.position);
@@ -623,8 +645,32 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
     setIsGenerating(true);
     setGenerationError(null);
     try {
-      const optimizedData = await resumeService.optimizeResume(resumeData);
-      const mergedData = resumeService.mergeOptimizedData(resumeData, optimizedData);
+      // Strip selected sections that have no content so they never produce an
+      // empty header in the generated resume.
+      const dataForGeneration: ResumeData = resumeData.visibleSections
+        ? {
+            ...resumeData,
+            visibleSections: resumeData.visibleSections.filter(key => {
+              switch (key) {
+                case 'experience':      return resumeData.experience.length > 0;
+                case 'projects':        return (resumeData.projects?.length ?? 0) > 0;
+                case 'education':       return resumeData.education.length > 0;
+                case 'skills':          return resumeData.skills.length > 0;
+                case 'extracurriculars': return (resumeData.extracurriculars?.length ?? 0) > 0;
+                case 'awards':          return (resumeData.awards?.length ?? 0) > 0;
+                case 'certifications':  return (resumeData.certifications?.length ?? 0) > 0;
+                case 'affiliations':    return (resumeData.affiliations?.length ?? 0) > 0;
+                case 'publications':    return (resumeData.publications?.length ?? 0) > 0;
+                case 'languages':       return (resumeData.languages?.length ?? 0) > 0;
+                case 'references':      return (resumeData.references?.length ?? 0) > 0;
+                default:                return true;
+              }
+            }),
+          }
+        : resumeData;
+
+      const optimizedData = await resumeService.optimizeResume(dataForGeneration);
+      const mergedData = resumeService.mergeOptimizedData(dataForGeneration, optimizedData);
       setResumeData(mergedData);
       setStep(AppStep.PREVIEW);
 

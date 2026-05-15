@@ -356,6 +356,18 @@ export function classifyFitMode(data: ResumeData): FitClassification {
 // generic JD-shaped filler. Filtered for length so we don't trigger on
 // 1–2 char artifacts.
 
+// Returns true when a stored anchor string contains enough ASCII letters that
+// the AI's English output can plausibly reproduce it. Anchors stored entirely
+// in Bengali script (or other non-Latin scripts) will never substring-match an
+// English-language AI output, so excluding them prevents false-positive
+// specificity failures for candidates who fill their profiles in Bengali.
+function isLatinRepresentable(anchor: string): boolean {
+  const letters = anchor.replace(/[^a-zA-Zঀ-৿]/g, '');
+  if (letters.length === 0) return false;
+  const latinCount = (anchor.match(/[a-zA-Z]/g) ?? []).length;
+  return latinCount / letters.length >= 0.5;
+}
+
 export function buildCandidateAnchors(data: ResumeData): string[] {
   const anchors: string[] = [];
   for (const e of data.experience ?? []) {
@@ -814,19 +826,23 @@ export function assertOutreachSpecificity(
   const anchors = buildCandidateAnchors(data);
 
   const hasCompany = !!company && lc.includes(company.toLowerCase());
-  const hasAnchor = anchors.some(a => lc.includes(a.toLowerCase()));
+  const hasAnchor = anchors.some(a => isLatinRepresentable(a) && lc.includes(a.toLowerCase()));
 
   if (mode === 'both') {
     if (!hasCompany && !!company) {
       throw new ToolkitSpecificityError(`output never names target company "${company}"`);
     }
-    if (anchors.length > 0 && !hasAnchor) {
+    // Only enforce the candidate-anchor check when:
+    //   1. The target company was NOT already found (company presence alone is sufficient
+    //      specificity — enforcing both is too strict and breaks for non-Latin anchor names).
+    //   2. There are Latin-representable anchors the AI could plausibly reproduce.
+    const latinAnchors = anchors.filter(isLatinRepresentable);
+    if (!hasCompany && latinAnchors.length > 0 && !hasAnchor) {
       throw new ToolkitSpecificityError('output never references a candidate proper noun (company / role / project / cert / school)');
     }
   } else {
-    const ok = (hasCompany || !company) && (hasAnchor || anchors.length === 0);
     const okEither = hasCompany || hasAnchor || (!company && anchors.length === 0);
-    if (!okEither && !ok) {
+    if (!okEither) {
       throw new ToolkitSpecificityError('output is generic — no target company OR candidate anchor present');
     }
   }
@@ -846,8 +862,8 @@ export function countAnchoredStrategies(
   strategies: string[],
   data: ResumeData
 ): number {
-  const anchors = buildCandidateAnchors(data);
-  if (anchors.length === 0) return strategies.length; // can't enforce
+  const anchors = buildCandidateAnchors(data).filter(isLatinRepresentable);
+  if (anchors.length === 0) return strategies.length; // can't enforce — no matchable anchors
   let count = 0;
   for (const s of strategies) {
     const lc = s.toLowerCase();

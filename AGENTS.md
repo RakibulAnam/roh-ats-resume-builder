@@ -185,6 +185,8 @@ The user prompt also injects a `SENIORITY` line (Junior / Mid / Senior / Senior+
 - `gibberishDetector.ts` + `dictionaries.ts` — catches keyboard-mash on long free-form resume fields. Bengali Unicode passes through; romanized Banglish is rescued by a hand-curated word list. Conservative thresholds (errs toward letting borderline text through). Throws `GibberishContentError` with the offending field name; callers should pass `error.message` to `toast.error` rather than swallowing it.
 - `emailValidator.ts` — signup gate using `validator.isEmail` for format, `disposable-email-domains` for known throwaways (lazy-imported, ~2 MB JSON kept out of the initial bundle), plus a local-part shape check. Async; only runs on signup, not login.
 
+**Form-field email + phone validation.** Every email/phone field across `FormSteps` (PersonalInfoStep, ReferencesStep), `ReferenceSection` (master profile), and `ProfileScreen` flows through two shared UI primitives in `src/presentation/components/ui/`: `EmailInput` (synchronous `validator.isEmail` check — the disposable-list gate is reserved for signup only, to stay off the keystroke path) and `PhoneInput` (international country picker + `libphonenumber-js` validation — stores E.164 international format, defaults country to BD). Both export `isValidEmail` / `isValidPhone` helpers used by the form-submit validators in `BuilderScreen.validateStep()` and `ProfileSetupScreen.validateCurrentStep()`. Do NOT introduce raw `<input type="email">` or `type="tel">` inside the builder/profile flows — wire through these components so the per-field error UX stays consistent.
+
 When adding a new AI entry point: add a corresponding `assertContentIsReal`-style gate at the top of the service method, listing the user-supplied free-form fields that feed the prompt. Skip short structured fields (names, dates, locations) — too noisy to score and not where waste comes from.
 
 **Monetization & credit gate.** Tailored toolkit generation is the paid tier. The free tier is the General Resume (optimizer only, no toolkit). Splitting them is enforced at the endpoint layer:
@@ -388,6 +390,7 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
   - `id`, `user_id`, `title`, `created_at`, `updated_at`
   - `data jsonb` — `ResumeData` minus toolkit
   - `toolkit jsonb` — `JobToolkit` (outreach email / LinkedIn note / interview questions)
+  - `company text GENERATED ALWAYS AS ((data -> 'targetJob' ->> 'company')) STORED` — extracted for efficient dashboard search (added migration 006)
 - `purchases` — audit trail for the monetization flow. One row per purchase event (`credits_granted`, `amount_taka`, `payment_reference`, `status`). RLS allows users to SELECT their own; INSERT only via the `process_mock_purchase` RPC (no direct INSERT policy).
 - `ai_call_log` — per-user daily-cap audit trail (existing).
 - RPC `public.delete_user()` — deletes all user-owned rows (including `purchases`) then the auth user
@@ -404,6 +407,7 @@ All tables have RLS enabled; policies restrict rows to `auth.uid() = user_id`.
 - `supabase/migrations/003_add_ai_call_log.sql` — adds `ai_call_log` table for per-user daily-cap rate limiting at the `/api/*` layer
 - `supabase/migrations/004_add_toolkit_credits.sql` — adds `profiles.toolkit_credits`, `purchases` table, and the original credit-system RPCs (`consume_toolkit_credit`, `refund_toolkit_credit`, `process_mock_purchase`)
 - `supabase/migrations/005_lock_toolkit_credits_and_bkash_pending.sql` — column-level GRANT lockdown on `profiles` (closes the toolkit_credits self-grant exploit), drops `process_mock_purchase`, adds `initiate_purchase` + `confirm_purchase` for the bKash + Flutter-SMS-watcher flow, adds `purchases.sender_msisdn` + unique index on `payment_reference`
+- `supabase/migrations/006_add_company_generated_column.sql` — adds `generated_resumes.company` stored generated column + trigram indexes on `title`/`company` for server-side paginated search in the dashboard
 
 **Running migrations**: open the Supabase SQL editor and paste the migration file contents. All migrations are idempotent (`add column if not exists`, `create index if not exists`, `create or replace function`).
 
