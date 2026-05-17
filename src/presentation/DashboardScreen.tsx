@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     Plus,
     FileText,
@@ -79,6 +79,16 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
     const [buildingMaster, setBuildingMaster] = useState(false);
     const [credits, setCredits] = useState<number | null>(null);
     const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
+
+    const refreshCredits = useCallback(async () => {
+        if (!user) return;
+        try {
+            const balance = await profileRepository.getToolkitCredits(user.id);
+            if (balance !== null) setCredits(balance);
+        } catch (err) {
+            console.warn('Could not refresh toolkit credits', err);
+        }
+    }, [user]);
 
     const totalPages = Math.ceil(tailoredTotal / PAGE_SIZE);
 
@@ -641,10 +651,10 @@ export const DashboardScreen = ({ onCreateNew, onEditProfile, onOpenApplication,
                 isOpen={purchaseModalOpen}
                 onClose={() => setPurchaseModalOpen(false)}
                 // Pending purchases credit asynchronously when the bKash SMS is
-                // verified. Re-fetch on close so the latest balance shows next
-                // time the user opens the dashboard; the actual grant lands
-                // out-of-band via the /api/confirm-purchase webhook.
-                onSuccess={() => { void loadData(); }}
+                // verified. In dev mock mode the grant is synchronous, so we
+                // refetch the balance immediately; in prod the modal closes
+                // before credits land and the next dashboard mount picks it up.
+                onSuccess={() => { void refreshCredits(); }}
             />
         </div>
     );

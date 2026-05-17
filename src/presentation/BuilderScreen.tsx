@@ -741,14 +741,24 @@ export const BuilderScreen: React.FC<BuilderScreenProps> = ({
   };
 
   const handlePurchaseSuccess = () => {
-    // The bKash flow is asynchronous: the user has just submitted a pending
-    // purchase. Credits land later when the Flutter SMS-watcher confirms.
-    // We can't auto-resume generation here — the credits aren't there yet.
-    // The user will need to manually click Generate again once the credits
-    // arrive (the credit badge in the navbar updates on the next dashboard
-    // load / poll). Drop the queued auto-generate flag so we don't surprise
-    // them later.
-    setResumeGenerateAfterPurchase(false);
+    if (!user) return;
+    // Re-fetch credits immediately. In dev/mock mode the credits are already
+    // in the DB by the time onSuccess fires; in production they may still be
+    // pending, but a single re-fetch is cheap and correct for the mock path.
+    profileRepository
+      .getToolkitCredits(user.id)
+      .then(n => {
+        setCredits(n);
+        if (resumeGenerateAfterPurchase && n > 0) {
+          setResumeGenerateAfterPurchase(false);
+          void handleGenerate({ skipCreditCheck: true });
+        } else {
+          setResumeGenerateAfterPurchase(false);
+        }
+      })
+      .catch(() => {
+        setResumeGenerateAfterPurchase(false);
+      });
   };
 
   const handlePurchaseClose = () => {

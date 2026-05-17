@@ -13,6 +13,57 @@ The work has three threads, in priority order:
 2. New API endpoints for the cases that currently leave a purchase stuck.
 3. UI surfaces for the customer (status of their submission) and for me, the operator (manual reconciliation tools).
 
+## 0. Real-world incidents witnessed before this prompt runs — START HERE
+
+Two cases from §2 have been promoted to **P0 — ship these first, in this
+order, before touching anything else in this prompt**:
+
+### P0-A — Case #3 (underpayment). REVENUE LEAK.
+
+On 2026-05-17 the operator sent Tk 30 for a Tk 200 package while
+testing the watcher with a real bKash send. The system granted the
+full 5-credit pack anyway because `confirm_purchase` doesn't compare
+amounts. In production today, a customer can pay Tk 1 and get a full
+pack. **Do not expose the purchase flow to any real customer before
+this is fixed.**
+
+The minimum-viable patch is the amount check in
+`api/confirm-purchase.ts` BEFORE the RPC call — return HTTP 409 with
+`code: 'underpaid'` if the SMS-observed amount is less than the
+pending row's `amount_taka`. That alone closes the revenue leak even
+before the full state machine + top-up UX from §2 row #3 ship. The
+watcher already handles 409 as a terminal `mismatch` state, so the
+operator will get a notification and can recover via P0-B below.
+
+### P0-B — Case #11 (operator manual confirm). RECOVERY PATH.
+
+On 2026-05-17 the operator's Flutter watcher crashed mid-transaction
+during a real Tk 200 send. The pending row sat indefinitely with no
+self-serve recovery path. The only way back was an out-of-band curl
+with the bKash webhook secret pasted into a terminal under stress.
+
+Ship `POST /api/admin/confirm-purchase` (case #11) before the next
+real transaction. Body: `{ transactionId, observedMsisdn?,
+overrideMsisdnCheck?, reason }`. Auth: `X-Admin-Key` header against a
+new `ADMIN_API_KEY` env var (separate value from
+`BKASH_WEBHOOK_SECRET` — different blast radius). Calls the same
+`confirm_purchase` RPC under service role; logs to
+`purchase_state_changes` with actor `'operator'` + reason. Roughly 30
+lines. This becomes the safety net for every future watcher failure,
+parser drift, sender-ID change, or carrier oddity.
+
+### Why these two first
+
+Without P0-A: anyone deliberately underpays and the system gives away
+free credits. Without P0-B: the next watcher failure (and there will
+be a next one) requires an engineer in the loop. Neither is
+acceptable for a production payment surface. Everything else in §2 is
+supporting work and can ship in any order after these two — though
+the customer-facing status polling from §6 is the strongest next
+candidate.
+
+---
+
 ## 1. What's already in place (do not rebuild)
 
 **Database** (already migrated):
